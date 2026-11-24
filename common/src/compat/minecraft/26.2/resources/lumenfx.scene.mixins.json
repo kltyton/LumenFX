@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.kltyton.lumenfx.client.render.scene.capture.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["CommandEncoderSceneCaptureMixin", "GlRenderPassSceneCaptureMixin", "VulkanRenderPassSceneCaptureMixin", "RenderPassScenePipelineMixin", "ClientLevelCollisionSceneMixin"],
+  "injectors": {"defaultRequire": 1}
+}

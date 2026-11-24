@@ -1,0 +1,192 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "shading_energy",
+  "name": "transmission_unorm16",
+  "pass": "transmission_unorm16",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "substrate",
+    "defines": {
+      "SUBSTRATE_ENABLED": "1"
+    },
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [],
+  "sourceResources": [
+    {
+      "name": "OutputTexture3D",
+      "kind": "shading_energy_table",
+      "hlsl_type": "RWTexture3D<float2>",
+      "gpuFormat": "RG16_UNORM",
+      "dxcImageFormat": "rg16",
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "workgroup": {
+        "x": 8,
+        "y": 8,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": true,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": false
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "Globals",
+          "sourceName": "$Globals",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageImage",
+          "name": "OutputTexture3D",
+          "format": "RG16_UNORM",
+          "formatRule": "source-selected manifest resource format",
+          "descriptorSet": 0,
+          "descriptorBinding": 6,
+          "access": "READ_WRITE",
+          "array": false,
+          "glBinding": 0,
+          "volume": true,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 11284,
+          "sha256": "7c7d1c1d989a950b0f19ab1cecfab1a06eb72a9881578fec0160db2ec5cd733d"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 20936,
+          "sha256": "8c389502c752264cb852b64030b296a4299c183f9490767ba1bef7e07668731a"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          8,
+          8,
+          1
+        ],
+        "capabilities": [
+          1,
+          49
+        ],
+        "uniformBuffers": [
+          {
+            "name": "Globals",
+            "sourceName": "$Globals",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "size": 8,
+            "members": [
+              {
+                "name": "NumSamples",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "EnergyTableResolution",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 4,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [],
+        "storageImages": [
+          {
+            "name": "OutputTexture3D",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "array": false,
+            "imageStorageFormat": 12
+          }
+        ],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "substrate",
+      "pipelinePass": "transmission_unorm16",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "BuildEnergyTableCS",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "Globals",
+      "sourceName": "$Globals",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageImage",
+      "name": "OutputTexture3D",
+      "format": "RG16_UNORM",
+      "formatRule": "source-selected manifest resource format",
+      "descriptorSet": 0,
+      "descriptorBinding": 6,
+      "access": "READ_WRITE",
+      "array": false,
+      "glBinding": 0,
+      "volume": true,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 11284,
+        "sha256": "7c7d1c1d989a950b0f19ab1cecfab1a06eb72a9881578fec0160db2ec5cd733d"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 20936,
+        "sha256": "8c389502c752264cb852b64030b296a4299c183f9490767ba1bef7e07668731a"
+      }
+    }
+  }
+}

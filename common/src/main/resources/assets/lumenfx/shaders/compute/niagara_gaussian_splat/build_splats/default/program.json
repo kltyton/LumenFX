@@ -1,0 +1,608 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_gaussian_splat",
+  "name": "build_splats",
+  "pass": "build_splats",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "default",
+    "defines": {},
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [
+    {
+      "resource": "ParticleCountBuffer",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    }
+  ],
+  "sourceResources": [
+    {
+      "name": "ParticleCountBuffer",
+      "kind": "storage_buffer",
+      "niagara_buffer_lowering": "read:uint",
+      "stride_bytes": 4
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Plugins/GaussianSplat/Shaders/Private/NiagaraGaussianSplatBuildSplats.usf",
+      "workgroup": {
+        "x": 64,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "Globals",
+          "sourceName": "$Globals",
+          "descriptorSet": 0,
+          "descriptorBinding": 3,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NiagaraParticleDataFloat",
+          "descriptorSet": 0,
+          "descriptorBinding": 0,
+          "access": "READ_ONLY",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NiagaraParticleDataHalf",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "access": "READ_ONLY",
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NiagaraParticleDataInt",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "access": "READ_ONLY",
+          "glBinding": 2,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "ParticleCountBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 116,
+          "access": "READ_ONLY",
+          "glBinding": 3,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "RWSplatBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 117,
+          "access": "READ_WRITE",
+          "glBinding": 4,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 15748,
+          "sha256": "21f8fc84277081c7396e97fc9db683b0213185ad9a6a3ce70d9add863a25170d"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 23616,
+          "sha256": "d86278d57e10bfb831272462e00f9225a8db718ec869b46c6ddf6241751c47c3"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          64,
+          1,
+          1
+        ],
+        "capabilities": [
+          1,
+          46
+        ],
+        "uniformBuffers": [
+          {
+            "name": "Globals",
+            "sourceName": "$Globals",
+            "descriptorSet": 0,
+            "descriptorBinding": 3,
+            "size": 192,
+            "members": [
+              {
+                "name": "NiagaraFloatDataStride",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NiagaraIntDataStride",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 4,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "PositionRegister",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 8,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "ScaleRegister",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 12,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "RotationRegister",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 16,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "ColorRegister",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 20,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "VisibilityTagRegister",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 24,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "DefaultPosition",
+                "type": "vec3",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 3,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 32,
+                "size": 12,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "DefaultScale",
+                "type": "vec3",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 3,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 48,
+                "size": 12,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "DefaultRotation",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 64,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "DefaultColor",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 80,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "DefaultVisibilityTag",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 96,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "RendererVisibility",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 100,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "ParticleCountOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 104,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "ParticleCount",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 108,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MaxSplats",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 112,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "SplatStride",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 116,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "WorkingColorSpaceToSRGB",
+                "type": "mat4x4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 4,
+                "arrayDimensions": [],
+                "offset": 128,
+                "size": 64,
+                "matrixStride": 16,
+                "matrixOrder": "row-major",
+                "rowMajor": true,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [
+          {
+            "name": "NiagaraParticleDataFloat",
+            "sourceName": "NiagaraParticleDataFloat",
+            "descriptorSet": 0,
+            "descriptorBinding": 0,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "float[]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "NiagaraParticleDataHalf",
+            "sourceName": "NiagaraParticleDataHalf",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "NiagaraParticleDataInt",
+            "sourceName": "NiagaraParticleDataInt",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "int[]",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "ParticleCountBuffer",
+            "sourceName": "ParticleCountBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 116,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "RWSplatBuffer",
+            "sourceName": "RWSplatBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 117,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "default",
+      "pipelinePass": "build_splats",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "MainCS",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "Globals",
+      "sourceName": "$Globals",
+      "descriptorSet": 0,
+      "descriptorBinding": 3,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NiagaraParticleDataFloat",
+      "descriptorSet": 0,
+      "descriptorBinding": 0,
+      "access": "READ_ONLY",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NiagaraParticleDataHalf",
+      "descriptorSet": 0,
+      "descriptorBinding": 1,
+      "access": "READ_ONLY",
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NiagaraParticleDataInt",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "access": "READ_ONLY",
+      "glBinding": 2,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "ParticleCountBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 116,
+      "access": "READ_ONLY",
+      "glBinding": 3,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "RWSplatBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 117,
+      "access": "READ_WRITE",
+      "glBinding": 4,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 15748,
+        "sha256": "21f8fc84277081c7396e97fc9db683b0213185ad9a6a3ce70d9add863a25170d"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 23616,
+        "sha256": "d86278d57e10bfb831272462e00f9225a8db718ec869b46c6ddf6241751c47c3"
+      }
+    }
+  }
+}

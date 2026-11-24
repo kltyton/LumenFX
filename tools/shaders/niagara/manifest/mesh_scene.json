@@ -1,0 +1,334 @@
+{
+  "schema": "lumenfx.niagara.mesh_scene.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2",
+    "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPILER_DXC": 1,
+      "COMPILER_HLSL": 1,
+      "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0,
+      "COMPILER_GLSL_ES3_1": 0,
+      "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0,
+      "SM5_PROFILE": 1,
+      "FEATURE_LEVEL": 5,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0,
+      "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1,
+      "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0,
+      "COMPILER_SUPPORTS_HLSL2021": 1,
+      "SUPPORTS_INDEPENDENT_SAMPLERS": 1,
+      "UE_BINDLESS_ENABLED": 0,
+      "LFX_MESH_NIAGARA": 1,
+      "PLATFORM_ALLOW_SCENE_DATA_COMPRESSED_TRANSFORMS": 1
+    },
+    "include_overrides": [
+      {
+        "from": "Engine/Shaders/Private/Common.ush",
+        "to": "tools/shaders/shared/compat/Common.ush"
+      },
+      {
+        "from": "Engine/Shaders/Public/Platform.ush",
+        "to": "tools/shaders/shared/compat/Platform.ush"
+      },
+      {
+        "from": "LumenFX/NiagaraMeshScene.usf",
+        "to": "tools/shaders/niagara/compat/MeshScene.usf"
+      },
+      {
+        "from": "Engine/Shaders/Generated/LumenMeshParticleUniforms.ush",
+        "to": "common/src/main/resources/assets/lumenfx/shaders/include/niagara_gpu_particle_data.glsl"
+      },
+      {
+        "from": "Engine/Shaders/Generated/LumenMeshRendererUniforms.ush",
+        "to": "common/src/main/resources/assets/lumenfx/shaders/include/niagara_mesh_main.glsl"
+      },
+      {
+        "from": "LumenFX/NiagaraMeshSceneCull.usf",
+        "to": "tools/shaders/niagara/compat/MeshSceneCull.usf"
+      }
+    ]
+  },
+  "passes": [
+    {
+      "name": "prepare",
+      "source": "LumenFX/NiagaraMeshScene.usf",
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "niagara_mesh_scene_source": true,
+      "variants": [
+        {
+          "id": "cpu",
+          "defines": {
+            "LFX_SCENE_GPU": 0
+          }
+        },
+        {
+          "id": "gpu",
+          "defines": {
+            "LFX_SCENE_GPU": 1
+          }
+        }
+      ],
+      "resources": [
+        {
+          "name": "OutMeshSceneMetrics",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<float4>",
+          "hlsl_type": "RWStructuredBuffer<float4>",
+          "stride_bytes": 16,
+          "uav": true
+        },
+        {
+          "name": "CpuEmitterSceneData",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NiagaraParticleDataFloat",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float>",
+          "hlsl_type": "StructuredBuffer<float>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NiagaraParticleDataHalf",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "CpuMeshInstances",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float>",
+          "hlsl_type": "StructuredBuffer<float>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "CpuMeshExtra",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float>",
+          "hlsl_type": "StructuredBuffer<float>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "SceneParticleCounts",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "OutMeshSceneTransforms",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<float4>",
+          "hlsl_type": "RWStructuredBuffer<float4>",
+          "stride_bytes": 16,
+          "uav": true
+        }
+      ]
+    },
+    {
+      "name": "compaction_offsets",
+      "source": "Engine/Shaders/Private/InstanceCulling/CompactVisibleInstances.usf",
+      "stage": "compute",
+      "entrypoint": "CalculateCompactBlockInstanceOffsetsCS",
+      "defines": {
+        "NUM_THREADS_PER_GROUP": 64,
+        "COMPACTION_BLOCK_NUM_INSTANCES": 64,
+        "INDIRECT_ARGS_NUM_WORDS": 5,
+        "COMPILER_SUPPORTS_WAVE_VOTE": 0,
+        "COMPACTION_USES_WAVE_OPS": 0,
+        "CALCULATE_COMPACT_BLOCK_INSTANCE_OFFSETS": 1,
+        "COMPACT_VISIBLE_INSTANCES": 0
+      },
+      "variants": [
+        {
+          "id": "default",
+          "defines": {}
+        }
+      ],
+      "resources": [
+        {
+          "name": "DrawCommandCompactionData",
+          "kind": "niagara_indirect_buffer",
+          "original_hlsl_type": "StructuredBuffer<FPackedDrawCommandCompactionData>",
+          "hlsl_type": "StructuredBuffer<FPackedDrawCommandCompactionData>",
+          "stride_bytes": 20
+        },
+        {
+          "name": "BlockInstanceCounts",
+          "kind": "niagara_indirect_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "BlockDestInstanceOffsetsOut",
+          "kind": "niagara_indirect_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "DrawIndirectArgsBufferOut",
+          "kind": "niagara_indirect_buffer",
+          "original_hlsl_type": "RWBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        }
+      ]
+    },
+    {
+      "name": "compaction_scatter",
+      "source": "Engine/Shaders/Private/InstanceCulling/CompactVisibleInstances.usf",
+      "stage": "compute",
+      "entrypoint": "CompactVisibleInstances",
+      "defines": {
+        "NUM_THREADS_PER_GROUP": 64,
+        "COMPACTION_BLOCK_NUM_INSTANCES": 64,
+        "INDIRECT_ARGS_NUM_WORDS": 5,
+        "COMPILER_SUPPORTS_WAVE_VOTE": 0,
+        "COMPACTION_USES_WAVE_OPS": 0,
+        "CALCULATE_COMPACT_BLOCK_INSTANCE_OFFSETS": 0,
+        "COMPACT_VISIBLE_INSTANCES": 1
+      },
+      "variants": [
+        {
+          "id": "default",
+          "defines": {}
+        }
+      ],
+      "resources": [
+        {
+          "name": "DrawCommandCompactionData",
+          "kind": "niagara_indirect_buffer",
+          "original_hlsl_type": "StructuredBuffer<FPackedDrawCommandCompactionData>",
+          "hlsl_type": "StructuredBuffer<FPackedDrawCommandCompactionData>",
+          "stride_bytes": 20
+        },
+        {
+          "name": "BlockDrawCommandIndices",
+          "kind": "niagara_indirect_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "InstanceIdsBufferIn",
+          "kind": "niagara_indirect_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "BlockDestInstanceOffsets",
+          "kind": "niagara_indirect_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "InstanceIdsBufferOut",
+          "kind": "niagara_indirect_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        }
+      ]
+    },
+    {
+      "name": "cull",
+      "source": "LumenFX/NiagaraMeshSceneCull.usf",
+      "stage": "compute",
+      "entrypoint": "CullCS",
+      "niagara_mesh_scene_culling_source": true,
+      "defines": {
+        "NUM_THREADS_PER_GROUP": 64
+      },
+      "variants": [
+        {
+          "id": "default",
+          "defines": {}
+        }
+      ],
+      "resources": [
+        {
+          "name": "NiagaraParticleDataFloat",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float>",
+          "hlsl_type": "StructuredBuffer<float>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NiagaraParticleDataHalf",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NiagaraParticleDataInt",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<int>",
+          "hlsl_type": "StructuredBuffer<int>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "SceneSortedIndices",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<int>",
+          "hlsl_type": "StructuredBuffer<int>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "SceneParticleCounts",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "MeshSceneTransforms",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "MeshSceneMetrics",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "OutMeshSceneRawIndices",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "OutMeshSceneBlockCounts",
+          "kind": "mesh_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "FileVersion": 3,
+  "Category": "Asset Processing",
+  "Description": "Offline platform texture build using the source asset settings.",
+  "Modules": [
+    { "Name": "LumenFxTextureBuild", "Type": "Program", "LoadingPhase": "Default" }
+  ]
+}

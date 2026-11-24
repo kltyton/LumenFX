@@ -1,0 +1,4597 @@
+{
+  "schema": "lumenfx.volume_material_program.v2",
+  "ray": {
+    "none": {
+      "direct": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.none.direct.volume.vk.spv",
+            "size": 52936,
+            "sha256": "f5755ce252cccaa4467fa899ab76532178c9755349340b8da5d700da9d2b5069"
+          },
+          "opengl": {
+            "path": "preshaded.none.direct.volume.gl.spv",
+            "size": 52936,
+            "sha256": "890c91d48b79755984798958a8e62f48840958881a3b2779d76ef7f4aab1a7c1"
+          }
+        }
+      },
+      "shadow": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "VolumePointShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeShadowDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": true,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.none.shadow.volume.vk.spv",
+            "size": 60824,
+            "sha256": "c07edf3c47de311130511be841632738915c65c95c8c386786e7eaf69641d667"
+          },
+          "opengl": {
+            "path": "preshaded.none.shadow.volume.gl.spv",
+            "size": 60824,
+            "sha256": "6d2d5250f8e8e8e2c97641fc37c2ff8189cce7169ca029a3090416fac571da1c"
+          }
+        }
+      },
+      "inscattering": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeLightingCache",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.none.inscattering.volume.vk.spv",
+            "size": 21968,
+            "sha256": "5f23431c92bbba8f944cf25e5c29f38aadc945d65d3ec903289bd53210808af2"
+          },
+          "opengl": {
+            "path": "preshaded.none.inscattering.volume.gl.spv",
+            "size": 21968,
+            "sha256": "150a79f3fb428dc5885011f8d36a96b779a58052f7c639757df4f2db60225c7d"
+          }
+        }
+      },
+      "transmittance": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeLightingCache",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.none.transmittance.volume.vk.spv",
+            "size": 50328,
+            "sha256": "e303ca763e5e86d0578ec28105f381b35478612dc6026a75309154146b2fef3e"
+          },
+          "opengl": {
+            "path": "preshaded.none.transmittance.volume.gl.spv",
+            "size": 50328,
+            "sha256": "91f739db75a099be25a828dc520130f8c7adc03def3ca658ca94ced2deb4a1ad"
+          }
+        }
+      },
+      "transmittance_shadow": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "VolumePointShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 8,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeShadowDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": true,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeLightingCache",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.none.transmittance_shadow.volume.vk.spv",
+            "size": 58216,
+            "sha256": "d29c20056da3952f39f307d424b1fbed62bd597c8a4b7bc4e5a0ad7b5f0d48a2"
+          },
+          "opengl": {
+            "path": "preshaded.none.transmittance_shadow.volume.gl.spv",
+            "size": 58216,
+            "sha256": "c305115b6132fe4df35a327f12fa43a65dea068dc31f46bf681737c81c3ea29f"
+          }
+        }
+      },
+      "spot_shadow": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "VolumePointShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSpotShadowDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.none.spot_shadow.volume.vk.spv",
+            "size": 61160,
+            "sha256": "86c25c6d4461596e860dc3f24e87bcbcd167f498379c9574abe8ab7cb8c00c24"
+          },
+          "opengl": {
+            "path": "preshaded.none.spot_shadow.volume.gl.spv",
+            "size": 61160,
+            "sha256": "20847e690ee6742816e2d830808a265199d9221f33c59d4e0be245a16db8db0e"
+          }
+        }
+      },
+      "transmittance_spot_shadow": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "VolumePointShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 8,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSpotShadowDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeLightingCache",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.none.transmittance_spot_shadow.volume.vk.spv",
+            "size": 58552,
+            "sha256": "f71cba9b749e41a7d210a557e7ff17b4f654a353e6ce0b91708775b3a0478f44"
+          },
+          "opengl": {
+            "path": "preshaded.none.transmittance_spot_shadow.volume.gl.spv",
+            "size": 58552,
+            "sha256": "c9951d602e91a6b24963261f33cba13cd39608dda2b220a2ff547cf24da6a7ee"
+          }
+        }
+      }
+    },
+    "height": {
+      "direct": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 2
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.height.direct.volume.vk.spv",
+            "size": 62072,
+            "sha256": "0fdec10052e056965c17876100db1f586653fdcf6cd8ac4b86494c92cb212923"
+          },
+          "opengl": {
+            "path": "preshaded.height.direct.volume.gl.spv",
+            "size": 62072,
+            "sha256": "c0ced6940d2ae0f77d4d4a11bb5ebad51ff2598e8274232a600001634364f87d"
+          }
+        }
+      },
+      "shadow": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 3
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "VolumePointShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeShadowDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": true,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.height.shadow.volume.vk.spv",
+            "size": 69960,
+            "sha256": "34ce0bad472b9a752aaf7c0a46cd93e4d74a30ea4c4fccb830faaedfb6bdc6f6"
+          },
+          "opengl": {
+            "path": "preshaded.height.shadow.volume.gl.spv",
+            "size": 69960,
+            "sha256": "e2ec6b2114fe692eb6c1d43773ae3e7fe4efdc955dd0c003782c24ad6ef49681"
+          }
+        }
+      },
+      "inscattering": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeLightingCache",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.height.inscattering.volume.vk.spv",
+            "size": 31104,
+            "sha256": "7d646069f32b063138a6fe748eec188ed0c10edae7e7cc4fb28c742adcf360da"
+          },
+          "opengl": {
+            "path": "preshaded.height.inscattering.volume.gl.spv",
+            "size": 31104,
+            "sha256": "17e2b7b80dc6275bc7c8b08b635e401f408a386587af9790dedc95c2ace57cc8"
+          }
+        }
+      },
+      "transmittance": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 2
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeLightingCache",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.height.transmittance.volume.vk.spv",
+            "size": 59464,
+            "sha256": "9912cd931437d36488f376f5047fdccc5732a93d45999ce985f1282f0464ef6d"
+          },
+          "opengl": {
+            "path": "preshaded.height.transmittance.volume.gl.spv",
+            "size": 59464,
+            "sha256": "7523b1454303b3d10155ceb510bbb113002e976f27d95e6eb9a130ac44abe9e0"
+          }
+        }
+      },
+      "transmittance_shadow": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 13,
+              "glBinding": 3
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "VolumePointShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 8,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeShadowDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": true,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeLightingCache",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.height.transmittance_shadow.volume.vk.spv",
+            "size": 67352,
+            "sha256": "271500400f760fa60e033b775f8314a777d8f6c63b627ce5b567a2d9622e2036"
+          },
+          "opengl": {
+            "path": "preshaded.height.transmittance_shadow.volume.gl.spv",
+            "size": 67352,
+            "sha256": "7a5cc62e45217cf7ab44dd269a7a4e0fe718764a268b91adbe6e04dca6bd8281"
+          }
+        }
+      },
+      "spot_shadow": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 3
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "VolumePointShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSpotShadowDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.height.spot_shadow.volume.vk.spv",
+            "size": 70296,
+            "sha256": "ddab719d2c9cfb065b2449abc12b81f795867a9691a91f8022d375c631365277"
+          },
+          "opengl": {
+            "path": "preshaded.height.spot_shadow.volume.gl.spv",
+            "size": 70296,
+            "sha256": "fc8a46922d918b452d5136026cab1404cfad3204e7717b78d7d5fcd9077144c2"
+          }
+        }
+      },
+      "transmittance_spot_shadow": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 13,
+              "glBinding": 3
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "VolumePointShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 8,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSpotShadowDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeLightingCache",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.height.transmittance_spot_shadow.volume.vk.spv",
+            "size": 67688,
+            "sha256": "06cfd55bd70ce0db728b75100bdd254504b86cb39b9692f5010d92a28ed9b63e"
+          },
+          "opengl": {
+            "path": "preshaded.height.transmittance_spot_shadow.volume.gl.spv",
+            "size": 67688,
+            "sha256": "32304643a58c922b72d27801041fd89dcfb686adbc950a18244f72b1a5d40c76"
+          }
+        }
+      }
+    },
+    "froxel": {
+      "direct": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "FogVolume",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 3
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "FogVolumeSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.froxel.direct.volume.vk.spv",
+            "size": 70224,
+            "sha256": "6f944f20a418379e549ee6a3bd03349df897b36659e909c2cd56d50133890e1e"
+          },
+          "opengl": {
+            "path": "preshaded.froxel.direct.volume.gl.spv",
+            "size": 70224,
+            "sha256": "ac5f4dd9a48d7f44f8cba04bcd2631e46b9ddff46f6a58b6f9ea9ff17bd1767d"
+          }
+        }
+      },
+      "shadow": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 3
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "FogVolume",
+              "descriptorSet": 0,
+              "descriptorBinding": 13,
+              "glBinding": 4
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "VolumePointShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "FogVolumeSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 14,
+              "glBinding": 8,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeShadowDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": true,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.froxel.shadow.volume.vk.spv",
+            "size": 78112,
+            "sha256": "0190c24a1149255b1b48ff0aeb4ba5ae59fa118fa32d66de1662dbb45b36d3c8"
+          },
+          "opengl": {
+            "path": "preshaded.froxel.shadow.volume.gl.spv",
+            "size": 78112,
+            "sha256": "67f990bd8afdecaffe6ec0b71ac58314686d90ffed48d03c8494a20b7e268e7d"
+          }
+        }
+      },
+      "inscattering": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "FogVolume",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 3
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "FogVolumeSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 13,
+              "glBinding": 8,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeLightingCache",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.froxel.inscattering.volume.vk.spv",
+            "size": 39304,
+            "sha256": "a1edb6e5a17f0edfa75b902a4a6ef202e39113519e4c5a6b8ba96db125cce35b"
+          },
+          "opengl": {
+            "path": "preshaded.froxel.inscattering.volume.gl.spv",
+            "size": 39304,
+            "sha256": "6827cb9ac84d3ae62e6757ee1e274c657cdbfed0dcb0c0bca0275b5a9a2ac628"
+          }
+        }
+      },
+      "transmittance": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "FogVolume",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 3
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "FogVolumeSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 13,
+              "glBinding": 8,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeLightingCache",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.froxel.transmittance.volume.vk.spv",
+            "size": 67616,
+            "sha256": "2d4cd8c6a2892c8365fe85cd59024d9d99b3833a641b17fdcc12f05fe3fedb61"
+          },
+          "opengl": {
+            "path": "preshaded.froxel.transmittance.volume.gl.spv",
+            "size": 67616,
+            "sha256": "4f100b828d78d314f5b979c4033234c050bd1a88df2e1c58df17916d8ad6fe01"
+          }
+        }
+      },
+      "transmittance_shadow": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 13,
+              "glBinding": 3
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "FogVolume",
+              "descriptorSet": 0,
+              "descriptorBinding": 14,
+              "glBinding": 4
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "VolumePointShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 8,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "FogVolumeSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 15,
+              "glBinding": 9,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeShadowDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": true,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeLightingCache",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.froxel.transmittance_shadow.volume.vk.spv",
+            "size": 75504,
+            "sha256": "bb9943c8875ccff58d0245998abfa7834cdb2bbd7ac86185158cf5a14de92cd0"
+          },
+          "opengl": {
+            "path": "preshaded.froxel.transmittance_shadow.volume.gl.spv",
+            "size": 75504,
+            "sha256": "aaf05b3b81574417f4645483501960ea2a1771d1279024170ec5f70704de088f"
+          }
+        }
+      },
+      "spot_shadow": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 3
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "FogVolume",
+              "descriptorSet": 0,
+              "descriptorBinding": 13,
+              "glBinding": 4
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "VolumePointShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "FogVolumeSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 14,
+              "glBinding": 8,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSpotShadowDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.froxel.spot_shadow.volume.vk.spv",
+            "size": 78396,
+            "sha256": "c918fa622f610698b57ff1e432d81b69a17fe4a624b570266cd559650f4ab632"
+          },
+          "opengl": {
+            "path": "preshaded.froxel.spot_shadow.volume.gl.spv",
+            "size": 78396,
+            "sha256": "487b72c2590451093b4c40243528e161837e273d36d215540fb6c90f2b2ff9e8"
+          }
+        }
+      },
+      "transmittance_spot_shadow": {
+        "shader": {
+          "stage": "compute",
+          "vulkanEntryPoint": "main",
+          "openglEntryPoint": "main",
+          "capabilities": {
+            "waveOperations": false,
+            "nativeFp16": false,
+            "storageBuffers": false,
+            "storageImageExtendedFormats": false
+          },
+          "workgroup": {
+            "x": 8,
+            "y": 8,
+            "z": 1
+          },
+          "bindings": [
+            {
+              "kind": "uniformBuffer",
+              "name": "LfxForwardDirectionalShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 5,
+              "glBinding": 2
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "NiagaraVolumeView",
+              "descriptorSet": 0,
+              "descriptorBinding": 0,
+              "glBinding": 0
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "ExponentialFog",
+              "descriptorSet": 0,
+              "descriptorBinding": 13,
+              "glBinding": 3
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "FogVolume",
+              "descriptorSet": 0,
+              "descriptorBinding": 14,
+              "glBinding": 4
+            },
+            {
+              "kind": "uniformBuffer",
+              "name": "VolumePointShadow",
+              "descriptorSet": 0,
+              "descriptorBinding": 3,
+              "glBinding": 1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxStaticDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 7,
+              "glBinding": 4,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "LfxForwardDirectionalDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 6,
+              "glBinding": 3,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedExtinction",
+              "descriptorSet": 0,
+              "descriptorBinding": 10,
+              "glBinding": 6,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedEmission",
+              "descriptorSet": 0,
+              "descriptorBinding": 11,
+              "glBinding": 7,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBakedAlbedo",
+              "descriptorSet": 0,
+              "descriptorBinding": 12,
+              "glBinding": 8,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "FogVolumeSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 15,
+              "glBinding": 9,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeBlueNoiseSampler",
+              "descriptorSet": 0,
+              "descriptorBinding": 2,
+              "glBinding": 1,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSpotShadowDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 4,
+              "glBinding": 2,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeLightingCache",
+              "descriptorSet": 0,
+              "descriptorBinding": 9,
+              "glBinding": 5,
+              "format": "RGBA16_FLOAT",
+              "dynamicFloatFormat": true,
+              "volume": true,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "sampledTexture",
+              "name": "VolumeSceneDepth",
+              "descriptorSet": 0,
+              "descriptorBinding": 1,
+              "glBinding": 0,
+              "format": "D32_FLOAT",
+              "dynamicFloatFormat": false,
+              "volume": false,
+              "cube": false,
+              "array": false,
+              "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+              "samplerDescriptorBinding": -1
+            },
+            {
+              "kind": "storageImage",
+              "name": "VolumeResult",
+              "descriptorSet": 0,
+              "descriptorBinding": 8,
+              "glBinding": 0,
+              "format": "RGBA16_FLOAT",
+              "access": "WRITE_ONLY",
+              "array": false,
+              "volume": false
+            }
+          ]
+        },
+        "artifacts": {
+          "vulkan": {
+            "path": "preshaded.froxel.transmittance_spot_shadow.volume.vk.spv",
+            "size": 75788,
+            "sha256": "9c7e1b1e6c94e617e5d4fbe342c19d8d06c99eaeacac2a66cab587c3930231b1"
+          },
+          "opengl": {
+            "path": "preshaded.froxel.transmittance_spot_shadow.volume.gl.spv",
+            "size": 75788,
+            "sha256": "e43c56f9eabe4274831de733996739705454727516811308ee060f1ff674e6b1"
+          }
+        }
+      }
+    }
+  },
+  "cache": {
+    "inscattering": {
+      "shader": {
+        "stage": "compute",
+        "vulkanEntryPoint": "main",
+        "openglEntryPoint": "main",
+        "capabilities": {
+          "waveOperations": false,
+          "nativeFp16": false,
+          "storageBuffers": false,
+          "storageImageExtendedFormats": true
+        },
+        "workgroup": {
+          "x": 4,
+          "y": 4,
+          "z": 4
+        },
+        "bindings": [
+          {
+            "kind": "uniformBuffer",
+            "name": "LfxForwardDirectionalShadow",
+            "descriptorSet": 0,
+            "descriptorBinding": 3,
+            "glBinding": 1
+          },
+          {
+            "kind": "uniformBuffer",
+            "name": "NiagaraVolumeView",
+            "descriptorSet": 0,
+            "descriptorBinding": 0,
+            "glBinding": 0
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "LfxStaticDirectionalDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 5,
+            "glBinding": 3,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "LfxForwardDirectionalDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 4,
+            "glBinding": 2,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBakedExtinction",
+            "descriptorSet": 0,
+            "descriptorBinding": 7,
+            "glBinding": 4,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": true,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBakedEmission",
+            "descriptorSet": 0,
+            "descriptorBinding": 8,
+            "glBinding": 5,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": true,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBakedAlbedo",
+            "descriptorSet": 0,
+            "descriptorBinding": 9,
+            "glBinding": 6,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": true,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeSceneDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "glBinding": 0,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBlueNoiseSampler",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "glBinding": 1,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "storageImage",
+            "name": "VolumeCacheOutput",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "glBinding": 0,
+            "format": "RG11B10_FLOAT",
+            "access": "READ_WRITE",
+            "array": false,
+            "volume": true
+          }
+        ]
+      },
+      "artifacts": {
+        "vulkan": {
+          "path": "preshaded.cache.inscattering.volume.vk.spv",
+          "size": 43760,
+          "sha256": "c0d7961c408eb6997ecc14923d17f0d966e52b1a11f6c7e1559eb7fa3c870f1a"
+        },
+        "opengl": {
+          "path": "preshaded.cache.inscattering.volume.gl.spv",
+          "size": 43760,
+          "sha256": "7a508495139bee82636e66bb1c353b1c24fffa4b39132c8ed6f29fa717326c49"
+        }
+      }
+    },
+    "inscattering_shadow": {
+      "shader": {
+        "stage": "compute",
+        "vulkanEntryPoint": "main",
+        "openglEntryPoint": "main",
+        "capabilities": {
+          "waveOperations": false,
+          "nativeFp16": false,
+          "storageBuffers": false,
+          "storageImageExtendedFormats": true
+        },
+        "workgroup": {
+          "x": 4,
+          "y": 4,
+          "z": 4
+        },
+        "bindings": [
+          {
+            "kind": "uniformBuffer",
+            "name": "LfxForwardDirectionalShadow",
+            "descriptorSet": 0,
+            "descriptorBinding": 5,
+            "glBinding": 2
+          },
+          {
+            "kind": "uniformBuffer",
+            "name": "NiagaraVolumeView",
+            "descriptorSet": 0,
+            "descriptorBinding": 0,
+            "glBinding": 0
+          },
+          {
+            "kind": "uniformBuffer",
+            "name": "VolumePointShadow",
+            "descriptorSet": 0,
+            "descriptorBinding": 3,
+            "glBinding": 1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "LfxStaticDirectionalDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 7,
+            "glBinding": 4,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "LfxForwardDirectionalDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "glBinding": 3,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBakedExtinction",
+            "descriptorSet": 0,
+            "descriptorBinding": 9,
+            "glBinding": 5,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": true,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBakedEmission",
+            "descriptorSet": 0,
+            "descriptorBinding": 10,
+            "glBinding": 6,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": true,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBakedAlbedo",
+            "descriptorSet": 0,
+            "descriptorBinding": 11,
+            "glBinding": 7,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": true,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeShadowDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 4,
+            "glBinding": 2,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": true,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeSceneDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "glBinding": 0,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBlueNoiseSampler",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "glBinding": 1,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "storageImage",
+            "name": "VolumeCacheOutput",
+            "descriptorSet": 0,
+            "descriptorBinding": 8,
+            "glBinding": 0,
+            "format": "RG11B10_FLOAT",
+            "access": "READ_WRITE",
+            "array": false,
+            "volume": true
+          }
+        ]
+      },
+      "artifacts": {
+        "vulkan": {
+          "path": "preshaded.cache.inscattering_shadow.volume.vk.spv",
+          "size": 51648,
+          "sha256": "519f650179c338dfaf992f05a5b4c59b142bcd1a4ce4316d1f38348c2e439c07"
+        },
+        "opengl": {
+          "path": "preshaded.cache.inscattering_shadow.volume.gl.spv",
+          "size": 51648,
+          "sha256": "6ce9b80e0fad2b913040fedd20ffa8a7d27b92e37f31c4bb1fc8d3a86bd59cb6"
+        }
+      }
+    },
+    "inscattering_spot_shadow": {
+      "shader": {
+        "stage": "compute",
+        "vulkanEntryPoint": "main",
+        "openglEntryPoint": "main",
+        "capabilities": {
+          "waveOperations": false,
+          "nativeFp16": false,
+          "storageBuffers": false,
+          "storageImageExtendedFormats": true
+        },
+        "workgroup": {
+          "x": 4,
+          "y": 4,
+          "z": 4
+        },
+        "bindings": [
+          {
+            "kind": "uniformBuffer",
+            "name": "LfxForwardDirectionalShadow",
+            "descriptorSet": 0,
+            "descriptorBinding": 5,
+            "glBinding": 2
+          },
+          {
+            "kind": "uniformBuffer",
+            "name": "NiagaraVolumeView",
+            "descriptorSet": 0,
+            "descriptorBinding": 0,
+            "glBinding": 0
+          },
+          {
+            "kind": "uniformBuffer",
+            "name": "VolumePointShadow",
+            "descriptorSet": 0,
+            "descriptorBinding": 3,
+            "glBinding": 1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "LfxStaticDirectionalDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 7,
+            "glBinding": 4,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "LfxForwardDirectionalDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "glBinding": 3,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBakedExtinction",
+            "descriptorSet": 0,
+            "descriptorBinding": 9,
+            "glBinding": 5,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": true,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBakedEmission",
+            "descriptorSet": 0,
+            "descriptorBinding": 10,
+            "glBinding": 6,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": true,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBakedAlbedo",
+            "descriptorSet": 0,
+            "descriptorBinding": 11,
+            "glBinding": 7,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": true,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeSpotShadowDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 4,
+            "glBinding": 2,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeSceneDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "glBinding": 0,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBlueNoiseSampler",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "glBinding": 1,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "storageImage",
+            "name": "VolumeCacheOutput",
+            "descriptorSet": 0,
+            "descriptorBinding": 8,
+            "glBinding": 0,
+            "format": "RG11B10_FLOAT",
+            "access": "READ_WRITE",
+            "array": false,
+            "volume": true
+          }
+        ]
+      },
+      "artifacts": {
+        "vulkan": {
+          "path": "preshaded.cache.inscattering_spot_shadow.volume.vk.spv",
+          "size": 51984,
+          "sha256": "520bca748c65700e9086e08d38e2c4b8f5d0d55cb3cd15fe309dcba61876cbde"
+        },
+        "opengl": {
+          "path": "preshaded.cache.inscattering_spot_shadow.volume.gl.spv",
+          "size": 51984,
+          "sha256": "1a1dbb93204cfbca0ac8682c829380be1ecb6187910e4b92c95749b7ac728ccc"
+        }
+      }
+    },
+    "transmittance": {
+      "shader": {
+        "stage": "compute",
+        "vulkanEntryPoint": "main",
+        "openglEntryPoint": "main",
+        "capabilities": {
+          "waveOperations": false,
+          "nativeFp16": false,
+          "storageBuffers": false,
+          "storageImageExtendedFormats": true
+        },
+        "workgroup": {
+          "x": 4,
+          "y": 4,
+          "z": 4
+        },
+        "bindings": [
+          {
+            "kind": "uniformBuffer",
+            "name": "NiagaraVolumeView",
+            "descriptorSet": 0,
+            "descriptorBinding": 0,
+            "glBinding": 0
+          },
+          {
+            "kind": "uniformBuffer",
+            "name": "LfxForwardDirectionalShadow",
+            "descriptorSet": 0,
+            "descriptorBinding": 3,
+            "glBinding": 1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBakedExtinction",
+            "descriptorSet": 0,
+            "descriptorBinding": 7,
+            "glBinding": 4,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": true,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBakedEmission",
+            "descriptorSet": 0,
+            "descriptorBinding": 8,
+            "glBinding": 5,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": true,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBakedAlbedo",
+            "descriptorSet": 0,
+            "descriptorBinding": 9,
+            "glBinding": 6,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": true,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeSceneDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "glBinding": 0,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "VolumeBlueNoiseSampler",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "glBinding": 1,
+            "format": "RGBA16_FLOAT",
+            "dynamicFloatFormat": true,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "LfxForwardDirectionalDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 4,
+            "glBinding": 2,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "sampledTexture",
+            "name": "LfxStaticDirectionalDepth",
+            "descriptorSet": 0,
+            "descriptorBinding": 5,
+            "glBinding": 3,
+            "format": "D32_FLOAT",
+            "dynamicFloatFormat": false,
+            "volume": false,
+            "cube": false,
+            "array": false,
+            "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+            "samplerDescriptorBinding": -1
+          },
+          {
+            "kind": "storageImage",
+            "name": "VolumeCacheOutput",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "glBinding": 0,
+            "format": "RG11B10_FLOAT",
+            "access": "READ_WRITE",
+            "array": false,
+            "volume": true
+          }
+        ]
+      },
+      "artifacts": {
+        "vulkan": {
+          "path": "preshaded.cache.transmittance.volume.vk.spv",
+          "size": 16468,
+          "sha256": "29623b3b0346def6c18bc0fa2cfdf0d3c9a55a2d37365f9ac0f4d2b92faa6c7f"
+        },
+        "opengl": {
+          "path": "preshaded.cache.transmittance.volume.gl.spv",
+          "size": 16468,
+          "sha256": "81ada90d387e6ed4ae74b6a5994da8b2c38f7ff194aee072d3e54800a41029e3"
+        }
+      }
+    }
+  },
+  "bake": {},
+  "sparse_volumes": {}
+}

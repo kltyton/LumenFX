@@ -1,0 +1,1394 @@
+/* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
+package com.lowdragmc.photon.client.gameobject.emitter.particle;
+
+import com.kltyton.lumenfx.client.concurrent.VfxFrameExecutor;
+import com.kltyton.lumenfx.client.concurrent.VfxFrameExecutor.OwnerRequests;
+import com.mojang.blaze3d.PrimitiveTopology;
+import com.lowdragmc.photon.client.gameobject.emitter.data.MaterialRequirements;
+import com.google.common.collect.Queues;
+import com.lowdragmc.lowdraglib2.math.Transform;
+import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
+import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.lowdragmc.photon.Photon;
+import com.lowdragmc.photon.client.fx.FXRuntime;
+import com.lowdragmc.photon.client.fx.PreloadContext;
+import com.lowdragmc.photon.client.fx.timeline.AnimatedPropertyType;
+import com.lowdragmc.photon.client.fx.timeline.property.ConfigValueType;
+import com.lowdragmc.photon.client.gameobject.FXObject;
+import com.lowdragmc.photon.client.gameobject.FXObjectType;
+import com.lowdragmc.photon.client.gameobject.IFXObject;
+import com.lowdragmc.photon.client.gameobject.RuntimeBinding;
+import com.lowdragmc.photon.client.gameobject.emitter.Emitter;
+import com.lowdragmc.photon.client.gameobject.emitter.aratrail.AraTrailConfig;
+import com.lowdragmc.photon.client.gameobject.emitter.data.CustomDataBindings;
+import com.lowdragmc.photon.client.gameobject.emitter.data.CollisionSetting;
+import com.lowdragmc.photon.client.gameobject.emitter.data.CustomSpace;
+import com.lowdragmc.photon.client.gameobject.emitter.data.RendererSetting;
+import com.lowdragmc.photon.client.gameobject.emitter.data.TrailsSetting;
+import com.lowdragmc.photon.client.gameobject.emitter.data.ValueSpace;
+import com.lowdragmc.photon.client.gameobject.emitter.renderpipeline.PhotonFXRenderPass;
+import com.lowdragmc.photon.client.gameobject.forcefield.ForceFieldObject;
+import com.lowdragmc.photon.client.gameobject.particle.IParticle;
+import com.lowdragmc.photon.client.gameobject.particle.SpawnFrame;
+import com.lowdragmc.photon.client.gameobject.particle.TileParticle;
+import com.lowdragmc.photon.client.gameobject.particle.TrailParticle;
+import com.lowdragmc.photon.client.gameobject.particle.aratrail.AraTrailParticle;
+import com.lowdragmc.photon.client.gameobject.particle.renderer.AraTrailParticleRenderer;
+import com.lowdragmc.photon.client.gameobject.particle.renderer.TileParticleRenderer;
+import com.lowdragmc.photon.client.gameobject.particle.renderer.TrailParticleRenderer;
+import com.lowdragmc.photon.client.render.PhotonCameraUtils;
+import com.lowdragmc.photon.client.render.PhotonPipelines;
+import com.lowdragmc.photon.client.render.PhotonVatUniforms;
+import com.lowdragmc.photon.client.render.PhotonWorldRenderState;
+import com.lowdragmc.photon.PhotonConfig;
+import com.lowdragmc.photon.client.collision.ContactMemory;
+import com.lowdragmc.photon.client.collision.CollisionEvent;
+import com.lowdragmc.photon.client.collision.CollisionScene;
+import com.lowdragmc.photon.client.collision.CollisionWorld;
+import com.lowdragmc.photon.client.collision.ColliderTarget;
+import com.lowdragmc.photon.client.collision.EntityTarget;
+import com.lowdragmc.photon.client.collision.BlockBoxSource;
+import com.lowdragmc.photon.client.gameobject.collider.ColliderObject;
+import com.lowdragmc.photon.client.light.DynamicLightManager;
+import com.lowdragmc.photon.client.light.LightProvider;
+import com.lowdragmc.photon.client.light.LightSink;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import lombok.Getter;
+import lombok.Setter;
+import net.minecraft.client.Camera;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+import java.util.*;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
+
+/**
+ * @author KilaBash
+ * @date 2023/5/25
+ * @implNote ParticleEmitter
+ */
+@ParametersAreNonnullByDefault
+public class ParticleEmitter extends Emitter {
+    @LDLRegisterClient(name = "particle_emitter", registry = "photon:fx_object")
+    public static final FXObjectType TYPE = new FXObjectType() {
+        @Override
+        public IFXObject create() {
+            return new ParticleEmitter();
+        }
+
+        @Override
+        public int version() {
+            return 2;
+        }
+
+        @Override
+        public List<RuntimeBinding> runtimeBindings() {
+            return RUNTIME_BINDINGS;
+        }
+
+        // custom-data channels are per-CONFIG dynamic (variable stream/channel count), so they can't live
+        // in the static RUNTIME_BINDINGS / cached type-level list — enumerate them per target instance.
+        @Override
+        public List<AnimatedPropertyType> animatableProperties(FXObject target) {
+            if (!(target instanceof ParticleEmitter emitter)) {
+                return animatableProperties();
+            }
+            return CustomDataBindings.appendAnimatable(animatableProperties(),
+                    emitter.config.additionalGPUDataSetting.customDataStreams(),
+                    o -> ((ParticleEmitter) o).runtime().customData);
+        }
+
+        @Override
+        public RuntimeBinding resolveRuntimeBinding(FXObject target, String path) {
+            var b = super.resolveRuntimeBinding(target, path);
+            return b != null ? b : CustomDataBindings.resolve(path, o -> ((ParticleEmitter) o).runtime().customData);
+        }
+    };
+
+    /** Timeline-animatable config values backed by named {@link ParticleRuntime} slots (no map/reflection). */
+    public static final List<RuntimeBinding> RUNTIME_BINDINGS = List.of(
+            new RuntimeBinding("startDelay", "ParticleConfig.startDelay", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().startDelay),
+            new RuntimeBinding("startLifetime", "ParticleConfig.startLifetime", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().startLifetime),
+            new RuntimeBinding("startSpeed", "ParticleConfig.startSpeed", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().startSpeed),
+            new RuntimeBinding("startSize", "ParticleConfig.startSize", ConfigValueType.NUMBER_FUNCTION3,
+                    o -> ((ParticleEmitter) o).runtime().startSize),
+            new RuntimeBinding("startRotation", "ParticleConfig.startRotation", ConfigValueType.NUMBER_FUNCTION3,
+                    o -> ((ParticleEmitter) o).runtime().startRotation),
+            new RuntimeBinding("duration", "ParticleConfig.duration", ConfigValueType.INT,
+                    o -> ((ParticleEmitter) o).runtime().duration),
+            new RuntimeBinding("prewarm", "ParticleConfig.prewarm", ConfigValueType.INT,
+                    o -> ((ParticleEmitter) o).runtime().prewarm),
+            new RuntimeBinding("maxParticles", "ParticleConfig.maxParticles", ConfigValueType.INT,
+                    o -> ((ParticleEmitter) o).runtime().maxParticles),
+            new RuntimeBinding("looping", "ParticleConfig.looping", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().looping),
+            new RuntimeBinding("parallelUpdate", "ParticleConfig.parallelUpdate", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().parallelUpdate),
+            new RuntimeBinding("emission.emissionRate", "EmissionSetting.emissionRate", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().emission.emissionRate),
+            new RuntimeBinding("emission.distanceRate", "EmissionSetting.distanceRate", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().emission.distanceRate),
+            new RuntimeBinding("shape.position", "NoiseSetting.position", ConfigValueType.NUMBER_FUNCTION3,
+                    o -> ((ParticleEmitter) o).runtime().shape.position),
+            new RuntimeBinding("shape.rotation", "NoiseSetting.rotation", ConfigValueType.NUMBER_FUNCTION3,
+                    o -> ((ParticleEmitter) o).runtime().shape.rotation),
+            new RuntimeBinding("shape.scale", "ShapeSetting.scale", ConfigValueType.NUMBER_FUNCTION3,
+                    o -> ((ParticleEmitter) o).runtime().shape.scale),
+            new RuntimeBinding("physics.enable", "PhysicsSetting.enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().physics.enable),
+            new RuntimeBinding("physics.hasCollision", "PhysicsSetting.hasCollision", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().physics.hasCollision),
+            new RuntimeBinding("physics.removedWhenCollided", "PhysicsSetting.removedWhenCollided", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().physics.removedWhenCollided),
+            new RuntimeBinding("physics.friction", "PhysicsSetting.friction", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().physics.friction),
+            new RuntimeBinding("physics.collidedFriction", "PhysicsSetting.collidedFriction", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().physics.collidedFriction),
+            new RuntimeBinding("physics.gravity", "PhysicsSetting.gravity", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().physics.gravity),
+            new RuntimeBinding("physics.bounceChance", "PhysicsSetting.bounceChance", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().physics.bounceChance),
+            new RuntimeBinding("physics.bounceRate", "PhysicsSetting.bounceRate", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().physics.bounceRate),
+            new RuntimeBinding("physics.bounceSpreadRate", "PhysicsSetting.bounceSpreadRate", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().physics.bounceSpreadRate),
+            new RuntimeBinding("physics.collision.blocks", "CollisionSetting.blocks", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().physics.collision.blocks),
+            new RuntimeBinding("physics.collision.fluids", "CollisionSetting.fluids", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().physics.collision.fluids),
+            new RuntimeBinding("physics.collision.entities", "CollisionSetting.entities", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().physics.collision.entities),
+            new RuntimeBinding("physics.collision.colliders", "CollisionSetting.colliders", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().physics.collision.colliders),
+            new RuntimeBinding("physics.collision.response.dampen", "CollisionSetting.dampen", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().physics.collision.dampen),
+            new RuntimeBinding("physics.collision.response.lifetimeLoss", "CollisionSetting.lifetimeLoss", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().physics.collision.lifetimeLoss),
+            new RuntimeBinding("sizeOverLifetime.size", "NoiseSetting.size", ConfigValueType.NUMBER_FUNCTION3,
+                    o -> ((ParticleEmitter) o).runtime().sizeOverLifetime.size),
+            new RuntimeBinding("rotationOverLifetime.roll", "RotationBySpeedSetting.roll", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().rotationOverLifetime.roll),
+            new RuntimeBinding("rotationOverLifetime.pitch", "RotationBySpeedSetting.pitch", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().rotationOverLifetime.pitch),
+            new RuntimeBinding("rotationOverLifetime.yaw", "RotationBySpeedSetting.yaw", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().rotationOverLifetime.yaw),
+            new RuntimeBinding("forceOverLifetime.force", "ForceOverLifetimeSetting.force", ConfigValueType.NUMBER_FUNCTION3,
+                    o -> ((ParticleEmitter) o).runtime().forceOverLifetime.force),
+            new RuntimeBinding("lights.skyLight", "LightOverLifetimeSetting.skyLight", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().lights.skyLight),
+            new RuntimeBinding("lights.blockLight", "LightOverLifetimeSetting.blockLight", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().lights.blockLight),
+            new RuntimeBinding("startColor", "ParticleConfig.startColor", ConfigValueType.COLOR,
+                    o -> ((ParticleEmitter) o).runtime().startColor),
+            new RuntimeBinding("colorOverLifetime.color", "ParticleConfig.colorOverLifetime.color", ConfigValueType.COLOR,
+                    o -> ((ParticleEmitter) o).runtime().colorOverLifetime.color),
+            // ---- animatable enables for every ToggleGroup setting (Part 2) ----
+            new RuntimeBinding("colorOverLifetime.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().colorOverLifetime.enable),
+            new RuntimeBinding("sizeOverLifetime.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().sizeOverLifetime.enable),
+            new RuntimeBinding("rotationOverLifetime.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().rotationOverLifetime.enable),
+            new RuntimeBinding("forceOverLifetime.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().forceOverLifetime.enable),
+            new RuntimeBinding("externalForces.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().externalForces.enable),
+            new RuntimeBinding("externalForces.multiplier", "ExternalForcesSetting.multiplier", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().externalForces.multiplier),
+            new RuntimeBinding("lights.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().lights.enable),
+            new RuntimeBinding("velocityOverLifetime.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().velocityOverLifetime.enable),
+            new RuntimeBinding("inheritVelocity.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().inheritVelocity.enable),
+            new RuntimeBinding("lifetimeByEmitterSpeed.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().lifetimeByEmitterSpeed.enable),
+            new RuntimeBinding("colorBySpeed.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().colorBySpeed.enable),
+            new RuntimeBinding("sizeBySpeed.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().sizeBySpeed.enable),
+            new RuntimeBinding("rotationBySpeed.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().rotationBySpeed.enable),
+            new RuntimeBinding("noise.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().noise.enable),
+            new RuntimeBinding("uvAnimation.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().uvAnimation.enable),
+            new RuntimeBinding("lightEmission.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().lightEmission.enable),
+            new RuntimeBinding("lightEmission.color", "LightEmissionSetting.color", ConfigValueType.COLOR,
+                    o -> ((ParticleEmitter) o).runtime().lightEmission.color),
+            new RuntimeBinding("lightEmission.intensity", "LightEmissionSetting.intensity", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().lightEmission.intensity),
+            new RuntimeBinding("lightEmission.range", "LightEmissionSetting.range", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().lightEmission.range),
+            new RuntimeBinding("trails.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().trails.enable),
+            new RuntimeBinding("subEmitters.enable", "enable", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().subEmitters.enable),
+            // ---- migrated setting values (Part 1) ----
+            new RuntimeBinding("velocityOverLifetime.linear", "VelocityOverLifetimeSetting.linear", ConfigValueType.NUMBER_FUNCTION3,
+                    o -> ((ParticleEmitter) o).runtime().velocityOverLifetime.linear),
+            new RuntimeBinding("velocityOverLifetime.orbital", "VelocityOverLifetimeSetting.orbital", ConfigValueType.NUMBER_FUNCTION3,
+                    o -> ((ParticleEmitter) o).runtime().velocityOverLifetime.orbital),
+            new RuntimeBinding("velocityOverLifetime.offset", "VelocityOverLifetimeSetting.offset", ConfigValueType.NUMBER_FUNCTION3,
+                    o -> ((ParticleEmitter) o).runtime().velocityOverLifetime.offset),
+            new RuntimeBinding("velocityOverLifetime.radial", "VelocityOverLifetimeSetting.radial", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().velocityOverLifetime.radial),
+            new RuntimeBinding("velocityOverLifetime.speedModifier", "VelocityOverLifetimeSetting.speedModifier", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().velocityOverLifetime.speedModifier),
+            new RuntimeBinding("inheritVelocity.multiply", "InheritVelocitySetting.multiply", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().inheritVelocity.multiply),
+            new RuntimeBinding("lifetimeByEmitterSpeed.multiplier", "LifetimeByEmitterSpeedSetting.multiplier", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().lifetimeByEmitterSpeed.multiplier),
+            new RuntimeBinding("colorBySpeed.color", "ColorBySpeedSetting.color", ConfigValueType.COLOR,
+                    o -> ((ParticleEmitter) o).runtime().colorBySpeed.color),
+            new RuntimeBinding("sizeBySpeed.size", "NoiseSetting.size", ConfigValueType.NUMBER_FUNCTION3,
+                    o -> ((ParticleEmitter) o).runtime().sizeBySpeed.size),
+            new RuntimeBinding("rotationBySpeed.roll", "RotationBySpeedSetting.roll", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().rotationBySpeed.roll),
+            new RuntimeBinding("rotationBySpeed.pitch", "RotationBySpeedSetting.pitch", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().rotationBySpeed.pitch),
+            new RuntimeBinding("rotationBySpeed.yaw", "RotationBySpeedSetting.yaw", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().rotationBySpeed.yaw),
+            new RuntimeBinding("noise.frequency", "NoiseSetting.frequency", ConfigValueType.FLOAT,
+                    o -> ((ParticleEmitter) o).runtime().noise.frequency),
+            new RuntimeBinding("noise.position", "NoiseSetting.position", ConfigValueType.NUMBER_FUNCTION3,
+                    o -> ((ParticleEmitter) o).runtime().noise.position),
+            new RuntimeBinding("noise.rotation", "NoiseSetting.rotation", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().noise.rotation),
+            new RuntimeBinding("noise.size", "NoiseSetting.size", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().noise.size),
+            new RuntimeBinding("uvAnimation.frameOverTime", "UVAnimationSetting.frameOverTime", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().uvAnimation.frameOverTime),
+            new RuntimeBinding("uvAnimation.startFrame", "UVAnimationSetting.startFrame", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().uvAnimation.startFrame),
+            new RuntimeBinding("uvAnimation.cycle", "UVAnimationSetting.cycle", ConfigValueType.FLOAT,
+                    o -> ((ParticleEmitter) o).runtime().uvAnimation.cycle),
+            new RuntimeBinding("trails.ratio", "TrailsSetting.ratio", ConfigValueType.FLOAT,
+                    o -> ((ParticleEmitter) o).runtime().trails.ratio),
+            new RuntimeBinding("trails.lifetime", "TrailsSetting.lifetime", ConfigValueType.NUMBER_FUNCTION,
+                    o -> ((ParticleEmitter) o).runtime().trails.lifetime),
+            new RuntimeBinding("trails.dieWithParticles", "TrailsSetting.dieWithParticles", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().trails.dieWithParticles),
+            new RuntimeBinding("trails.sizeAffectsWidth", "TrailsSetting.sizeAffectsWidth", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().trails.sizeAffectsWidth),
+            new RuntimeBinding("trails.sizeAffectsLifetime", "TrailsSetting.sizeAffectsLifetime", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().trails.sizeAffectsLifetime),
+            new RuntimeBinding("trails.inheritParticleColor", "TrailsSetting.inheritParticleColor", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().trails.inheritParticleColor),
+            new RuntimeBinding("trails.colorOverLifetime", "TrailsSetting.colorOverLifetime", ConfigValueType.COLOR,
+                    o -> ((ParticleEmitter) o).runtime().trails.colorOverLifetime),
+            // ---- render settings (pass-level: animating any of these gives the emitter its own override
+            //      pass; only per-frame-read fields with no GL baking are exposed — see ParticleRendererSetting.Runtime)
+            new RuntimeBinding("renderer.orderInLayer", "photon.emitter.config.renderer.orderInLayer", ConfigValueType.INT,
+                    o -> ((ParticleEmitter) o).runtime().renderer.orderInLayer),
+            new RuntimeBinding("renderer.useGPUInstance", "ParticleRendererSetting.useGPUInstance", ConfigValueType.BOOL,
+                    o -> ((ParticleEmitter) o).runtime().renderer.useGPUInstance),
+            new RuntimeBinding("renderer.velocityScale", "photon.emitter.config.renderer.renderMode.stretchedBillboard.velocityScale", ConfigValueType.FLOAT,
+                    o -> ((ParticleEmitter) o).runtime().renderer.velocityScale),
+            new RuntimeBinding("renderer.lengthScale", "photon.emitter.config.renderer.renderMode.stretchedBillboard.lengthScale", ConfigValueType.FLOAT,
+                    o -> ((ParticleEmitter) o).runtime().renderer.lengthScale));
+
+    @Persisted(subPersisted = true)
+    public final ParticleConfig config;
+
+    /** Per-instance runtime layer: named override slots (timeline-driven) over the immutable config. */
+    private ParticleRuntime runtime;
+
+    /** Small particle queues stay on the world thread. */
+    private static final int PARALLEL_UPDATE_MIN_PARTICLES = 128;
+    private final ArrayList<IParticle> parallelParticles = new ArrayList<>();
+
+    // runtime
+    protected boolean hasFirstUpdate = false;
+    @Getter @Setter
+    protected float accumulatedDistance = 0;
+    /** Fractional carry of the time-based emission rate, so a scaled {@code dt} emits whole particles. */
+    @Getter @Setter
+    protected float emissionRateAccum = 0;
+    @Getter
+    protected final Map<PhotonFXRenderPass, Queue<IParticle>> particles = new LinkedHashMap<>();
+    public final Queue<IParticle> waitToAdded = Queues.newArrayDeque();
+    protected int particleBatchCount = 1;
+    protected int particleBatchCursor = 0;
+
+    public ParticleEmitter() {
+        this(new ParticleConfig());
+    }
+
+    public ParticleEmitter(ParticleConfig config) {
+        this.config = config;
+    }
+
+    /** This emitter's per-instance runtime layer (lazily created; timeline overrides live here). */
+    public ParticleRuntime runtime() {
+        if (runtime == null) {
+            runtime = new ParticleRuntime(config);
+        }
+        return runtime;
+    }
+
+    @Override
+    public FXObjectType getFXObjectType() {
+        return TYPE;
+    }
+
+    @Override
+    public ParticleEmitter shallowCopy() {
+        return new ParticleEmitter(config);
+    }
+
+    /**
+     * The groups {@link #bakeBatches} draws, warmed the way it chooses them (see {@link Emitter#preloadGroup}), and the
+     * effects the sub-emitters spawn. Reads the config's renderer: a definition is never played, so no timeline has
+     * written a slot.
+     */
+    @Override
+    public void preload(PreloadContext context) {
+        var renderer = config.defaultRenderRuntime;
+        if (renderer.getRenderMode() != ParticleRendererSetting.Mode.None) {
+            var toggled = context.isAnimated(this, "renderer.useGPUInstance");
+            context.onRenderThread(() -> {
+                // the model decides the variant, and loading it — with its pose table, which the CPU path
+                // poses from too — is part of the first play
+                var model = renderer.getRenderMode() == ParticleRendererSetting.Mode.Model;
+                if (model && renderer.getModelSource() != null) renderer.getModelSource().getMesh();
+                var vat = model && TileParticleRenderer.vertexAnimationOf(renderer) != null;
+                var variant = renderer.isUseGPUInstance() || toggled
+                        ? tileVariant(model, model && renderer.isTangent(), vat) : null;
+                preloadGroup(context, renderer, config.additionalGPUDataSetting, geometryMode(), variant,
+                        !renderer.isUseGPUInstance() || toggled,
+                        true);
+            });
+        }
+        var trails = config.trails;
+        if (trails.isEnable() || context.isAnimated(this, "trails.enable")) {
+            if (trails.getTrailType() == TrailsSetting.TrailType.ARA_TRAIL) {
+                var ara = trails.araConfig;
+                var tube = ara.section.isEnable();
+                var instanced = ara.defaultRenderRuntime.isUseGPUInstance()
+                        && (tube || !(ara.highQualityCorners && ara.alignment != AraTrailConfig.TrailAlignment.Local));
+                preloadGroup(context, ara.defaultRenderRuntime, ara.additionalGPUDataSetting, PrimitiveTopology.TRIANGLES,
+                        instanced ? tube ? PhotonPipelines.InstancedVariant.ARA_TUBE : PhotonPipelines.InstancedVariant.ARA
+                                : null, !instanced, false);
+            } else {
+                var instanced = trails.config.defaultRenderRuntime.isUseGPUInstance();
+                preloadGroup(context, trails.config.defaultRenderRuntime, trails.config.additionalGPUDataSetting,
+                        PrimitiveTopology.TRIANGLE_STRIP,
+                        instanced ? PhotonPipelines.InstancedVariant.TRAIL : null, !instanced, false);
+            }
+        }
+        if (config.subEmitters.isEnable() || context.isAnimated(this, "subEmitters.enable")) {
+            for (var subEmitter : config.subEmitters.getEmitters()) {
+                if (subEmitter.getFxLocation() != null) {
+                    context.fx(subEmitter.getFxLocation());
+                }
+            }
+        }
+    }
+
+    protected TileParticle createNewParticle() {
+        return new TileParticle(this, config);
+    }
+
+    /** Read-only identity fallbacks for world simulation space (never mutated by callers). */
+    private static final Matrix4f IDENTITY = new Matrix4f();
+
+    /**
+     * Resolve the transform defining this emitter's simulation space, or null for world space (identity).
+     * Custom space falls back to world space while the referenced transform is unresolved.
+     */
+    @Nullable
+    protected Transform resolveSimSpaceTransform() {
+        var space = config.getSimulationSpace();
+        // null-guard: unknown enum names deserialize to null (legacy data)
+        if (space == null || space == ParticleConfig.Space.World) {
+            return null;
+        }
+        if (space == ParticleConfig.Space.Local) {
+            return transform();
+        }
+        return config.customSpace.getTransform(getScene());
+    }
+
+    /** Cache for {@link #currentSpawnFrame()}, keyed on the matrix instances it was built from. */
+    @Nullable
+    private SpawnFrame cachedSpawnFrame;
+    @Nullable
+    private Matrix4f cachedFrameEmitterToWorld;
+    @Nullable
+    private Matrix4f cachedFrameSimToWorld;
+
+    /**
+     * The {@link SpawnFrame} particles emitted right now should be born into, or {@code null} in Local
+     * simulation space (where the emitter's frame IS simulation space, so no conversion is needed).
+     *
+     * <p>Shared by every particle emitted while the emitter has not moved: {@link Transform} rebuilds
+     * its cached matrices <b>as new instances</b> whenever the transform changes, so comparing the two
+     * source matrices by reference is an exact staleness check — an emitter that moves gets a fresh
+     * frame on its very next particle, exactly as if each particle had read the live matrices itself.
+     */
+    @Nullable
+    public SpawnFrame currentSpawnFrame() {
+        if (config.getSimulationSpace() == ParticleConfig.Space.Local) {
+            return null;
+        }
+        var emitterToWorld = transform().localToWorldMatrix();
+        var simToWorld = getSimToWorld();
+        if (cachedSpawnFrame != null
+                && cachedFrameEmitterToWorld == emitterToWorld
+                && cachedFrameSimToWorld == simToWorld) {
+            return cachedSpawnFrame;
+        }
+        cachedFrameEmitterToWorld = emitterToWorld;
+        cachedFrameSimToWorld = simToWorld;
+        cachedSpawnFrame = new SpawnFrame(emitterToWorld, transform().worldToLocalMatrix(),
+                getWorldToSim(), simToWorld);
+        return cachedSpawnFrame;
+    }
+
+    @Override
+    public Matrix4f getSimToWorld() {
+        var simSpace = resolveSimSpaceTransform();
+        return simSpace == null ? IDENTITY : simSpace.localToWorldMatrix();
+    }
+
+    @Override
+    public Matrix4f getWorldToSim() {
+        var simSpace = resolveSimSpaceTransform();
+        return simSpace == null ? IDENTITY : simSpace.worldToLocalMatrix();
+    }
+
+    @Override
+    public Vector3f getSimSpaceScale() {
+        var simSpace = resolveSimSpaceTransform();
+        return simSpace == null ? new Vector3f(1) : simSpace.scale();
+    }
+
+    @Override
+    public Quaternionf getSimSpaceRotation() {
+        var simSpace = resolveSimSpaceTransform();
+        return simSpace == null ? new Quaternionf() : simSpace.rotation();
+    }
+
+    @Override
+    protected void onTickBegin() {
+        super.onTickBegin();
+        // Transform's lazy matrix caches are not synchronized; warm them on the game thread
+        // before particle workers start.
+        transform().localToWorldMatrix();
+        transform().worldToLocalMatrix();
+        var simSpace = resolveSimSpaceTransform();
+        if (simSpace != null) {
+            simSpace.localToWorldMatrix();
+            simSpace.worldToLocalMatrix();
+            simSpace.scale();
+            simSpace.rotation();
+        }
+        if (runtime().forceOverLifetime.getSimulationSpace() == ValueSpace.Custom) {
+            CustomSpace.warm(config.forceOverLifetime.customSpace, getScene());
+        }
+        if (runtime().velocityOverLifetime.space.get() == ValueSpace.Custom) {
+            CustomSpace.warm(config.velocityOverLifetime.customSpace, getScene());
+        }
+        var araConfig = config.trails.araConfig;
+        if (araConfig.physicsSetting.gravitySpace == ValueSpace.Custom) {
+            CustomSpace.warm(araConfig.physicsSetting.gravityCustomSpace, getScene());
+        }
+        if (araConfig.space == AraTrailConfig.TrailSpace.Custom) {
+            CustomSpace.warm(araConfig.customSpace, getScene());
+        }
+        activeForceFields = gatherForceFields();
+        collisionScene = buildCollisionScene();
+        var trailBlockScene = blockScene();
+        if (trailBlockScene != null && trailBlockScene.blocks instanceof CollisionWorld trailWorld) {
+            var bounds = particleBounds();
+            trailWorld.prefetch(bounds.minX, bounds.minY, bounds.minZ, bounds.maxX, bounds.maxY, bounds.maxZ);
+        }
+        for (var queue : particles.values()) {
+            for (var particle : queue) {
+                particle.syncOrigin();
+            }
+        }
+    }
+
+    /** Immutable per-tick snapshot of the force fields affecting this emitter (read concurrently
+     *  by parallel particle updates; see {@link #gatherForceFields}). */
+    private List<ForceFieldObject> activeForceFields = List.of();
+
+    /** Sub-emitter spawns from particle updates (possibly on workers), drained in particle order at the end of the tick. */
+    private final Queue<Deferred> pendingSubEmitterSpawns = new ConcurrentLinkedQueue<>();
+
+    private record Deferred(long order, Runnable action) {
+    }
+
+    public void scheduleSubEmitterSpawn(Runnable spawn) {
+        scheduleSubEmitterSpawn(Long.MAX_VALUE, spawn);
+    }
+
+    /** @param order a particle's {@code nextSpawnOrder()}: lower runs first */
+    public void scheduleSubEmitterSpawn(long order, Runnable spawn) {
+        pendingSubEmitterSpawns.add(new Deferred(order, spawn));
+    }
+
+    private boolean deferredFailed;
+    /** Removed with force: what is still queued, even mid-drain, is dropped. */
+    private boolean forceRemoved;
+
+    private void drainInOrder(Queue<Deferred> queue) {
+        if (queue.isEmpty()) return;
+        var batch = new ArrayList<Deferred>(queue.size());
+        for (Deferred deferred; (deferred = queue.poll()) != null; ) batch.add(deferred);
+        batch.sort(Comparator.comparingLong(Deferred::order));
+        for (var deferred : batch) {
+            if (forceRemoved) return;
+            // a listener or sub-emitter that throws must not take the game down with it
+            try {
+                deferred.action().run();
+            } catch (RuntimeException e) {
+                if (!deferredFailed) {
+                    deferredFailed = true;
+                    Photon.LOGGER.error("A collision listener or sub-emitter spawn of {} failed; later failures are not logged", getName(), e);
+                }
+            }
+        }
+    }
+
+    public List<ForceFieldObject> getActiveForceFields() {
+        return activeForceFields;
+    }
+
+    private List<ForceFieldObject> gatherForceFields() {
+        if (!runtime().externalForces.isEnable() || !(getScene() instanceof FXRuntime fxRuntime)) {
+            return List.of();
+        }
+        var setting = config.externalForces;
+        List<ForceFieldObject> list = null;
+        for (var object : fxRuntime.objects.values()) {
+            if (object instanceof ForceFieldObject field && field.isActive() && !field.isRemoved()
+                    && setting.isInfluencedBy(field)) {
+                // warm the field's transform caches for the parallel particle updates
+                field.transform().localToWorldMatrix();
+                field.transform().worldToLocalMatrix();
+                field.transform().rotation();
+                if (list == null) {
+                    list = new ArrayList<>();
+                }
+                list.add(field);
+            }
+        }
+        return list == null ? List.of() : List.copyOf(list);
+    }
+
+    /** Everything this emitter's particles collide with this tick; null while collision is off. */
+    @Nullable
+    private CollisionScene collisionScene;
+    @Nullable
+    private CollisionWorld collisionWorld;
+    private final CollisionScene.Stats collisionStats = new CollisionScene.Stats();
+    private final List<CollisionListener> collisionListeners = new CopyOnWriteArrayList<>();
+    private final ContactMemory reportedTargets = new ContactMemory();
+    /** This tick's de-duplication verdicts, so every consumer of one event (sub-emitters, listeners) agrees. */
+    private final Map<CollisionEvent, Boolean> dedupeVerdicts = new IdentityHashMap<>();
+    /** Per effect, the memories its emitters share by group name. */
+    private static final Map<Object, Map<String, ContactMemory>> GROUP_MEMORY = Collections.synchronizedMap(new WeakHashMap<>());
+    /** Entities that were around where the effect started; see {@code sourceExclusionRadius}. */
+    @Nullable
+    private IntOpenHashSet sourceEntities;
+    /** Around the emitter, where the particles emitted this tick may already have got to. */
+    private static final double NEW_PARTICLE_REACH = 8;
+    private final Queue<Deferred> pendingCollisionReports = new ConcurrentLinkedQueue<>();
+    private int particleSerial;
+    private long collisionNanos;
+    private boolean collisionParallel;
+    private final Vector3f simOrigin = new Vector3f();
+    private boolean simOriginValid;
+    private double simMotionX, simMotionY, simMotionZ;
+    private double targetMotionScale = 1;
+    /** Last tick's stats for the editor: casts, box tests, contacts, depenetrations, misses. */
+    private final long[] lastCollisionStats = new long[5];
+    private double lastCollisionMillis;
+    private boolean lastCollisionParallel;
+    /** Receives this emitter's particle collisions on the game thread, at the end of each tick. */
+    @FunctionalInterface
+    public interface CollisionListener {
+        void onCollision(ParticleEmitter emitter, IParticle particle, CollisionEvent event);
+    }
+
+    public void addCollisionListener(CollisionListener listener) {
+        collisionListeners.add(listener);
+    }
+
+    public void removeCollisionListener(CollisionListener listener) {
+        collisionListeners.remove(listener);
+    }
+
+    @Nullable
+    public CollisionScene collisionScene() {
+        return collisionScene;
+    }
+
+    /** Whether world playback has a collision listener. */
+    public boolean wantsCollisionEvents() {
+        return !collisionListeners.isEmpty();
+    }
+
+    /** Queues an event for delivery on the game thread at the end of this tick. Any thread. */
+    public void reportCollision(TileParticle particle, CollisionEvent event) {
+        if (wantsCollisionEvents()) {
+            pendingCollisionReports.add(new Deferred(particle.nextSpawnOrder(), () -> deliver(particle, event)));
+        }
+    }
+
+    private void deliver(TileParticle particle, CollisionEvent event) {
+        if (!passesDedupe(particle, event)) return;
+        for (var listener : collisionListeners) {
+            listener.onCollision(this, particle, event);
+        }
+    }
+
+    /** Whether de-duplication applies to the event: impacts and contact deaths, while it is on. Any thread. */
+    public boolean dedupes(CollisionEvent event) {
+        return runtime().physics.collision.config().events.getDedupe() != CollisionSetting.Dedupe.Off
+                && (event.type() == CollisionEvent.Type.IMPACT || event.type() == CollisionEvent.Type.DEATH);
+    }
+
+    /**
+     * Whether a collision event survives this emitter's de-duplication; the first of its consumers decides for all.
+     * Game thread, while the tick's deferred effects drain.
+     */
+    public boolean passesDedupe(TileParticle particle, CollisionEvent event) {
+        if (!dedupes(event)) return true;
+        var events = runtime().physics.collision.config().events;
+        var dedupe = events.getDedupe();
+        var verdict = dedupeVerdicts.get(event);
+        if (verdict != null) return verdict;
+        var memory = switch (dedupe) {
+            case PerParticle -> particle.reportedTargets();
+            case PerGroup -> groupMemory(events.getGroup());
+            default -> reportedTargets;
+        };
+        // a target's impacts and its contact deaths are remembered apart
+        long key = event.identity() << 1 | (event.type() == CollisionEvent.Type.DEATH ? 1 : 0);
+        boolean passes = memory.tryReport(key, effectTick(), events.getCooldown());
+        dedupeVerdicts.put(event, passes);
+        return passes;
+    }
+
+    private ContactMemory groupMemory(@Nullable String group) {
+        var scene = getScene();
+        if (group == null || group.isBlank() || scene == null) return reportedTargets;
+        return GROUP_MEMORY.computeIfAbsent(scene, key -> new HashMap<>()).computeIfAbsent(group, key -> new ContactMemory());
+    }
+
+    /** The effect's clock, the same for all of its emitters: its root's ticks. */
+    private long effectTick() {
+        return getScene() instanceof FXRuntime fxRuntime && fxRuntime.root instanceof FXObject root ? root.getLastTick() : getLastTick();
+    }
+
+    private void drainCollisionReports() {
+        drainInOrder(pendingCollisionReports);
+    }
+
+    @Nullable
+    private CollisionScene buildCollisionScene() {
+        lastCollisionStats[0] = collisionStats.casts.sumThenReset();
+        lastCollisionStats[1] = collisionStats.boxTests.sumThenReset();
+        lastCollisionStats[2] = collisionStats.contacts.sumThenReset();
+        lastCollisionStats[3] = collisionStats.depenetrations.sumThenReset();
+        lastCollisionStats[4] = collisionStats.misses.sumThenReset();
+        lastCollisionMillis = collisionNanos / 1e6;
+        lastCollisionParallel = collisionParallel;
+        collisionNanos = 0;
+        collisionParallel = false;
+        var physics = runtime().physics;
+        var level = getLevel();
+        if (!physics.isEnable() || !physics.hasCollision() || level == null) {
+            collisionWorld = null;
+            simOriginValid = false;
+            return null;
+        }
+        // targets move relative to the simulation space, which drags Local and Custom particles along
+        var origin = getSimToWorld().getTranslation(new Vector3f());
+        simMotionX = simMotionY = simMotionZ = 0;
+        if (simOriginValid && origin.distanceSquared(simOrigin) <= CollisionScene.MAX_TARGET_MOTION * CollisionScene.MAX_TARGET_MOTION) {
+            simMotionX = origin.x - simOrigin.x;
+            simMotionY = origin.y - simOrigin.y;
+            simMotionZ = origin.z - simOrigin.z;
+        }
+        simOrigin.set(origin);
+        simOriginValid = true;
+        // motions are measured per game tick, and a tick's sub-steps simulate timeScale ticks
+        float timeScale = timeScale();
+        targetMotionScale = timeScale > 1e-6f ? 1 / timeScale : 0;
+        var collision = physics.collision;
+        collisionWorld = CollisionWorld.of(level);
+        var worldOrigin = worldOrigin();
+        int mask = (collision.blocks.get() ? BlockBoxSource.BLOCKS : 0) | (collision.fluids.get() ? BlockBoxSource.FLUIDS : 0);
+        AABB bounds = (mask != 0 || collision.entities.get()) ? particleBounds() : null;
+        if (mask != 0 && bounds != null) {
+            collisionWorld.prefetch(bounds.minX, bounds.minY, bounds.minZ, bounds.maxX, bounds.maxY, bounds.maxZ);
+        }
+        var entities = collision.entities.get() ? gatherEntities(level, collision, bounds, worldOrigin) : CollisionScene.NO_ENTITIES;
+        var colliders = collision.colliders.get() ? gatherColliders(collision) : CollisionScene.NO_COLLIDERS;
+        var blocks = mask == 0 ? null : BlockBoxSource.shifted(collisionWorld, worldOrigin.x, worldOrigin.y, worldOrigin.z);
+        return new CollisionScene(blocks, mask, mask == 0 ? null : collision.blockFilter(),
+                entities, colliders, collisionStats);
+    }
+
+    private EntityTarget[] gatherEntities(Level level, CollisionSetting.Runtime collision, AABB bounds, net.minecraft.world.phys.Vec3 worldOrigin) {
+        var filters = collision.config().filters;
+        var executor = getEffectExecutor();
+        var owner = filters.isIgnoreOwner() && executor != null ? executor.owner() : null;
+        double radius = filters.getSourceExclusionRadius();
+        if (radius > 0 && sourceEntities == null) sourceEntities = entitiesNearSource(level, radius);
+        var excluded = radius > 0 ? sourceEntities : null;
+        boolean trigger = filters.getEntityResponse() == CollisionSetting.EntityResponse.Trigger;
+        var found = level.getEntities((Entity) null, bounds, entity -> entity != owner && entity.isAlive()
+                && (excluded == null || !excluded.contains(entity.getId())) && collision.acceptsEntity(entity));
+        if (found.isEmpty()) return CollisionScene.NO_ENTITIES;
+        var targets = new EntityTarget[found.size()];
+        for (int i = 0; i < targets.length; i++) {
+            var entity = found.get(i);
+            var box = entity.getBoundingBox();
+            double mx = entity.getX() - entity.xo, my = entity.getY() - entity.yo, mz = entity.getZ() - entity.zo;
+            if (mx * mx + my * my + mz * mz > CollisionScene.MAX_TARGET_MOTION * CollisionScene.MAX_TARGET_MOTION) {
+                mx = my = mz = 0;
+            }
+            double k = targetMotionScale;
+            targets[i] = new EntityTarget(entity, entity.getId(),
+                    box.minX - worldOrigin.x, box.minY - worldOrigin.y, box.minZ - worldOrigin.z,
+                    box.maxX - worldOrigin.x, box.maxY - worldOrigin.y, box.maxZ - worldOrigin.z,
+                    (mx - simMotionX) * k, (my - simMotionY) * k, (mz - simMotionZ) * k, trigger);
+        }
+        return targets;
+    }
+
+    /** The entities within {@code radius} of where the effect started, taken once per playback. */
+    private IntOpenHashSet entitiesNearSource(Level level, double radius) {
+        var localOrigin = getScene() instanceof FXRuntime fxRuntime ? fxRuntime.root.transform().position() : transform().position();
+        var origin = toWorldSpace(localOrigin);
+        var near = new IntOpenHashSet();
+        for (var entity : level.getEntities((Entity) null, new AABB(origin.x - radius, origin.y - radius, origin.z - radius,
+                origin.x + radius, origin.y + radius, origin.z + radius), entity -> true)) {
+            var box = entity.getBoundingBox();
+            double dx = Math.max(0, Math.max(box.minX - origin.x, origin.x - box.maxX));
+            double dy = Math.max(0, Math.max(box.minY - origin.y, origin.y - box.maxY));
+            double dz = Math.max(0, Math.max(box.minZ - origin.z, origin.z - box.maxZ));
+            if (dx * dx + dy * dy + dz * dz <= radius * radius) near.add(entity.getId());
+        }
+        return near;
+    }
+
+    @Override
+    protected AABB blockPrefetchBounds() {
+        return particleBounds();
+    }
+
+    /**
+     * Where this emitter's particles can get to this tick: where they are, grown by how far the fastest moves,
+     * active trail point sweeps, and the emission shape plus initial velocity reach for newly emitted particles.
+     */
+    private AABB particleBounds() {
+        var origin = transform().position();
+        float steps = Math.max(1, timeScale());
+        double newReach = newParticleReach(steps);
+        double minX = origin.x - newReach, minY = origin.y - newReach, minZ = origin.z - newReach;
+        double maxX = origin.x + newReach, maxY = origin.y + newReach, maxZ = origin.z + newReach;
+        double reach = 1;
+        for (var queue : particles.values()) {
+            for (var particle : queue) {
+                if (!particle.isAlive()) continue;
+                if (particle instanceof TileParticle tile) {
+                    var pos = tile.getWorldPos(1);
+                    minX = Math.min(minX, pos.x);
+                    minY = Math.min(minY, pos.y);
+                    minZ = Math.min(minZ, pos.z);
+                    maxX = Math.max(maxX, pos.x);
+                    maxY = Math.max(maxY, pos.y);
+                    maxZ = Math.max(maxZ, pos.z);
+                    var size = tile.getRealSize(1);
+                    reach = Math.max(reach, tile.getRealVelocity().length() * steps + Math.max(size.x, Math.max(size.y, size.z)));
+                } else if (particle instanceof AraTrailParticle trail) {
+                    var expanded = trail.expandCollisionBounds(new AABB(minX, minY, minZ, maxX, maxY, maxZ), steps / 20f);
+                    minX = expanded.minX;
+                    minY = expanded.minY;
+                    minZ = expanded.minZ;
+                    maxX = expanded.maxX;
+                    maxY = expanded.maxY;
+                    maxZ = expanded.maxZ;
+                }
+            }
+        }
+        var worldOrigin = worldOrigin();
+        return new AABB(minX, minY, minZ, maxX, maxY, maxZ).inflate(reach + 1)
+                .move(worldOrigin.x, worldOrigin.y, worldOrigin.z);
+    }
+
+    private double newParticleReach(float steps) {
+        var rt = runtime();
+        float t = getT();
+        var shapePos = rt.shape.position.get().get(t, () -> 1f);
+        var shapeScale = rt.shape.scale.get().get(t, () -> 1f);
+        var worldScale = transform().scale();
+        double shapeExtent = Math.hypot(shapePos.x, Math.hypot(shapePos.y, shapePos.z))
+                + Math.hypot(Math.abs(shapeScale.x * worldScale.x), Math.hypot(Math.abs(shapeScale.y * worldScale.y), Math.abs(shapeScale.z * worldScale.z)));
+        var startSpeedFn = rt.startSpeed.get();
+        double maxSpeed = Math.max(Math.abs(startSpeedFn.get(t, () -> 1f).floatValue()),
+                Math.abs(startSpeedFn.get(t, () -> 0f).floatValue()));
+        double gravity = Math.abs(rt.physics.gravity.get().get(t, () -> 1f).floatValue()) * 0.04;
+        double emitterSpeed = getVelocity().length();
+        return Math.max(NEW_PARTICLE_REACH, shapeExtent + (maxSpeed + emitterSpeed + gravity * steps) * steps + 2.0);
+    }
+
+    private ColliderTarget[] gatherColliders(CollisionSetting.Runtime collision) {
+        if (!(getScene() instanceof FXRuntime fxRuntime)) return CollisionScene.NO_COLLIDERS;
+        var filters = collision.config().filters;
+        List<ColliderTarget> list = null;
+        for (var object : fxRuntime.objects.values()) {
+            if (object instanceof ColliderObject collider && collider.isActive() && !collider.isRemoved()
+                    && filters.accepts(collider)) {
+                var target = collider.target();
+                if (target == null) continue;
+                if (list == null) list = new ArrayList<>();
+                list.add(target.relativeTo(simMotionX, simMotionY, simMotionZ, targetMotionScale));
+            }
+        }
+        return list == null ? CollisionScene.NO_COLLIDERS : list.toArray(new ColliderTarget[0]);
+    }
+
+    @Override
+    public void update(float dt) {
+        if (!hasFirstUpdate) {
+            hasFirstUpdate = true;
+            int prewarm = runtime().prewarm.get();
+            if (!isLooping()) {
+                // prewarm >= duration would age a non-looping emitter to death before its first visible frame
+                prewarm = Math.clamp(getLifetime() - 1, 0, prewarm);
+            }
+            if (prewarm > 0) {
+                for (int i = 0; i < prewarm; i++) {
+                    emitParticle(1f); // prewarm always simulates whole ticks
+                    super.update(1f);
+                    if (removed) {
+                        return;
+                    }
+                }
+            }
+        }
+        emitParticle(dt);
+        super.update(dt);
+    }
+
+    public void emitParticle(float dt) {
+        updateLightRegistration();
+        boolean emitting = canEmit();
+        // calculate distance (scaled by this step's dt)
+        if (emitting) accumulatedDistance += getVelocity().length() * dt;
+        else {
+            accumulatedDistance = 0;
+            emissionRateAccum = 0;
+        }
+        // emit new particle (maxParticles may be timeline-overridden; authored value is the fallback)
+        // Drop dead particles from the previous tick before checking maxParticles capacity.
+        for (var queue : particles.values()) {
+            queue.removeIf(p -> !p.isAlive());
+        }
+        var maxParticles = runtime().maxParticles.get();
+        var particleAmount = getParticleAmount(); // streams all queues — compute once per call
+        if (emitting && !removed && particleAmount < maxParticles) {
+            var emissionCount = runtime().emission.getEmissionCount(this, getRandomSource(), dt);
+            var available = Math.min(emissionCount, maxParticles - particleAmount);
+            particleBatchCount = Math.max(1, available);
+            particleBatchCursor = 0;
+            for (int i = 0; i < available; i++) {
+                emitParticle(createNewParticle());
+            }
+        }
+
+        // particles life cycle
+        if (!waitToAdded.isEmpty()) {
+            for (var p : waitToAdded) {
+                // modest initial capacity: maxParticles is timeline-drivable and may be huge
+                particles.computeIfAbsent(p.getRenderType(), type -> new ArrayDeque<>(Math.min(maxParticles, 256))).add(p);
+            }
+            waitToAdded.clear();
+        }
+
+        var parallelAllowed = useParallelUpdate();
+        var trailScene = blockScene();
+        var primaryWorld = collisionScene != null && collisionScene.blocks instanceof CollisionWorld world ? world : null;
+        var trailWorld = trailScene != null && trailScene.blocks instanceof CollisionWorld cw ? cw : null;
+        long updateStart = System.nanoTime();
+        var workers = VfxFrameExecutor.INSTANCE;
+        for (var queue : particles.values()) {
+            if (parallelAllowed && queue.size() >= PARALLEL_UPDATE_MIN_PARTICLES) {
+                queue.removeIf(p -> !p.isAlive());
+                if (queue.isEmpty()) continue;
+                parallelParticles.addAll(queue);
+                int count = parallelParticles.size();
+                int partitions = workers.partitions(count);
+                setParallelLightPhase(true);
+                OwnerRequests requests = partitions > 1 && (primaryWorld != null || trailWorld != null)
+                        ? new OwnerRequests(partitions) : null;
+                collisionParallel |= partitions > 1;
+                try {
+                    if (requests != null) {
+                        if (primaryWorld != null) primaryWorld.beginParallel(requests);
+                        if (trailWorld != null && trailWorld != primaryWorld) trailWorld.beginParallel(requests);
+                    }
+                    workers.executeRanges(0, count, partitions, requests, (partition, from, to) -> {
+                        for (int index = from; index < to; index++) {
+                            parallelParticles.get(index).updateTick(dt);
+                        }
+                    });
+                } finally {
+                    if (requests != null) {
+                        if (trailWorld != null && trailWorld != primaryWorld) trailWorld.endParallel(requests);
+                        if (primaryWorld != null) primaryWorld.endParallel(requests);
+                    }
+                    setParallelLightPhase(false);
+                    parallelParticles.clear();
+                }
+            } else {
+                var iter = queue.iterator();
+                while (iter.hasNext()) {
+                    var particle = iter.next();
+                    if (!particle.isAlive()) {
+                        iter.remove();
+                    } else {
+                        particle.updateTick(dt);
+                    }
+                }
+            }
+        }
+        if (parallelAllowed) {
+            // refresh every light position requested this tick on the game thread
+            // (parallel reads only consult the cache; misses used the last value)
+            rebuildLightCache();
+        }
+
+        if (collisionScene != null) collisionNanos += System.nanoTime() - updateStart;
+
+        // side effects of the (possibly parallel) particle updates, in particle order
+        drainInOrder(pendingSubEmitterSpawns);
+        drainCollisionReports();
+        dedupeVerdicts.clear();
+        // a finished emitter must not keep the entities (and their level) of its last tick
+        if (collisionScene != null && particles.values().stream().allMatch(Collection::isEmpty)) collisionScene = null;
+    }
+
+    @Override
+    protected boolean needsBlockScene() {
+        var trails = config.trails;
+        return runtime().trails.isEnable() && trails.getTrailType() == TrailsSetting.TrailType.ARA_TRAIL
+                && trails.araConfig.physicsSetting.isEnable() && trails.araConfig.physicsSetting.collideWithBlocks;
+    }
+
+    /** Parallel particle updates, when enabled; with collision only where {@link CollisionWorld#isParallelSafe} allows. */
+    private boolean useParallelUpdate() {
+        if (!runtime().parallelUpdate.get() || VfxFrameExecutor.INSTANCE.maximumWorkers() == 1) return false;
+        var physics = runtime().physics;
+        if ((!physics.isEnable() || !physics.hasCollision()) && !needsBlockScene()) return true;
+        var level = getLevel();
+        return PhotonConfig.INSTANCE.collisionParallel.get() && CollisionWorld.isParallelSafe(level);
+    }
+
+    @Override
+    protected boolean clearsLightCacheOnTickBegin() {
+        // parallel emitters keep the cache across the tick (reads are cache-only during the
+        // parallel phase) and rebuild it at tick end instead
+        return !useParallelUpdate();
+    }
+
+    @Override
+    public boolean isLooping() {
+        return runtime().looping.get();
+    }
+
+    public void emitParticle(IParticle particle) {
+        // it can die while being set up (no ground to snap to)
+        if (particle instanceof TileParticle tile && tile.isRemoved()) return;
+        waitToAdded.add(particle);
+    }
+
+    /** Emission order of the next particle; orders what particle updates defer. */
+    public int nextParticleSerial() {
+        return particleSerial++;
+    }
+
+    @Override
+    public int getLifetime() {
+        return durationWithInheritance(runtime().duration.get());
+    }
+
+    @Override
+    protected void updateOrigin() {
+        super.updateOrigin();
+        setLifetime(getLifetime());
+    }
+
+    @Override
+    public void reset() {
+        super.reset();
+        if (runtime != null) {
+            runtime.clear(); // drop timeline overrides; fall back to authored config
+        }
+        this.particles.clear();
+        this.waitToAdded.clear();
+        this.pendingSubEmitterSpawns.clear();
+        this.pendingCollisionReports.clear();
+        this.collisionScene = null;
+        this.simOriginValid = false;
+        this.reportedTargets.clear();
+        this.dedupeVerdicts.clear();
+        this.sourceEntities = null;
+        var groups = getScene() == null ? null : GROUP_MEMORY.get(getScene());
+        if (groups != null) groups.remove(config.physics.collision.events.getGroup());
+        this.collisionStats.reset();
+        this.forceRemoved = false;
+        this.particleSerial = 0;
+        this.hasFirstUpdate = false;
+        this.particleBatchCount = 1;
+        this.particleBatchCursor = 0;
+        this.accumulatedDistance = 0;
+        this.emissionRateAccum = 0;
+    }
+
+    /** The render pass this emitter draws through (per-instance override pass, or the shared singleton). */
+    public PhotonFXRenderPass effectiveRenderPass() {
+        return runtime().effectiveRenderPass();
+    }
+
+    /** Lazily built CPU renderers (were owned by the 1.21 RenderPasses): quads for the tiles, ribbon/
+     *  triangle renderers for the embedded per-particle trails. Transient render-only state. */
+    @Nullable
+    private transient TileParticleRenderer extractRenderer;
+    @Nullable
+    private transient TrailParticleRenderer trailExtractRenderer;
+    @Nullable
+    private transient AraTrailParticleRenderer araTrailExtractRenderer;
+
+    @Override
+    public RendererSetting.Runtime rendererRuntime() {
+        return runtime().renderer;
+    }
+
+    @Override
+    protected void bakeBatches(List<PhotonWorldRenderState.DrawJob> out,
+                               Camera camera, float partialTicks) {
+        // GPU-instanced tile quads when the config qualifies; CPU baking otherwise
+        if (!(canInstanceTiles() && extractInstancedTiles(out, camera, partialTicks))) {
+            // the tile quads (CPU), carrying per-particle records for any material that reads particle data
+            bakeGroup(out, camera, partialTicks, rendererRuntime(), geometryMode(), this::bakeGeometry,
+                    new CpuRecordSource(config.additionalGPUDataSetting, records -> tileRenderer().setCpuRecords(records)));
+        }
+        // The embedded per-particle trails (TrailsSetting) are separate geometry groups: their own
+        // sub-config renderer/materials and primitive mode, mirroring TrailEmitter/AraTrailEmitter.
+        // Queues are homogeneous (keyed by the spawning config's render pass), so the head's type
+        // identifies each queue's group.
+        var trails = config.trails;
+        if (hasParticlesOf(TrailParticle.class)) {
+            if (trailExtractRenderer == null) {
+                trailExtractRenderer = new TrailParticleRenderer();
+            }
+            var s = trails.config.additionalGPUDataSetting;
+            var instanced = trails.config.defaultRenderRuntime.isUseGPUInstance();
+            if (instanced) {
+                // capacity is PER TRAIL: each writes up to tails+1 segments and tails+3 points
+                // (pushed head + 2 pads) — the 1.21 pre-scan bounds
+                var tails = 0;
+                var trailCount = 0;
+                for (var queue : particles.values()) {
+                    if (queue.peek() instanceof TrailParticle) {
+                        for (var p : queue) {
+                            tails += ((TrailParticle) p).getTails().size();
+                            trailCount++;
+                        }
+                    }
+                }
+                var origin = worldOrigin();
+                var offset = new Vector3f(PhotonCameraUtils.facingEye(camera, origin))
+                        .sub(PhotonCameraUtils.renderOrigin(camera, origin));
+                instanced = bakeInstancedGroup(out, camera, trails.config.defaultRenderRuntime, s,
+                        PhotonPipelines.InstancedVariant.TRAIL,
+                        BaseMesh.quads(PhotonWorldRenderState.segmentQuad(), 6),
+                        (tails + trailCount) * 4, (tails + 3 * trailCount) * 12, offset,
+                        (instances, points, data, custom) -> {
+                            var count = 0;
+                            for (var queue : particles.values()) {
+                                if (queue.peek() instanceof TrailParticle) {
+                                    count += trailExtractRenderer.fillInstances(queue, camera, partialTicks,
+                                            instances, points, s, data, custom);
+                                }
+                            }
+                            return count;
+                        });
+            }
+            if (!instanced) {
+                bakeGroup(out, camera, partialTicks, trails.config.defaultRenderRuntime,
+                        PrimitiveTopology.TRIANGLE_STRIP, (geometry, cam, pt) ->
+                                renderQueuesOf(TrailParticle.class,
+                                        queue -> trailExtractRenderer.renderQueue(geometry, queue, cam, pt)));
+            }
+        }
+        if (hasParticlesOf(AraTrailParticle.class)) {
+            if (araTrailExtractRenderer == null) {
+                araTrailExtractRenderer = new AraTrailParticleRenderer(trails.araConfig);
+            }
+            var s = trails.araConfig.additionalGPUDataSetting;
+            var araTube = trails.araConfig.section.isEnable();
+            var instanced = trails.araConfig.defaultRenderRuntime.isUseGPUInstance()
+                    && (araTube || !(trails.araConfig.highQualityCorners
+                            && trails.araConfig.alignment != AraTrailConfig.TrailAlignment.Local));
+            if (instanced) {
+                var pointCapacity = 2;
+                for (var queue : particles.values()) {
+                    if (queue.peek() instanceof AraTrailParticle) {
+                        for (var p : queue) {
+                            pointCapacity += ((AraTrailParticle) p).getPoints().size()
+                                    * Math.max(1, trails.araConfig.smoothness) + 2;
+                        }
+                    }
+                }
+                var araMesh = araTube ? araTrailExtractRenderer.tubeMesh()
+                        : BaseMesh.quads(PhotonWorldRenderState.araQuad(), 6);
+                instanced = araMesh != null
+                        && bakeInstancedGroup(out, camera, trails.araConfig.defaultRenderRuntime, s,
+                        araTube ? PhotonPipelines.InstancedVariant.ARA_TUBE : PhotonPipelines.InstancedVariant.ARA,
+                        araMesh,
+                        pointCapacity * (araTube ? 1 : 3), pointCapacity * 16, new Vector3f(),
+                        (instances, points, data, custom) -> {
+                            var count = 0;
+                            for (var queue : particles.values()) {
+                                if (queue.peek() instanceof AraTrailParticle) {
+                                    count += araTrailExtractRenderer.fillInstances(queue, camera, partialTicks,
+                                            araTube, instances, points, data, custom);
+                                }
+                            }
+                            return count;
+                        });
+            }
+            if (!instanced) {
+                bakeGroup(out, camera, partialTicks, trails.araConfig.defaultRenderRuntime,
+                        PrimitiveTopology.TRIANGLES, (geometry, cam, pt) ->
+                                renderQueuesOf(AraTrailParticle.class,
+                                        queue -> araTrailExtractRenderer.renderQueue(geometry, queue, cam, pt)));
+            }
+        }
+    }
+
+    /**
+     * Instanced eligibility: billboard modes + Model, no additional-GPU-data streams (their
+     * layouts change the instance stride / need extra texel buffers — CPU fallback keeps them
+     * correct until a follow-up phase ports them).
+     */
+    private boolean canInstanceTiles() {
+        var renderer = runtime().renderer;
+        var setting = config.additionalGPUDataSetting;
+        return renderer.isUseGPUInstance()
+                && renderer.getRenderMode() != ParticleRendererSetting.Mode.None;
+    }
+
+    /** The variant the tiles draw instanced as: the base mesh, the VAO layout and every material's pipeline follow it. */
+    private static PhotonPipelines.InstancedVariant tileVariant(boolean model, boolean tangent, boolean vat) {
+        if (!model) return PhotonPipelines.InstancedVariant.TILE;
+        if (vat) {
+            return tangent ? PhotonPipelines.InstancedVariant.MODEL_VAT_TANGENT : PhotonPipelines.InstancedVariant.MODEL_VAT;
+        }
+        return tangent ? PhotonPipelines.InstancedVariant.MODEL_TANGENT : PhotonPipelines.InstancedVariant.MODEL;
+    }
+
+    /** Extract the tiles as instanced draws (billboard quad or baked model mesh). */
+    private boolean extractInstancedTiles(List<PhotonWorldRenderState.DrawJob> out,
+                                          Camera camera, float partialTicks) {
+        if (extractRenderer == null) {
+            extractRenderer = new TileParticleRenderer(runtime().renderer);
+        }
+        var tileCount = 0;
+        for (var queue : particles.values()) {
+            if (queue.peek() instanceof TileParticle) {
+                tileCount += queue.size();
+            }
+        }
+        var model = runtime().renderer.getRenderMode() == ParticleRendererSetting.Mode.Model;
+        // The user decides whether to upload tangent vertex data (renderer settings, Model mode only —
+        // only a mesh has tangents). It selects the instanced VARIANT, so the base mesh, the VAO layout and
+        // every material/sub-pass pipeline of this group are built from one decision and cannot disagree.
+        var tangent = model && runtime().renderer.isTangent();
+        // A baked pose table puts every particle at its own frame of the animation, which the vertex stage
+        // can only do from a table — so like the tangent it selects the VARIANT, not a bind-time flag.
+        var vat = model ? extractRenderer.vertexAnimation() : null;
+        GpuBuffer vertices;
+        int indexCount;
+        // the mesh's OWN triangle indices for a model (it welds, so the shared sequential-quad pattern
+        // would read the wrong corners); null = the shared quads, which is right for the tile quad
+        GpuBuffer indices = null;
+        GpuBuffer vatTable = null;
+        GpuBufferSlice vatInfo = null;
+        if (model) {
+            vertices = extractRenderer.modelMeshBuffer(tangent);
+            indexCount = extractRenderer.modelIndexCount();
+            indices = extractRenderer.modelIndexBuffer();
+            if (vertices == null || indices == null || indexCount == 0) {
+                return false; // no mesh — CPU path renders the fallback
+            }
+            if (vat != null) {
+                vatTable = vat.buffer();
+                if (vatTable == null) {
+                    vat = null; // the table could not be uploaded — draw the rest pose rather than nothing
+                } else {
+                    vatInfo = PhotonVatUniforms.sliceFor(PhotonVatUniforms.Values.of(
+                            vat.vertexCount(), vat.frames(), vat.phase()));
+                }
+            }
+        } else {
+            vertices = PhotonWorldRenderState.tileQuad();
+            indexCount = 6;
+        }
+        var floats = model ? TileParticleRenderer.MODEL_INSTANCE_FLOATS : TileParticleRenderer.INSTANCE_FLOATS;
+        var variant = tileVariant(model, tangent, vat != null);
+        return bakeInstancedGroup(out, camera, runtime().renderer, config.additionalGPUDataSetting,
+                variant,
+                new BaseMesh(vertices, indexCount, indices, vatTable, vatInfo,
+                        model ? extractRenderer.modelReversedIndexBuffer() : null),
+                tileCount * floats, 0, new Vector3f(),
+                (instances, points, data, custom) -> {
+                    var count = 0;
+                    var setting = config.additionalGPUDataSetting;
+                    for (var queue : particles.values()) {
+                        if (queue.peek() instanceof TileParticle) {
+                            count += model
+                                    ? extractRenderer.fillInstancesModel(queue, camera, partialTicks, instances,
+                                            setting, data, custom)
+                                    : extractRenderer.fillInstances(queue, camera, partialTicks, instances,
+                                            setting, data, custom);
+                        }
+                    }
+                    return count;
+                });
+    }
+
+    private boolean hasParticlesOf(Class<?> type) {
+        for (var queue : particles.values()) {
+            if (type.isInstance(queue.peek())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void renderQueuesOf(Class<?> type, Consumer<Queue<IParticle>> render) {
+        for (var queue : particles.values()) {
+            if (type.isInstance(queue.peek())) {
+                render.accept(queue);
+            }
+        }
+    }
+
+    private TileParticleRenderer tileRenderer() {
+        if (extractRenderer == null) {
+            extractRenderer = new TileParticleRenderer(runtime().renderer);
+        }
+        return extractRenderer;
+    }
+
+    @Override
+    protected void bakeGeometry(VertexConsumer geometry, Camera camera, float partialTicks) {
+        var extractRenderer = tileRenderer();
+        for (var queue : this.particles.values()) {
+            // tiles only — trail queues extract as their own groups (see extractBatches)
+            if (queue.peek() instanceof TileParticle) {
+                extractRenderer.renderQueue(geometry, queue, camera, partialTicks);
+            }
+        }
+    }
+
+    @Override
+    public int getParticleAmount() {
+        // plain loop: called every tick from isAlive/isPlaying — a Stream here is pure allocation churn
+        var amount = waitToAdded.size();
+        for (var queue : getParticles().values()) {
+            amount += queue.size();
+        }
+        return amount;
+    }
+
+    @Override
+    @Nullable
+    public AABB getCullBox(float partialTicks) {
+        // per-emitter cull (slot-or-config); not a batching concern, so it never forces an override pass
+        var cull = runtime().renderer.getCull();
+        return cull.isEnable() ? cull.getCullAABB(this, partialTicks) : null;
+    }
+
+    // one instance: the manager holds providers weakly and removes them by identity
+    private final LightProvider lightProvider = this::submitParticleLights;
+    @Nullable
+    private Level lightLevel;
+
+    private void updateLightRegistration() {
+        registerLights(runtime().lightEmission.isEnable() ? getLevel() : null);
+    }
+
+    private void registerLights(@Nullable Level level) {
+        if (level == lightLevel) return;
+        if (lightLevel != null) DynamicLightManager.removeProvider(lightLevel, lightProvider);
+        if (level != null) DynamicLightManager.addProvider(level, lightProvider);
+        lightLevel = level;
+    }
+
+    private void submitParticleLights(LightSink sink, float partialTick) {
+        if (!runtime().lightEmission.isEnable() || !isAlive() || !isVisible() || isDiscarded()) return;
+        runtime().lightEmission.submit(particles.values(), sink, partialTick);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        registerLights(null);
+        collisionScene = null;
+        collisionWorld = null;
+    }
+
+    @Override
+    public void remove(boolean force) {
+        super.remove(force);
+        if (force) {
+            forceRemoved = true;
+            registerLights(null);
+            particles.clear();
+            waitToAdded.clear();
+            pendingSubEmitterSpawns.clear();
+            pendingCollisionReports.clear();
+            collisionScene = null;
+            collisionWorld = null;
+            if (runtime != null) {
+                runtime.clearRenderOverride(); // free the per-instance override pass's GL on force removal
+            }
+        }
+    }
+
+    public int nextParticleBatchIndex() {
+        return particleBatchCursor++;
+    }
+
+    public int getParticleBatchCount() {
+        return particleBatchCount;
+    }
+}

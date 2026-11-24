@@ -1,0 +1,211 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_radix_sort",
+  "name": "spine",
+  "pass": "spine",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "default",
+    "defines": {},
+    "selectionKeys": [],
+    "selector": {}
+  },
+  "stageClass": "compute",
+  "abiLowering": [
+    {
+      "resource": "InOffsets",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "OutOffsets",
+      "from": "RWBuffer<uint>",
+      "to": "RWStructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    }
+  ],
+  "sourceResources": [
+    {
+      "name": "InOffsets",
+      "kind": "ue_radix_sort_buffer",
+      "original_hlsl_type": "Buffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "OutOffsets",
+      "kind": "ue_radix_sort_buffer",
+      "original_hlsl_type": "RWBuffer<uint>",
+      "hlsl_type": "RWStructuredBuffer<uint>",
+      "stride_bytes": 4,
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "RadixSort_Spine",
+      "source": "Engine/Shaders/Private/RadixSortShaders.usf",
+      "workgroup": {
+        "x": 64,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "storageBuffer",
+          "name": "InOffsets",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "access": "READ_WRITE",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "OutOffsets",
+          "descriptorSet": 0,
+          "descriptorBinding": 3,
+          "access": "READ_WRITE",
+          "glBinding": 1,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 9852,
+          "sha256": "3899c4b9848aaadafa77f56db059d492ea7a797a72550e02012dc0bfa94cd340"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 20912,
+          "sha256": "042f0a7c0c95d970c62775d786db16da1aebb0e74635597d8a01de2b68a7912e"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          64,
+          1,
+          1
+        ],
+        "capabilities": [
+          1
+        ],
+        "uniformBuffers": [],
+        "storageBuffers": [
+          {
+            "name": "InOffsets",
+            "sourceName": "InOffsets",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "OutOffsets",
+            "sourceName": "OutOffsets",
+            "descriptorSet": 0,
+            "descriptorBinding": 3,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "default",
+      "pipelinePass": "spine",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "RadixSort_Spine",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "storageBuffer",
+      "name": "InOffsets",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "access": "READ_WRITE",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "OutOffsets",
+      "descriptorSet": 0,
+      "descriptorBinding": 3,
+      "access": "READ_WRITE",
+      "glBinding": 1,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 9852,
+        "sha256": "3899c4b9848aaadafa77f56db059d492ea7a797a72550e02012dc0bfa94cd340"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 20912,
+        "sha256": "042f0a7c0c95d970c62775d786db16da1aebb0e74635597d8a01de2b68a7912e"
+      }
+    }
+  }
+}

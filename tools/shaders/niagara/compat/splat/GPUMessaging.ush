@@ -1,0 +1,17 @@
+#pragma once
+
+struct FGPUMessageWriter
+{
+	uint Dummy;
+};
+
+FGPUMessageWriter GPUMessageBegin(uint MessageId, uint WordCount)
+{
+	FGPUMessageWriter Writer;
+	Writer.Dummy = 0u;
+	return Writer;
+}
+
+void GPUMessageWriteItem(FGPUMessageWriter Writer, uint Item)
+{
+}

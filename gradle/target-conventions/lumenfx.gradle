@@ -1,0 +1,242 @@
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.bundling.Jar
+
+def templeRoot = file('../..')
+def commonRoot = new File(templeRoot, 'common')
+def shared = project(':common')
+def javaVersion = java_version as int
+def mappedMixin = loader == 'forge' || (loader == 'fabric' && javaVersion < 25)
+def refmapName = "${mod_id}.refmap.json"
+def extrasVersion = '0.4.1'
+def lombok = 'org.projectlombok:lombok:1.18.46'
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        name = 'FirstDark'
+        url = uri('https://maven.firstdark.dev/snapshots')
+        content {
+            includeGroup 'com.lowdragmc.ldlib2'
+            includeGroup 'com.lowdragmc.kilagraph'
+        }
+    }
+    maven {
+        name = 'Modrinth'
+        url = uri('https://api.modrinth.com/maven')
+        content { includeGroup 'maven.modrinth' }
+    }
+    maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+}
+
+dependencies {
+    compileOnly lombok
+    annotationProcessor lombok
+    compileOnly "io.github.llamalad7:mixinextras-common:${extrasVersion}"
+}
+
+// Target-specific optional compat compileOnly deps (Iris/Oculus, Sodium/Embeddium, KilaGraph/LDLib2)
+def irisCoord = findProperty('iris_mod')?.toString()
+def sodiumCoord = findProperty('sodium_mod')?.toString()
+def ldlibCoord = findProperty('ldlib2_mod')?.toString()
+def kilaCoord = findProperty('kilagraph_mod')?.toString()
+
+if (irisCoord) {
+    dependencies.add(loader == 'fabric' && javaVersion < 25 ? 'modCompileOnly' : 'compileOnly', irisCoord)
+}
+if (sodiumCoord) {
+    if (loader == 'neoforge' && minecraft_version in ['26.2', '26.1.2']) {
+        def sodiumBundle = configurations.create('sodiumBundle') {
+            canBeConsumed = false
+            canBeResolved = true
+        }
+        def sodiumApiDir = layout.buildDirectory.dir('generated/sodium-api')
+        def archiveOps = services.get(org.gradle.api.file.ArchiveOperations)
+        def extractSodiumApiJar = tasks.register('extractSodiumApiJar', Sync) {
+            from(sodiumBundle.incoming.files.elements.map { els -> els.collect { archiveOps.zipTree(it.asFile) } })
+            include 'META-INF/jarjar/*.jar'
+            eachFile { fcd -> fcd.path = 'sodium-mod.jar' }
+            includeEmptyDirs = false
+            into sodiumApiDir
+        }
+        dependencies.add('sodiumBundle', sodiumCoord) { transitive = false }
+        dependencies.add('compileOnly', sodiumCoord)
+        dependencies.add('compileOnly', files(sodiumApiDir.map { it.file('sodium-mod.jar') }) { builtBy extractSodiumApiJar })
+    } else {
+        dependencies.add(loader == 'fabric' && javaVersion < 25 ? 'modCompileOnly' : 'compileOnly', sodiumCoord)
+    }
+}
+if (ldlibCoord) {
+    dependencies.add('compileOnly', ldlibCoord) { transitive = false }
+}
+if (kilaCoord) {
+    dependencies.add('compileOnly', kilaCoord) { transitive = false }
+}
+
+// Access Transformer / Access Widener wiring per loader
+if (loader == 'neoforge') {
+    def atCandidates = [
+            new File(commonRoot, "src/compat/neoforge/${minecraft_version}/resources/META-INF/accesstransformer.cfg"),
+            new File(commonRoot, "src/compat/minecraft/${minecraft_version}/resources/META-INF/accesstransformer.cfg"),
+            new File(commonRoot, 'src/main/resources/META-INF/accesstransformer.cfg')
+    ].findAll { it.isFile() }
+    if (!atCandidates.isEmpty()) {
+        neoForge.accessTransformers.from(atCandidates)
+    }
+} else if (loader == 'forge') {
+    def atCandidates = [
+            new File(commonRoot, "src/compat/forge/${minecraft_version}/resources/META-INF/accesstransformer.cfg"),
+            new File(commonRoot, "src/compat/minecraft/${minecraft_version}/resources/META-INF/accesstransformer.cfg")
+    ].findAll { it.isFile() }
+    if (!atCandidates.isEmpty()) {
+        legacyForge.accessTransformers.from(atCandidates)
+    }
+} else if (loader == 'fabric') {
+    def awCandidates = [
+            new File(commonRoot, "src/compat/fabric/${minecraft_version}/resources/lumenfx.accesswidener"),
+            new File(commonRoot, "src/compat/fabric/resources/lumenfx.accesswidener")
+    ].findAll { it.isFile() }
+    if (!awCandidates.isEmpty()) {
+        loom.accessWidenerPath = awCandidates.first()
+    }
+}
+
+// Native Windows x64 JNI math & audio DLLs (shared once under common/build/generated/nativeResources)
+def nativeOutDir = new File(commonRoot, 'build/generated/nativeResources')
+def nativeMathDll = new File(nativeOutDir, 'windows/x64/lumenfx/lumenfx_math.dll')
+def nativeAudioDll = new File(nativeOutDir, 'windows/x64/lumenfx/lumenfx_audio.dll')
+def nativeMath = tasks.register('compileNativeMath', Exec) {
+    inputs.files(fileTree(new File(commonRoot, 'native/math')) { include '**/*.cpp', '**/*.h', '*.vcxproj' },
+            new File(templeRoot, 'tools/native/Build-NativeMath.ps1'))
+    outputs.file(nativeMathDll)
+    def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(javaVersion) }
+    def buildScript = new File(templeRoot, 'tools/native/Build-NativeMath.ps1').absolutePath
+    def nativeProject = new File(commonRoot, 'native/math/lumenfx_math.vcxproj').absolutePath
+    doFirst {
+        def jdk = launcher.get().metadata.installationPath.asFile
+        commandLine 'H:/便携工具/开发工具/命令行/PowerShell/7/pwsh.exe', '-NoProfile', '-File',
+                buildScript, '-JavaHome', jdk.absolutePath, '-ProjectFile', nativeProject
+    }
+}
+def nativeAudio = tasks.register('compileNativeAudio', Exec) {
+    inputs.files(fileTree(new File(commonRoot, 'native/audio')) { include '**/*.cpp', '**/*.h', '*.vcxproj' },
+            new File(templeRoot, 'tools/native/Build-NativeMath.ps1'))
+    outputs.file(nativeAudioDll)
+    def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(javaVersion) }
+    def buildScript = new File(templeRoot, 'tools/native/Build-NativeMath.ps1').absolutePath
+    def nativeProject = new File(commonRoot, 'native/audio/lumenfx_audio.vcxproj').absolutePath
+    doFirst {
+        def jdk = launcher.get().metadata.installationPath.asFile
+        commandLine 'H:/便携工具/开发工具/命令行/PowerShell/7/pwsh.exe', '-NoProfile', '-File',
+                buildScript, '-JavaHome', jdk.absolutePath, '-ProjectFile', nativeProject
+    }
+}
+
+// Mixin compatibility level & refmap filtering
+tasks.named('processResources', ProcessResources) {
+    dependsOn nativeMath, nativeAudio
+    from(nativeOutDir) {
+        exclude 'windows/x64/lumenfx/*.lib', 'windows/x64/lumenfx/*.exp'
+    }
+    exclude 'assets/lumenfx/shaders/fog/integrate.comp'
+    inputs.property('mixinJavaVersion', java_version)
+    inputs.property('mixinNeedsRefmap', mappedMixin)
+    def extraProps = [:]
+    if (findProperty('ldlib2_version')) extraProps['ldlib2_version'] = findProperty('ldlib2_version').toString()
+    if (findProperty('kilagraph_version')) extraProps['kilagraph_version'] = findProperty('kilagraph_version').toString()
+    if (!extraProps.isEmpty()) {
+        inputs.properties(extraProps)
+        filesMatching(['META-INF/neoforge.mods.toml', 'META-INF/mods.toml', 'fabric.mod.json']) {
+            filter { line ->
+                def out = line
+                extraProps.each { k, v -> out = out.replace("\${${k}}", v) }
+                out
+            }
+        }
+    }
+    filesMatching('*.mixins.json') {
+        filter { line ->
+            def out = line.replace('"JAVA_25"', "\"JAVA_${java_version}\"")
+            if (!mappedMixin && out.contains('"refmap"')) return null
+            out
+        }
+    }
+}
+
+tasks.named('jar', Jar) {
+    from(new File(templeRoot, 'licenses')) { into('licenses') }
+    exclude 'windows/x64/lumenfx/*.lib', 'windows/x64/lumenfx/*.exp'
+}
+tasks.named('sourcesJar', Jar) {
+    dependsOn shared.tasks.named('generateBuildInfo')
+    exclude 'windows/x64/lumenfx/**'
+}
+
+// Forge 1.20.1 / Fabric <25 Mixin refmap wiring (identical to CompanionCall)
+if (loader == 'fabric' && javaVersion < 25) {
+    dependencies.add('annotationProcessor', "io.github.llamalad7:mixinextras-common:${extrasVersion}")
+    loom.mixin.defaultRefmapName = refmapName
+    gradle.projectsEvaluated {
+        def nativeCompiler = tasks.named('compileJava', JavaCompile).get()
+        def args = new ArrayList<String>(nativeCompiler.options.compilerArgs)
+        def outputArgs = args.findAll {
+            it.startsWith('-AoutRefMapFile=') || it.startsWith('-AoutMapFileNamedIntermediary=')
+        }
+        def mappingOutputs = outputArgs.collect { file(it.substring(it.indexOf('=') + 1)) }
+        shared.tasks.named('compileJava', JavaCompile) {
+            options.annotationProcessorPath = nativeCompiler.options.annotationProcessorPath
+            options.compilerArgs.addAll(args)
+            outputs.files(mappingOutputs)
+            doFirst { mappingOutputs.each { it.parentFile.mkdirs() } }
+        }
+        def refmap = args.find { it.startsWith('-AoutRefMapFile=') }
+        if (refmap != null) {
+            tasks.named('processResources', ProcessResources) {
+                dependsOn shared.tasks.named('compileJava'), tasks.named('compileJava')
+                from(file(refmap.substring('-AoutRefMapFile='.length())))
+            }
+        }
+    }
+} else if (loader == 'forge') {
+    dependencies {
+        jarJar(implementation("io.github.llamalad7:mixinextras-forge:${extrasVersion}")) {
+            version { strictly "[${extrasVersion},)"; prefer extrasVersion }
+        }
+        annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    }
+    def mappings = extensions.getByName('obfuscation').namedToSrgMappings
+    def refmap = layout.buildDirectory.file("mixin/${refmapName}")
+    def extraMappings = layout.buildDirectory.file("mixin/${refmapName}.mappings.tsrg")
+    shared.repositories { maven { url = 'https://repo.spongepowered.org/repository/maven-public/' } }
+    shared.dependencies {
+        annotationProcessor "io.github.llamalad7:mixinextras-common:${extrasVersion}"
+        annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    }
+    shared.tasks.named('compileJava', JavaCompile) {
+        inputs.file(mappings)
+        outputs.files(refmap, extraMappings)
+        doFirst {
+            refmap.get().asFile.parentFile.mkdirs()
+            options.compilerArgs.addAll([
+                    "-AreobfTsrgFile=${mappings.get().asFile.absolutePath}",
+                    "-AoutTsrgFile=${extraMappings.get().asFile.absolutePath}",
+                    "-AoutRefMapFile=${refmap.get().asFile.absolutePath}",
+                    '-AmappingTypes=tsrg', '-ApluginVersion=0.7', '-AdefaultObfuscationEnv=searge'
+            ])
+        }
+    }
+    tasks.named('processResources', ProcessResources) {
+        dependsOn shared.tasks.named('compileJava')
+        from(refmap)
+    }
+}
+
+// Local Maven publication matching original artifact coordinates for neoforge-26.2 + per-target publications
+publishing {
+    publications {
+        library(MavenPublication) {
+            from components.java
+            artifactId = (loader == 'neoforge' && minecraft_version == '26.2') ? 'LumenFX' : "lumenfx-${loader}-${minecraft_version}"
+        }
+    }
+}

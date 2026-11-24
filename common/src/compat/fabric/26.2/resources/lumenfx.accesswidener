@@ -1,0 +1,46 @@
+accessWidener	v2	official
+
+# Sample-only native textures use the active backend and its existing resource lifetime.
+accessible	field	com/mojang/blaze3d/systems/GpuDevice	backend	Lcom/mojang/blaze3d/systems/GpuDeviceBackend;
+accessible	class	com/mojang/blaze3d/opengl/GlDevice
+
+# PhotonPipelineReleases removes only expired Photon pipelines and unshared shaders before fenced destruction.
+accessible	field	com/mojang/blaze3d/opengl/GlDevice	pipelineCache	Ljava/util/Map;
+accessible	field	com/mojang/blaze3d/opengl/GlDevice	shaderCache	Ljava/util/Map;
+accessible	class	com/mojang/blaze3d/opengl/GlDevice$ShaderCompilationKey
+accessible	field	com/mojang/blaze3d/vulkan/VulkanDevice	pipelineCache	Ljava/util/Map;
+accessible	field	com/mojang/blaze3d/vulkan/VulkanDevice	shaderCache	Ljava/util/Map;
+accessible	class	com/mojang/blaze3d/vulkan/VulkanDevice$ShaderCompilationKey
+
+# FXPreloader checks residency without triggering the synchronous decode in getTexture.
+accessible	field	net/minecraft/client/renderer/texture/TextureManager	byPath	Ljava/util/Map;
+
+# Compressed uploads share the host command buffer, staging pool and synchronization.
+accessible	method	com/mojang/blaze3d/vulkan/VulkanCommandEncoder	textureInitCommandBuffer	()Lorg/lwjgl/vulkan/VkCommandBuffer;
+
+# Point shadow and scene capture dispatchers retain their own staging and prepared-frame cleanup lifetime.
+accessible	field	net/minecraft/client/renderer/feature/FeatureRenderDispatcher	stagedVertexBuffer	Lnet/minecraft/client/renderer/StagedVertexBuffer;
+mutable	field	net/minecraft/client/renderer/feature/FeatureRenderDispatcher	stagedVertexBuffer	Lnet/minecraft/client/renderer/StagedVertexBuffer;
+
+# Opaque terrain shadows use the host's current atlas filtering and anisotropy sampler.
+accessible	field	net/minecraft/client/renderer/LevelRenderer	chunkLayerSampler	Lcom/mojang/blaze3d/textures/GpuSampler;
+
+# MinecraftNiagaraAudio needs per-voice pause, orientation and ChannelHandle release on the sound executor.
+accessible	field	net/minecraft/client/sounds/SoundManager	soundEngine	Lnet/minecraft/client/sounds/SoundEngine;
+accessible	field	net/minecraft/client/sounds/SoundEngine	instanceToChannel	Ljava/util/Map;
+accessible	field	com/mojang/blaze3d/audio/Channel	source	I
+accessible	field	net/minecraft/client/sounds/SoundEngine	channelAccess	Lnet/minecraft/client/sounds/ChannelAccess;
+
+# MinecraftMasterAudio queries the actual active output format through ALC.
+accessible	field	net/minecraft/client/sounds/SoundEngine	library	Lcom/mojang/blaze3d/audio/Library;
+accessible	field	com/mojang/blaze3d/audio/Library	currentDevice	J
+
+# The material VT storage block participates in the existing Vulkan shader binding index remap.
+accessible	class	com/mojang/blaze3d/vulkan/glsl/SpvUniformBuffer
+accessible	method	com/mojang/blaze3d/vulkan/glsl/SpvUniformBuffer	<init>	(Ljava/lang/String;I)V
+
+# IrisMaterialDrawMixin and GlRenderPassSceneCaptureMixin inspect active pipelines and wrap command-encoder draws directly.
+accessible	class	com/mojang/blaze3d/opengl/GlRenderPass
+accessible	class	com/mojang/blaze3d/opengl/GlCommandEncoder
+accessible	field	net/minecraft/client/particle/ParticleEngine	resourceManager	Lnet/minecraft/client/particle/ParticleResources;
+accessible	field	net/minecraft/client/particle/ParticleResources	spriteSets	Ljava/util/Map;

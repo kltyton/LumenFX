@@ -1,0 +1,8 @@
+{
+  "FileVersion": 3,
+  "Category": "Asset Processing",
+  "Description": "Offline static mesh lightmap UV layout.",
+  "Modules": [
+    { "Name": "LumenFxUvLayout", "Type": "Program", "LoadingPhase": "Default" }
+  ]
+}

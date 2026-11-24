@@ -1,0 +1,14 @@
+#pragma once
+#include "/Engine/Public/Platform.ush"
+
+#ifndef SwapGeneric
+#define SwapGeneric(T) void Swap(inout T A, inout T B) { T Temp = A; A = B; B = Temp; }
+SwapGeneric(uint)
+SwapGeneric(uint2)
+SwapGeneric(uint3)
+SwapGeneric(uint4)
+SwapGeneric(float)
+SwapGeneric(float2)
+SwapGeneric(float3)
+SwapGeneric(float4)
+#endif

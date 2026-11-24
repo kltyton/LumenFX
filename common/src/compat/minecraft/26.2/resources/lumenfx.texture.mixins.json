@@ -1,0 +1,25 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.kltyton.lumenfx.client.resource.texture.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "GpuTextureFaceViewMixin",
+    "GpuTextureMipDimensionsMixin",
+    "CommandEncoderCubeFaceMixin",
+    "GlTextureFaceViewMixin",
+    "GlSampledTextureArrayMixin",
+    "GlSampledTextureVolumeMixin",
+    "GlTextureMipStorageMixin",
+    "GlTextureStorageMixin",
+    "VulkanPipelineColorFormatsMixin",
+    "VulkanSamplerSettingsMixin",
+    "VulkanShadowSamplerMixin",
+    "VulkanTextureStorageMixin",
+    "VulkanTextureViewStorageMixin",
+    "VulkanTextureFaceViewMixin",
+    "VulkanTextureVolumeViewMixin",
+    "VulkanBlockCompressionMixin"
+  ],
+  "injectors": {"defaultRequire": 1}
+}

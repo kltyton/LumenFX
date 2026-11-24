@@ -1,0 +1,107 @@
+{
+  "schema": "lumenfx.niagara.neighbor_query.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2",
+    "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPILER_DXC": 1,
+      "COMPILER_HLSL": 1,
+      "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0,
+      "COMPILER_GLSL_ES3_1": 0,
+      "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0,
+      "SM5_PROFILE": 1,
+      "FEATURE_LEVEL": 5,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0,
+      "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1,
+      "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0,
+      "COMPILER_SUPPORTS_HLSL2021": 1,
+      "SUPPORTS_INDEPENDENT_SAMPLERS": 1,
+      "UE_BINDLESS_ENABLED": 0
+    },
+    "include_overrides": [
+      {
+        "from": "Engine/Shaders/Private/Common.ush",
+        "to": "tools/shaders/shared/compat/Common.ush"
+      },
+      {
+        "from": "Engine/Shaders/Public/Platform.ush",
+        "to": "tools/shaders/shared/compat/Platform.ush"
+      }
+    ]
+  },
+  "passes": [
+    {
+      "name": "histogram",
+      "source": "Engine/Plugins/FX/Niagara/Shaders/Private/NiagaraNeighborQuerySort.usf",
+      "stage": "compute",
+      "entrypoint": "HistogramCS",
+      "defines": {
+        "NEIGHBOR_QUERY_HISTOGRAM_CS": 1,
+        "THREADGROUP_SIZE": 64,
+        "NQ_DIST_BITS": 0
+      },
+      "resources": [
+        {"name": "CellIdBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "Buffer<int>", "hlsl_type": "StructuredBuffer<int>", "stride_bytes": 4},
+        {"name": "CellCountBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "RWBuffer<int>", "hlsl_type": "RWStructuredBuffer<int>", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "scan",
+      "source": "Engine/Plugins/FX/Niagara/Shaders/Private/NiagaraNeighborQuerySort.usf",
+      "stage": "compute",
+      "entrypoint": "PrefixSumLocalScanCS",
+      "defines": {
+        "NEIGHBOR_QUERY_PREFIX_SUM_LOCAL_SCAN_CS": 1,
+        "THREADGROUP_SIZE": 128,
+        "ELEMENTS_PER_THREAD": 4,
+        "ELEMENTS_PER_GROUP": 512
+      },
+      "resources": [
+        {"name": "InputBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "Buffer<int>", "hlsl_type": "StructuredBuffer<int>", "stride_bytes": 4},
+        {"name": "OutputBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "RWBuffer<int>", "hlsl_type": "RWStructuredBuffer<int>", "stride_bytes": 4, "uav": true},
+        {"name": "BlockSumsBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "RWBuffer<int>", "hlsl_type": "RWStructuredBuffer<int>", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "propagate",
+      "source": "Engine/Plugins/FX/Niagara/Shaders/Private/NiagaraNeighborQuerySort.usf",
+      "stage": "compute",
+      "entrypoint": "PrefixSumPropagateCS",
+      "defines": {
+        "NEIGHBOR_QUERY_PREFIX_SUM_PROPAGATE_CS": 1,
+        "THREADGROUP_SIZE": 128,
+        "ELEMENTS_PER_THREAD": 4,
+        "ELEMENTS_PER_GROUP": 512
+      },
+      "resources": [
+        {"name": "BlockSumsBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "Buffer<int>", "hlsl_type": "StructuredBuffer<int>", "stride_bytes": 4},
+        {"name": "OutputBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "RWBuffer<int>", "hlsl_type": "RWStructuredBuffer<int>", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "scatter",
+      "source": "Engine/Plugins/FX/Niagara/Shaders/Private/NiagaraNeighborQuerySort.usf",
+      "stage": "compute",
+      "entrypoint": "ScatterCS",
+      "defines": {
+        "NEIGHBOR_QUERY_SCATTER_CS": 1,
+        "THREADGROUP_SIZE": 64,
+        "NQ_DIST_BITS": 0
+      },
+      "resources": [
+        {"name": "CellIdBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "Buffer<int>", "hlsl_type": "StructuredBuffer<int>", "stride_bytes": 4},
+        {"name": "ParticleIdIndexBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "Buffer<int>", "hlsl_type": "StructuredBuffer<int>", "stride_bytes": 4},
+        {"name": "AcquireTagBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "Buffer<int>", "hlsl_type": "StructuredBuffer<int>", "stride_bytes": 4},
+        {"name": "CellOffsetBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "RWBuffer<int>", "hlsl_type": "RWStructuredBuffer<int>", "stride_bytes": 4, "uav": true},
+        {"name": "ParticleListBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "RWBuffer<int>", "hlsl_type": "RWStructuredBuffer<int>", "stride_bytes": 4, "uav": true},
+        {"name": "AcquireTagListBuffer", "kind": "niagara_neighbor_query_sort_buffer", "original_hlsl_type": "RWBuffer<int>", "hlsl_type": "RWStructuredBuffer<int>", "stride_bytes": 4, "uav": true}
+      ]
+    }
+  ]
+}

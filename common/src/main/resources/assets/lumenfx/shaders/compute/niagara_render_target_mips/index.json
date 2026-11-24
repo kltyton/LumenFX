@@ -1,0 +1,99 @@
+{
+  "schema": "lumenfx.shaders.index.v1",
+  "pipeline": "niagara_render_target_mips",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "programs": [
+    {
+      "pass": "generate",
+      "variant": "linear",
+      "selectionKeys": [],
+      "path": "niagara_render_target_mips/generate/linear/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 1756,
+            "sha256": "e4078b6af2b04e90ea9f4ff42075fbbe3996d2dada34875c0932870bb1431d74"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 1836,
+            "sha256": "46c14dba7181ac3a1aedc2f39e68a74c81f558a947b2623b89d1a74856997a15"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "generate",
+      "variant": "linear_srgb",
+      "selectionKeys": [],
+      "path": "niagara_render_target_mips/generate/linear_srgb/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 2704,
+            "sha256": "88b6939e85047df0f6ea8bd7dd2ca42f2003be943a42fda750d4592178652fb8"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 3600,
+            "sha256": "6b292d67739a2ae6e09ee36de573f5711da0db165ec0e065e9ef28dad0207df8"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "generate",
+      "variant": "blur",
+      "selectionKeys": [],
+      "path": "niagara_render_target_mips/generate/blur/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 2824,
+            "sha256": "a25d626880ffbc2ad868e199c6de1a5e0bc747188591a76f142befc4d5c369a2"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 3988,
+            "sha256": "dbdc6537a2a82871e18698626711be5816fc1e42dc381b7a8e87867266b4ea78"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "generate",
+      "variant": "blur_srgb",
+      "selectionKeys": [],
+      "path": "niagara_render_target_mips/generate/blur_srgb/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 3748,
+            "sha256": "8fe98bad3393552ac5a29357d1e0ef56c99820ba82cf4db1e563dbb06380ca20"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 5756,
+            "sha256": "ebe2ef3149b8927317a0b11417dbb856730fb0de697793f5bfa5519f72821f81"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    }
+  ]
+}

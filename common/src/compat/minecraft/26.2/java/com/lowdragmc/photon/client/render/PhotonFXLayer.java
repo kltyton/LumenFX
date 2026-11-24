@@ -1,0 +1,162 @@
+/* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
+package com.lowdragmc.photon.client.render;
+
+import com.lowdragmc.photon.Photon;
+import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.pipeline.BindGroupLayout;
+import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.BlendFactor;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.blaze3d.textures.GpuTextureView;
+import net.minecraft.client.Minecraft;
+import org.joml.Vector4f;
+
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * A standalone <b>premultiplied FX layer</b>: the same RGBA16F storage as {@link PhotonDrawTarget}, but
+ * <i>cleared to transparent black</i> instead of seeded with the scene, and merged back with a
+ * {@code ONE / ONE_MINUS_SRC_ALPHA} blend instead of a replace.
+ *
+ * <p>{@link FXCompositeMode#LATE} holds this layer until after clouds and weather.
+ *
+ * <p>Because the destination is transparent black rather than the scene, the alpha channel stops being
+ * a decorative value and becomes <b>coverage</b> — "how much of the backdrop did this layer hide". Every
+ * draw into it must therefore go through {@link PremultipliedBlendPlan}; blends that read the destination
+ * colour cannot be expressed here at all and are routed away by {@link PremultipliedBlendPlan#isLayerSafe}.
+ *
+ * <p>Pooled per size and evicted when unused, exactly like {@link PhotonDrawTarget}. Render thread only.
+ */
+public final class PhotonFXLayer implements AutoCloseable {
+
+    /** {@code COPY_DST} for {@code clearColorTexture}. */
+    private static final int USAGE = GpuTexture.USAGE_TEXTURE_BINDING
+            | GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_COPY_DST;
+
+    private static final Map<Long, PhotonFXLayer> INSTANCES = new ConcurrentHashMap<>();
+    private static long frameCounter;
+
+    public static PhotonFXLayer acquire(int width, int height) {
+        var key = ((long) width << 32) | (height & 0xFFFFFFFFL);
+        var layer = INSTANCES.computeIfAbsent(key, k -> new PhotonFXLayer(Math.max(1, width), Math.max(1, height)));
+        layer.lastUsedFrame = frameCounter;
+        return layer;
+    }
+
+    /** Frame boundary: drop layers nothing rendered into for a while. */
+    public static void endFrame() {
+        frameCounter++;
+        INSTANCES.values().removeIf(layer -> {
+            if (frameCounter - layer.lastUsedFrame > 120) {
+                PhotonWorldRenderState.closeAtFrameEnd(layer);
+                return true;
+            }
+            return false;
+        });
+    }
+
+    private record CompositeKey(GpuFormat format, boolean writeAlpha, boolean transmission) {
+    }
+
+    private static final Map<CompositeKey, RenderPipeline> COMPOSITES = new ConcurrentHashMap<>();
+
+    /** Compile the composites onto the main target ahead of the first merge ({@code PhotonFramePasses}). */
+    static void preload() {
+        var format = Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTexture().getFormat();
+        RenderSystem.getDevice().precompilePipeline(compositePipeline(format, true, false));
+        RenderSystem.getDevice().precompilePipeline(compositePipeline(format, false, false));
+    }
+
+    /**
+     * Both particle accumulators store premultiplied RGB. The alpha channel stores either coverage
+     * (Photon) or remaining transmission (Niagara separate translucency).
+     */
+    private static RenderPipeline compositePipeline(GpuFormat format, boolean writeAlpha, boolean transmission) {
+        return COMPOSITES.computeIfAbsent(new CompositeKey(format, writeAlpha, transmission), key ->
+                PhotonFullscreenPass.builder(Photon.id("core/fx_layer_composite"))
+                        .withLocation(Photon.id("pipeline/fx_layer_composite_"
+                                + key.format().name().toLowerCase(Locale.ROOT)
+                                + (key.transmission() ? "_transmission" : key.writeAlpha() ? "" : "_rgb")))
+                        .withBindGroupLayout(BindGroupLayout.builder().withSampler("colorSampler").build())
+                        .withColorTargetState(new ColorTargetState(
+                                Optional.of(key.transmission()
+                                        ? new BlendFunction(BlendFactor.ONE, BlendFactor.SRC_ALPHA)
+                                        : BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA), key.format(),
+                                key.writeAlpha() ? ColorTargetState.WRITE_ALL : ColorTargetState.WRITE_COLOR))
+                        .build());
+    }
+
+    private final GpuTexture texture;
+    private final GpuTextureView view;
+    private long lastUsedFrame;
+    private long clearedFrame = Long.MIN_VALUE;
+
+    private PhotonFXLayer(int width, int height) {
+        var device = RenderSystem.getDevice();
+        this.texture = device.createTexture(() -> "Photon fx layer", USAGE, PhotonPipelines.HDR_FORMAT,
+                width, height, 1, 1);
+        this.view = device.createTextureView(texture);
+    }
+
+    /** What the layer's render passes use as their color attachment. */
+    public GpuTextureView view() {
+        return view;
+    }
+
+    /**
+     * Reset to transparent black, <b>once per frame</b>. Unlike {@link PhotonDrawTarget#copyFrom} this is
+     * a genuine clear — the layer must start with zero coverage, or last frame's FX would be composited
+     * again.
+     * <p>
+     * Once per frame rather than once per drain because every Photon stage of a frame accumulates into
+     * the SAME layer before it is merged: clearing again at the translucent stage would throw away
+     * whatever the opaque one drew. (1.21 said the same thing as "both queues accumulate into it before
+     * it is consumed".)
+     *
+     * @return true when this call did the clearing, i.e. this is the frame's first use of the layer
+     */
+    public boolean beginFrame() {
+        if (clearedFrame == frameCounter) {
+            return false;
+        }
+        clearedFrame = frameCounter;
+        RenderSystem.getDevice().createCommandEncoder().clearColorTexture(texture, new Vector4f(0, 0, 0, 0));
+        return true;
+    }
+
+    /**
+     * Blend this layer onto {@code destination}.
+     *
+     * @param writeAlpha  false when the destination's alpha is not ours: MC's main target is already
+     *                    opaque, and a pack's scene colour owns that channel. True when the destination
+     *                    is a translucent accumulator, whose alpha the pack reads back as coverage.
+     */
+    public void compositeTo(GpuTextureView destination, boolean writeAlpha) {
+        composite(view, destination, writeAlpha, false);
+    }
+
+    /** Merge a premultiplied particle layer whose alpha stores the surviving fraction of the scene. */
+    public static void compositeTransmission(GpuTextureView layer, GpuTextureView destination) {
+        composite(layer, destination, false, true);
+    }
+
+    private static void composite(GpuTextureView layer, GpuTextureView destination, boolean writeAlpha, boolean transmission) {
+        var sampler = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST);
+        PhotonFullscreenPass.draw("Particle layer composite",
+                compositePipeline(destination.texture().getFormat(), writeAlpha, transmission), destination,
+                pass -> pass.bindTexture("colorSampler", layer, sampler));
+    }
+
+    @Override
+    public void close() {
+        view.close();
+        texture.close();
+    }
+}

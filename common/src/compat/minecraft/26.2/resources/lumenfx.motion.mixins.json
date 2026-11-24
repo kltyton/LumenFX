@@ -1,0 +1,25 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.kltyton.lumenfx.client.render.motion.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "LevelExtractorMotionMixin",
+    "LevelRendererMixin",
+    "EntityRenderDispatcherMixin",
+    "BlockEntityRenderDispatcherMixin",
+    "SubmitNodeCollectionMixin",
+    "FeatureRenderDispatcherMixin",
+    "ModelFeatureRendererMixin",
+    "CustomFeatureRendererMixin",
+    "BlockModelFeatureRendererMixin",
+    "ItemFeatureRendererMixin",
+    "MovingBlockFeatureRendererMixin",
+    "RenderTypeFeatureRendererGroupMixin",
+    "StagedVertexBufferDrawAccessor",
+    "StagedVertexBufferMixin",
+    "PreparedRenderTypeMotionMixin",
+    "ModelCubeMotionVertexMixin"
+  ],
+  "injectors": {"defaultRequire": 1}
+}

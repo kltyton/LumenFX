@@ -1,0 +1,482 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_radix_sort",
+  "name": "downsweep",
+  "pass": "downsweep",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "default",
+    "defines": {},
+    "selectionKeys": [],
+    "selector": {}
+  },
+  "stageClass": "compute",
+  "abiLowering": [
+    {
+      "resource": "InKeys",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "InValues",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "InOffsets",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "OutKeys",
+      "from": "RWBuffer<uint>",
+      "to": "RWStructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "OutValues",
+      "from": "RWBuffer<uint>",
+      "to": "RWStructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    }
+  ],
+  "sourceResources": [
+    {
+      "name": "InKeys",
+      "kind": "ue_radix_sort_buffer",
+      "original_hlsl_type": "Buffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "InValues",
+      "kind": "ue_radix_sort_buffer",
+      "original_hlsl_type": "Buffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "InOffsets",
+      "kind": "ue_radix_sort_buffer",
+      "original_hlsl_type": "Buffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "OutKeys",
+      "kind": "ue_radix_sort_buffer",
+      "original_hlsl_type": "RWBuffer<uint>",
+      "hlsl_type": "RWStructuredBuffer<uint>",
+      "stride_bytes": 4,
+      "uav": true
+    },
+    {
+      "name": "OutValues",
+      "kind": "ue_radix_sort_buffer",
+      "original_hlsl_type": "RWBuffer<uint>",
+      "hlsl_type": "RWStructuredBuffer<uint>",
+      "stride_bytes": 4,
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "RadixSort_Downsweep",
+      "source": "Engine/Shaders/Private/RadixSortShaders.usf",
+      "workgroup": {
+        "x": 128,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "RadixSortUniformBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "InKeys",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "access": "READ_WRITE",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "InValues",
+          "descriptorSet": 0,
+          "descriptorBinding": 3,
+          "access": "READ_WRITE",
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "InOffsets",
+          "descriptorSet": 0,
+          "descriptorBinding": 4,
+          "access": "READ_WRITE",
+          "glBinding": 2,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "OutKeys",
+          "descriptorSet": 0,
+          "descriptorBinding": 5,
+          "access": "READ_WRITE",
+          "glBinding": 3,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "OutValues",
+          "descriptorSet": 0,
+          "descriptorBinding": 6,
+          "access": "READ_WRITE",
+          "glBinding": 4,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 34200,
+          "sha256": "395798a1c88fcc3a0406be53b0983781177760432089a97f20ae7e210603f251"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 71940,
+          "sha256": "57ec4984a502a4c670cf15e73147289cb86b1624e8f8ec7d6b125a2f612b3845"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          128,
+          1,
+          1
+        ],
+        "capabilities": [
+          1
+        ],
+        "uniformBuffers": [
+          {
+            "name": "RadixSortUniformBuffer",
+            "sourceName": "RadixSortUniformBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "size": 20,
+            "members": [
+              {
+                "name": "RadixShift",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "TilesPerGroup",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 4,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "ExtraTileCount",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 8,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "ExtraKeyCount",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 12,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GroupCount",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 16,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [
+          {
+            "name": "InKeys",
+            "sourceName": "InKeys",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "InValues",
+            "sourceName": "InValues",
+            "descriptorSet": 0,
+            "descriptorBinding": 3,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "InOffsets",
+            "sourceName": "InOffsets",
+            "descriptorSet": 0,
+            "descriptorBinding": 4,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "OutKeys",
+            "sourceName": "OutKeys",
+            "descriptorSet": 0,
+            "descriptorBinding": 5,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "OutValues",
+            "sourceName": "OutValues",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "default",
+      "pipelinePass": "downsweep",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "RadixSort_Downsweep",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "RadixSortUniformBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 1,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "InKeys",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "access": "READ_WRITE",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "InValues",
+      "descriptorSet": 0,
+      "descriptorBinding": 3,
+      "access": "READ_WRITE",
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "InOffsets",
+      "descriptorSet": 0,
+      "descriptorBinding": 4,
+      "access": "READ_WRITE",
+      "glBinding": 2,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "OutKeys",
+      "descriptorSet": 0,
+      "descriptorBinding": 5,
+      "access": "READ_WRITE",
+      "glBinding": 3,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "OutValues",
+      "descriptorSet": 0,
+      "descriptorBinding": 6,
+      "access": "READ_WRITE",
+      "glBinding": 4,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 34200,
+        "sha256": "395798a1c88fcc3a0406be53b0983781177760432089a97f20ae7e210603f251"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 71940,
+        "sha256": "57ec4984a502a4c670cf15e73147289cb86b1624e8f8ec7d6b125a2f612b3845"
+      }
+    }
+  }
+}

@@ -1,0 +1,461 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_mesh_scene",
+  "name": "compaction_scatter",
+  "pass": "compaction_scatter",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "default",
+    "defines": {},
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [],
+  "sourceResources": [
+    {
+      "name": "DrawCommandCompactionData",
+      "kind": "niagara_indirect_buffer",
+      "original_hlsl_type": "StructuredBuffer<FPackedDrawCommandCompactionData>",
+      "hlsl_type": "StructuredBuffer<FPackedDrawCommandCompactionData>",
+      "stride_bytes": 20
+    },
+    {
+      "name": "BlockDrawCommandIndices",
+      "kind": "niagara_indirect_buffer",
+      "original_hlsl_type": "StructuredBuffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "InstanceIdsBufferIn",
+      "kind": "niagara_indirect_buffer",
+      "original_hlsl_type": "StructuredBuffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "BlockDestInstanceOffsets",
+      "kind": "niagara_indirect_buffer",
+      "original_hlsl_type": "StructuredBuffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "InstanceIdsBufferOut",
+      "kind": "niagara_indirect_buffer",
+      "original_hlsl_type": "RWStructuredBuffer<uint>",
+      "hlsl_type": "RWStructuredBuffer<uint>",
+      "stride_bytes": 4,
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "CompactVisibleInstances",
+      "source": "Engine/Shaders/Private/InstanceCulling/CompactVisibleInstances.usf",
+      "workgroup": {
+        "x": 64,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "Globals",
+          "sourceName": "$Globals",
+          "descriptorSet": 0,
+          "descriptorBinding": 7,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "DrawCommandCompactionData",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "access": "READ_WRITE",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "BlockDrawCommandIndices",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "access": "READ_WRITE",
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "InstanceIdsBufferIn",
+          "descriptorSet": 0,
+          "descriptorBinding": 3,
+          "access": "READ_WRITE",
+          "glBinding": 2,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "BlockDestInstanceOffsets",
+          "descriptorSet": 0,
+          "descriptorBinding": 4,
+          "access": "READ_WRITE",
+          "glBinding": 3,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "InstanceIdsBufferOut",
+          "descriptorSet": 0,
+          "descriptorBinding": 5,
+          "access": "READ_WRITE",
+          "glBinding": 4,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 4244,
+          "sha256": "2e1c010e87b78581af8d7899be6db8a7cee5176117a6b460547823ff4d7dc0b1"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 7312,
+          "sha256": "a4d6677a72a04d1c2123fc99abf341af28ed08bf1a43858b32098a1297fb906b"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          64,
+          1,
+          1
+        ],
+        "capabilities": [
+          1
+        ],
+        "uniformBuffers": [
+          {
+            "name": "Globals",
+            "sourceName": "$Globals",
+            "descriptorSet": 0,
+            "descriptorBinding": 7,
+            "size": 4,
+            "members": [
+              {
+                "name": "NumCompactionBlocks",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [
+          {
+            "name": "DrawCommandCompactionData",
+            "sourceName": "DrawCommandCompactionData",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "struct[]",
+                "baseType": "struct",
+                "bitWidth": 0,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 20,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": [
+                  {
+                    "name": "",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 0,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 4,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 8,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 12,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 16,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "BlockDrawCommandIndices",
+            "sourceName": "BlockDrawCommandIndices",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "InstanceIdsBufferIn",
+            "sourceName": "InstanceIdsBufferIn",
+            "descriptorSet": 0,
+            "descriptorBinding": 3,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "BlockDestInstanceOffsets",
+            "sourceName": "BlockDestInstanceOffsets",
+            "descriptorSet": 0,
+            "descriptorBinding": 4,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "InstanceIdsBufferOut",
+            "sourceName": "InstanceIdsBufferOut",
+            "descriptorSet": 0,
+            "descriptorBinding": 5,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "default",
+      "pipelinePass": "compaction_scatter",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "CompactVisibleInstances",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "Globals",
+      "sourceName": "$Globals",
+      "descriptorSet": 0,
+      "descriptorBinding": 7,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "DrawCommandCompactionData",
+      "descriptorSet": 0,
+      "descriptorBinding": 1,
+      "access": "READ_WRITE",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "BlockDrawCommandIndices",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "access": "READ_WRITE",
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "InstanceIdsBufferIn",
+      "descriptorSet": 0,
+      "descriptorBinding": 3,
+      "access": "READ_WRITE",
+      "glBinding": 2,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "BlockDestInstanceOffsets",
+      "descriptorSet": 0,
+      "descriptorBinding": 4,
+      "access": "READ_WRITE",
+      "glBinding": 3,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "InstanceIdsBufferOut",
+      "descriptorSet": 0,
+      "descriptorBinding": 5,
+      "access": "READ_WRITE",
+      "glBinding": 4,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 4244,
+        "sha256": "2e1c010e87b78581af8d7899be6db8a7cee5176117a6b460547823ff4d7dc0b1"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 7312,
+        "sha256": "a4d6677a72a04d1c2123fc99abf341af28ed08bf1a43858b32098a1297fb906b"
+      }
+    }
+  }
+}

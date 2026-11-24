@@ -1,0 +1,267 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_persistent_ids",
+  "name": "init",
+  "pass": "init",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "default",
+    "defines": {},
+    "selectionKeys": [],
+    "selector": {}
+  },
+  "stageClass": "compute",
+  "abiLowering": [
+    {
+      "resource": "RWNewBuffer",
+      "from": "RWBuffer<int>",
+      "to": "RWStructuredBuffer<int>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "ExistingBuffer",
+      "from": "Buffer<int>",
+      "to": "StructuredBuffer<int>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    }
+  ],
+  "sourceResources": [
+    {
+      "name": "RWNewBuffer",
+      "kind": "niagara_persistent_id_buffer",
+      "original_hlsl_type": "RWBuffer<int>",
+      "hlsl_type": "RWStructuredBuffer<int>",
+      "stride_bytes": 4,
+      "uav": true
+    },
+    {
+      "name": "ExistingBuffer",
+      "kind": "niagara_persistent_id_buffer",
+      "original_hlsl_type": "Buffer<int>",
+      "hlsl_type": "StructuredBuffer<int>",
+      "stride_bytes": 4
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "InitIDBufferCS",
+      "source": "Engine/Plugins/FX/Niagara/Shaders/Private/NiagaraInitFreeIDBuffer.usf",
+      "workgroup": {
+        "x": 64,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "Globals",
+          "sourceName": "$Globals",
+          "descriptorSet": 0,
+          "descriptorBinding": 3,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "RWNewBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "access": "READ_WRITE",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "ExistingBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "access": "READ_WRITE",
+          "glBinding": 1,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 1344,
+          "sha256": "c97a1e5eeb43463b71afb8c78b987666c92a4fb98da964d33ac63abb376c196b"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 1800,
+          "sha256": "03583b4f3ce6f35bf578c2c0b96d53b037a2fd3efab8ed36a2fb9828825d75a0"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          64,
+          1,
+          1
+        ],
+        "capabilities": [
+          1
+        ],
+        "uniformBuffers": [
+          {
+            "name": "Globals",
+            "sourceName": "$Globals",
+            "descriptorSet": 0,
+            "descriptorBinding": 3,
+            "size": 8,
+            "members": [
+              {
+                "name": "NumNewElements",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NumExistingElements",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 4,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [
+          {
+            "name": "RWNewBuffer",
+            "sourceName": "RWNewBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "int[]",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "ExistingBuffer",
+            "sourceName": "ExistingBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "int[]",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "default",
+      "pipelinePass": "init",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "InitIDBufferCS",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "Globals",
+      "sourceName": "$Globals",
+      "descriptorSet": 0,
+      "descriptorBinding": 3,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "RWNewBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 1,
+      "access": "READ_WRITE",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "ExistingBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "access": "READ_WRITE",
+      "glBinding": 1,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 1344,
+        "sha256": "c97a1e5eeb43463b71afb8c78b987666c92a4fb98da964d33ac63abb376c196b"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 1800,
+        "sha256": "03583b4f3ce6f35bf578c2c0b96d53b037a2fd3efab8ed36a2fb9828825d75a0"
+      }
+    }
+  }
+}

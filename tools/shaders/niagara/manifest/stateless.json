@@ -1,0 +1,39 @@
+{
+  "schema": "lumenfx.niagara.stateless.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2", "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPILER_DXC": 1, "COMPILER_HLSL": 1, "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0, "COMPILER_GLSL_ES3_1": 0, "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0, "SM5_PROFILE": 1, "FEATURE_LEVEL": 5,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0, "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1, "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0,
+      "COMPILER_SUPPORTS_HLSL2021": 1, "SUPPORTS_INDEPENDENT_SAMPLERS": 1,
+      "UE_BINDLESS_ENABLED": 0, "GPU_SIMULATION": 1,
+      "THREADGROUP_SIZE": 64, "NIAGARA_MAX_GPU_SPAWN_INFOS": 8,
+      "NIAGARA_STATELESS_NUM_OUTPUT_COMPONENTS": 29
+    },
+    "include_overrides": [
+      {"from": "Engine/Shaders/Private/Common.ush", "to": "tools/shaders/shared/compat/Common.ush"},
+      {"from": "Engine/Shaders/Public/Platform.ush", "to": "tools/shaders/shared/compat/Platform.ush"},
+      {"from": "Engine/Shaders/Private/Random.ush", "to": "tools/shaders/shared/compat/Random.ush"}
+    ]
+  },
+  "passes": [
+    {
+      "name": "simulate", "stage": "compute", "entrypoint": "StatelessMain",
+      "source": "Engine/Plugins/FX/Niagara/Shaders/Private/Stateless/NiagaraStatelessSimulationDefault.usf",
+      "resources": [
+        {"name": "Common_FloatOutputBuffer", "kind": "niagara_stateless_buffer", "original_hlsl_type": "RWBuffer<float>", "hlsl_type": "RWStructuredBuffer<float>", "stride_bytes": 4, "uav": true},
+        {"name": "Common_IntOutputBuffer", "kind": "niagara_stateless_buffer", "original_hlsl_type": "RWBuffer<int>", "hlsl_type": "RWStructuredBuffer<int>", "stride_bytes": 4, "uav": true},
+        {"name": "Common_GPUCountBuffer", "kind": "niagara_stateless_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true},
+        {"name": "Common_StaticDataBuffer", "kind": "niagara_stateless_buffer", "hlsl_type": "ByteAddressBuffer", "stride_bytes": 4},
+        {"name": "Common_DynamicDataBuffer", "kind": "niagara_stateless_buffer", "hlsl_type": "ByteAddressBuffer", "stride_bytes": 4},
+        {"name": "SolveVelocitiesAndForces_NoiseLUT", "kind": "niagara_stateless_buffer", "hlsl_type": "ByteAddressBuffer", "stride_bytes": 4}
+      ]
+    }
+  ]
+}

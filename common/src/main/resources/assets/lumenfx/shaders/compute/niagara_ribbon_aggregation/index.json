@@ -1,0 +1,352 @@
+{
+  "schema": "lumenfx.shaders.index.v1",
+  "pipeline": "niagara_ribbon_aggregation",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "programs": [
+    {
+      "pass": "initialize",
+      "variant": "single",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/initialize/single/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 21696,
+            "sha256": "c16eea7a06b2e7ff368f4b5af68986f31db1e21782523bf11fb358719a8bab71"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 33592,
+            "sha256": "f9ea9db14d6a1ccb48571ea7da6b640f7c57a49f286da8f47dce2bc08a7a7261"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "initialize",
+      "variant": "id",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/initialize/id/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 22976,
+            "sha256": "3af6b99444b70d2ec8578ee3f06c6157ecbcd6151bb0c3cc3cfbf541fc7f6413"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 36068,
+            "sha256": "8c94e20a5997828276c62f461e3c2062936e2ca7400b26bd08b00f367a579267"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "initialize",
+      "variant": "integer",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/initialize/integer/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 22540,
+            "sha256": "14fb2f3abeb545315e5d686fa25cb42f9101f91f18f4a6d03f333898303967b2"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 35024,
+            "sha256": "95ccb3257c087aa80dc6b2fec3c91b429f6fe1359aa01fb688fd26bb65de841e"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "step",
+      "variant": "single",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/step/single/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 5740,
+            "sha256": "c40900b1015035b3ca20e95202607f0666944683477fa6ec53026677981856a7"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 6980,
+            "sha256": "970680ebb56be6236832e3f2eca713b919032870b855f1e322443090704f9204"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "step",
+      "variant": "id",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/step/id/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 7068,
+            "sha256": "f718c97badd58caaf00de53efd799e4bd8034e10275a25972ae6aa80f19a4649"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 9144,
+            "sha256": "150b29c8ed7e388e3ff6f8efd2d4f672d3bec164ff7c00ddc65724ca40073ead"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "step",
+      "variant": "integer",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/step/integer/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 6780,
+            "sha256": "71c6544c7af629548b61fa6b03d293688a9e675662682468172f7b79c5d6c718"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 8464,
+            "sha256": "518519ce626cd67778a03995a59c392ac6a2fda500f7630fbcba6632c586ee84"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "apply",
+      "variant": "single",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/apply/single/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 5584,
+            "sha256": "577391cfa4679508e67f180d6f10e8ab7c21c63ca5070b867393984a584f6e2d"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 6748,
+            "sha256": "ed70c9a74b7251b01408e3acd6f6dd83f86f62f05f7563aff9114cca06c2e14d"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "apply",
+      "variant": "id",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/apply/id/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 5788,
+            "sha256": "ccb67b7dab7dd3e121e72e55c0b2767e500c46e9c140dd8e250e9c35bfd4fbe3"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 7156,
+            "sha256": "c8fca17e427fa5f5813c274780b89ecc19510e4a9409eb95ac511c0a615f0755"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "apply",
+      "variant": "integer",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/apply/integer/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 5788,
+            "sha256": "ccb67b7dab7dd3e121e72e55c0b2767e500c46e9c140dd8e250e9c35bfd4fbe3"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 7156,
+            "sha256": "c8fca17e427fa5f5813c274780b89ecc19510e4a9409eb95ac511c0a615f0755"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "uv",
+      "variant": "single",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/uv/single/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 20708,
+            "sha256": "f941fffc88d00535538abaa49f655c66516113fc60b662b36f6c8ab4f88a1800"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 32332,
+            "sha256": "c08fb53a2ac4be6dc6b2601196d3e42d436c9e3bbc46b13c231a398ca2abed51"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "uv",
+      "variant": "id",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/uv/id/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 21948,
+            "sha256": "5230b04839dac2705ec4a5c5716d5bc87c1fb49c62840cf4df9aaa058c72e754"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 34236,
+            "sha256": "5ff285da95ff4889c80b25dab4dd4e4fb01e393369b10830f931689a8856e2ce"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "uv",
+      "variant": "integer",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/uv/integer/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 21948,
+            "sha256": "5230b04839dac2705ec4a5c5716d5bc87c1fb49c62840cf4df9aaa058c72e754"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 34236,
+            "sha256": "5ff285da95ff4889c80b25dab4dd4e4fb01e393369b10830f931689a8856e2ce"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "finalize",
+      "variant": "single",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/finalize/single/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 9028,
+            "sha256": "2781d3be2aa4aa010e723b5083e9449460a495c08610f189dc84c90ad1fc3ab8"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 15136,
+            "sha256": "da7771cd1fdf32a989db108440140bdd48cc144c0ae184748a3d78b8b6449b71"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "finalize",
+      "variant": "id",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/finalize/id/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 10104,
+            "sha256": "750ce1e90f458e7d512c211035b30fed07c2ccdca66bcbfda36ea5c109755df5"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 17084,
+            "sha256": "f7b887370926e64a230d5328ef33b6dbf118b935e3c5ab15515d92af1b3dcb4d"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "finalize",
+      "variant": "integer",
+      "selectionKeys": [],
+      "path": "niagara_ribbon_aggregation/finalize/integer/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 10104,
+            "sha256": "750ce1e90f458e7d512c211035b30fed07c2ccdca66bcbfda36ea5c109755df5"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 17084,
+            "sha256": "f7b887370926e64a230d5328ef33b6dbf118b935e3c5ab15515d92af1b3dcb4d"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+/* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
+package com.lowdragmc.photon.client.fx.timeline;
+
+/**
+ * A time window {@code [start, start + duration)} on a lane — the shared shape of the animation sub-clips
+ * ({@link ExprClip}, {@link GradientClip}, {@link CurveClip}) so the editor can move / overlap-test them
+ * generically instead of one branch per clip type.
+ */
+public interface SubClip {
+    double start();
+
+    SubClip start(double v);
+
+    double duration();
+
+    double end();
+
+    /** An independent value copy (concrete types return their own type; used by clip copy/paste). */
+    SubClip copy();
+}

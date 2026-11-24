@@ -1,0 +1,29 @@
+#ifndef LUMENFX_NANITE_SCENE_TRANSFORMS
+#define LUMENFX_NANITE_SCENE_TRANSFORMS
+
+StructuredBuffer<float4> NaniteAssemblyRows;
+StructuredBuffer<float4> MeshSceneTransforms;
+
+static const uint NANITE_INVALID_ASSEMBLY = 0xffffu;
+
+float4x4 NaniteAssemblyMatrix(uint assembly)
+{
+    uint row = assembly * 3u;
+    return transpose(float4x4(NaniteAssemblyRows[row], NaniteAssemblyRows[row + 1u],
+        NaniteAssemblyRows[row + 2u], float4(0.0f, 0.0f, 0.0f, 1.0f)));
+}
+
+float4x4 NaniteInstanceMatrix(uint particle, bool previous)
+{
+    uint index = particle * 9u + (previous ? 5u : 0u);
+    return float4x4(MeshSceneTransforms[index], MeshSceneTransforms[index + 1u],
+        MeshSceneTransforms[index + 2u], MeshSceneTransforms[index + 3u]);
+}
+
+float4x4 NanitePartMatrix(uint particle, uint assembly, bool previous)
+{
+    float4x4 transform = NaniteInstanceMatrix(particle, previous);
+    return assembly == NANITE_INVALID_ASSEMBLY ? transform : mul(NaniteAssemblyMatrix(assembly), transform);
+}
+
+#endif

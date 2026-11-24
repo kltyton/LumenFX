@@ -1,0 +1,27 @@
+cbuffer BitonicSortUniformBuffer
+{
+    uint BitonicSort_Count;
+    uint BitonicSort_PaddedCount;
+    uint BitonicSort_StageBlockSize;
+    uint BitonicSort_StepBlockSize;
+};
+
+struct FBitonicSortParameters
+{
+    uint BitonicSort_Count;
+    uint BitonicSort_PaddedCount;
+    uint BitonicSort_StageBlockSize;
+    uint BitonicSort_StepBlockSize;
+};
+
+FBitonicSortParameters _LfxGetBitonicSortUB()
+{
+    FBitonicSortParameters Parameters;
+    Parameters.BitonicSort_Count = BitonicSort_Count;
+    Parameters.BitonicSort_PaddedCount = BitonicSort_PaddedCount;
+    Parameters.BitonicSort_StageBlockSize = BitonicSort_StageBlockSize;
+    Parameters.BitonicSort_StepBlockSize = BitonicSort_StepBlockSize;
+    return Parameters;
+}
+
+#define BitonicSortUB (_LfxGetBitonicSortUB())

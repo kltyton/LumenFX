@@ -1,0 +1,633 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_mesh_scene",
+  "name": "cull",
+  "pass": "cull",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "default",
+    "defines": {},
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [],
+  "sourceResources": [
+    {
+      "name": "NiagaraParticleDataFloat",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<float>",
+      "hlsl_type": "StructuredBuffer<float>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "NiagaraParticleDataHalf",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "NiagaraParticleDataInt",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<int>",
+      "hlsl_type": "StructuredBuffer<int>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "SceneSortedIndices",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<int>",
+      "hlsl_type": "StructuredBuffer<int>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "SceneParticleCounts",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "MeshSceneTransforms",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<float4>",
+      "hlsl_type": "StructuredBuffer<float4>",
+      "stride_bytes": 16
+    },
+    {
+      "name": "MeshSceneMetrics",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<float4>",
+      "hlsl_type": "StructuredBuffer<float4>",
+      "stride_bytes": 16
+    },
+    {
+      "name": "OutMeshSceneRawIndices",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "RWStructuredBuffer<uint>",
+      "hlsl_type": "RWStructuredBuffer<uint>",
+      "stride_bytes": 4,
+      "uav": true
+    },
+    {
+      "name": "OutMeshSceneBlockCounts",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "RWStructuredBuffer<uint>",
+      "hlsl_type": "RWStructuredBuffer<uint>",
+      "stride_bytes": 4,
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "CullCS",
+      "source": "LumenFX/NiagaraMeshSceneCull.usf",
+      "workgroup": {
+        "x": 64,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "LumenMeshSceneCull",
+          "descriptorSet": 0,
+          "descriptorBinding": 10,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NiagaraParticleDataInt",
+          "descriptorSet": 0,
+          "descriptorBinding": 3,
+          "access": "READ_WRITE",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "SceneSortedIndices",
+          "descriptorSet": 0,
+          "descriptorBinding": 4,
+          "access": "READ_WRITE",
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "SceneParticleCounts",
+          "descriptorSet": 0,
+          "descriptorBinding": 5,
+          "access": "READ_WRITE",
+          "glBinding": 2,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "MeshSceneTransforms",
+          "descriptorSet": 0,
+          "descriptorBinding": 6,
+          "access": "READ_WRITE",
+          "glBinding": 3,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "MeshSceneMetrics",
+          "descriptorSet": 0,
+          "descriptorBinding": 7,
+          "access": "READ_WRITE",
+          "glBinding": 4,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "OutMeshSceneRawIndices",
+          "descriptorSet": 0,
+          "descriptorBinding": 8,
+          "access": "READ_WRITE",
+          "glBinding": 5,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "OutMeshSceneBlockCounts",
+          "descriptorSet": 0,
+          "descriptorBinding": 9,
+          "access": "READ_WRITE",
+          "glBinding": 6,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 15064,
+          "sha256": "2b4eab5a6be4c484145458d9dfa378c7eb3e6dbf5e3fa927c899ba75ebf58302"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 46732,
+          "sha256": "36ca1350d6aa9505e037dc874d9411d25b4b98987d10497ea3aefdd8702e314c"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          64,
+          1,
+          1
+        ],
+        "capabilities": [
+          1
+        ],
+        "uniformBuffers": [
+          {
+            "name": "LumenMeshSceneCull",
+            "sourceName": "LumenMeshSceneCull",
+            "descriptorSet": 0,
+            "descriptorBinding": 10,
+            "size": 256,
+            "members": [
+              {
+                "name": "CullDispatch",
+                "type": "uvec4",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullAttributes",
+                "type": "uvec4",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 16,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullLocalCenter",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 32,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullLocalExtent",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 48,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullDistanceRange",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 64,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullLodScreenSize",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 80,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullFlags",
+                "type": "uvec4",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 96,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullTranslatedWorldToClip",
+                "type": "mat4x4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 4,
+                "arrayDimensions": [],
+                "offset": 112,
+                "size": 64,
+                "matrixStride": 16,
+                "matrixOrder": "row-major",
+                "rowMajor": true,
+                "members": []
+              },
+              {
+                "name": "CullViewToClip",
+                "type": "mat4x4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 4,
+                "arrayDimensions": [],
+                "offset": 176,
+                "size": 64,
+                "matrixStride": 16,
+                "matrixOrder": "row-major",
+                "rowMajor": true,
+                "members": []
+              },
+              {
+                "name": "CullShadowCube",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 240,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [
+          {
+            "name": "NiagaraParticleDataInt",
+            "sourceName": "NiagaraParticleDataInt",
+            "descriptorSet": 0,
+            "descriptorBinding": 3,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "int[]",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "SceneSortedIndices",
+            "sourceName": "SceneSortedIndices",
+            "descriptorSet": 0,
+            "descriptorBinding": 4,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "int[]",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "SceneParticleCounts",
+            "sourceName": "SceneParticleCounts",
+            "descriptorSet": 0,
+            "descriptorBinding": 5,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "MeshSceneTransforms",
+            "sourceName": "MeshSceneTransforms",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "vec4[]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "MeshSceneMetrics",
+            "sourceName": "MeshSceneMetrics",
+            "descriptorSet": 0,
+            "descriptorBinding": 7,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "vec4[]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "OutMeshSceneRawIndices",
+            "sourceName": "OutMeshSceneRawIndices",
+            "descriptorSet": 0,
+            "descriptorBinding": 8,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "OutMeshSceneBlockCounts",
+            "sourceName": "OutMeshSceneBlockCounts",
+            "descriptorSet": 0,
+            "descriptorBinding": 9,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "default",
+      "pipelinePass": "cull",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "CullCS",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "LumenMeshSceneCull",
+      "descriptorSet": 0,
+      "descriptorBinding": 10,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NiagaraParticleDataInt",
+      "descriptorSet": 0,
+      "descriptorBinding": 3,
+      "access": "READ_WRITE",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "SceneSortedIndices",
+      "descriptorSet": 0,
+      "descriptorBinding": 4,
+      "access": "READ_WRITE",
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "SceneParticleCounts",
+      "descriptorSet": 0,
+      "descriptorBinding": 5,
+      "access": "READ_WRITE",
+      "glBinding": 2,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "MeshSceneTransforms",
+      "descriptorSet": 0,
+      "descriptorBinding": 6,
+      "access": "READ_WRITE",
+      "glBinding": 3,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "MeshSceneMetrics",
+      "descriptorSet": 0,
+      "descriptorBinding": 7,
+      "access": "READ_WRITE",
+      "glBinding": 4,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "OutMeshSceneRawIndices",
+      "descriptorSet": 0,
+      "descriptorBinding": 8,
+      "access": "READ_WRITE",
+      "glBinding": 5,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "OutMeshSceneBlockCounts",
+      "descriptorSet": 0,
+      "descriptorBinding": 9,
+      "access": "READ_WRITE",
+      "glBinding": 6,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 15064,
+        "sha256": "2b4eab5a6be4c484145458d9dfa378c7eb3e6dbf5e3fa927c899ba75ebf58302"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 46732,
+        "sha256": "36ca1350d6aa9505e037dc874d9411d25b4b98987d10497ea3aefdd8702e314c"
+      }
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schema": "lumenfx.niagara.groom_cache.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2",
+    "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPILER_DXC": 1,
+      "COMPILER_HLSL": 1,
+      "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0,
+      "COMPILER_GLSL_ES3_1": 0,
+      "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0,
+      "SM5_PROFILE": 1,
+      "FEATURE_LEVEL": 5,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0,
+      "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1,
+      "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0,
+      "COMPILER_SUPPORTS_HLSL2021": 1,
+      "SUPPORTS_INDEPENDENT_SAMPLERS": 1,
+      "UE_BINDLESS_ENABLED": 0
+    },
+    "include_overrides": [
+      {"from": "Engine/Shaders/Public/Platform.ush", "to": "tools/shaders/shared/compat/Platform.ush"}
+    ]
+  },
+  "passes": [
+    {
+      "name": "interpolate",
+      "source": "Engine/Plugins/Runtime/HairStrands/Shaders/Private/NiagaraInterpolateGroomGuides.usf",
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "defines": {"THREAD_COUNT": 32},
+      "variants": [
+        {"id": "local", "defines": {"PERMUTATION_INTERPOLATION": 0}},
+        {"id": "world", "defines": {"PERMUTATION_INTERPOLATION": 1}}
+      ],
+      "resources": [
+        {"name":"NiagaraFloatBuffer","kind":"niagara_groom_cache_buffer","original_hlsl_type":"Buffer<float>","hlsl_type":"StructuredBuffer<float>","stride_bytes":4},
+        {"name":"RestTrianglePositionBuffer","kind":"niagara_groom_cache_buffer","original_hlsl_type":"Buffer<float4>","hlsl_type":"StructuredBuffer<float4>","stride_bytes":16},
+        {"name":"DeformedTrianglePositionBuffer","kind":"niagara_groom_cache_buffer","original_hlsl_type":"Buffer<float4>","hlsl_type":"StructuredBuffer<float4>","stride_bytes":16},
+        {"name":"RootBarycentricCoordinatesBuffer","kind":"niagara_groom_cache_buffer","original_hlsl_type":"Buffer<uint>","hlsl_type":"StructuredBuffer<uint>","stride_bytes":4},
+        {"name":"RootToUniqueTriangleIndexBuffer","kind":"niagara_groom_cache_buffer","original_hlsl_type":"Buffer<uint>","hlsl_type":"StructuredBuffer<uint>","stride_bytes":4}
+      ]
+    }
+  ]
+}

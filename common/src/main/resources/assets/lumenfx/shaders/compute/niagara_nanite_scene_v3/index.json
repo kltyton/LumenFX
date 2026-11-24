@@ -1,0 +1,283 @@
+{
+  "schema": "lumenfx.shaders.index.v1",
+  "pipeline": "niagara_nanite_scene_v3",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "programs": [
+    {
+      "pass": "instance_scene",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_nanite_scene_v3/instance_scene/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 26336,
+            "sha256": "4149d9e858bc0406f0df4ab4ea219257c24f1f3d0105b00e1609d4d44436da72"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 43260,
+            "sha256": "2190d8d90e0f11e4814b680ecfe2a8660aecc56d402a32030bea05214973463c"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "hierarchy_cull",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_nanite_scene_v3/hierarchy_cull/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 36432,
+            "sha256": "a323136877ec18c8f1cfd98ac0dc38da850d5d47d0f0c170744124abfaae4957"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 89128,
+            "sha256": "a8c1749ba94ddb12b850defd18603d58d3faef0161fa2c32e468b66d0b1a04a8"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "hierarchy_main",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_nanite_scene_v3/hierarchy_main/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 54644,
+            "sha256": "141bc4586a4c58294ac6bc229c60a7bf1957b20bd7b2d75ece33deff64f439fc"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 144256,
+            "sha256": "7e4fc144fed22c13f9e8befae4b3f71a520635db9757b50b369c1ed5632225dd"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "hierarchy_post",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_nanite_scene_v3/hierarchy_post/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 75236,
+            "sha256": "7a2b7cd13881987d3f13f537511a1d128999d98f13a842513064f3a246d37c20"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 204160,
+            "sha256": "a5d1d1b2f10e380e2f506dd31d609ff22ef30557ac46d6749f551af7b94e64d5"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "raster_count",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_nanite_scene_v3/raster_count/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 4944,
+            "sha256": "350dc27e2414773b1609ee6729bb88cd4e3e4e9aad60d343f9005a7706220d1c"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 7616,
+            "sha256": "76b0ec1bcfa89462c870a6655b546a9960e325e8c509b0f2dc42ff39d3db9b64"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "raster_allocate",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_nanite_scene_v3/raster_allocate/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 2956,
+            "sha256": "472d9db24ab13476a57b2b8d430d7842eb5e849301ced7870fbccfc00acbc0e6"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 4400,
+            "sha256": "0f10aa3c7ceaaaf57b097ffd8dae030c4a29726147312013f19fb731d0e47d4c"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "raster_scatter",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_nanite_scene_v3/raster_scatter/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 5384,
+            "sha256": "db5e042751e2719da588fbdb50fb5a6fe589832d42f0affdab360504289021cd"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 8164,
+            "sha256": "9315bdc6615bff9718722a84d32eb1033a96d6872789718af41c23877fd59f99"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "hardware_prepare",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_nanite_scene_v3/hardware_prepare/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 4564,
+            "sha256": "9030991621352a7d4f6927ecca31d80bb63df2275609b9489b39c1aa8993b328"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 9260,
+            "sha256": "3f486a7bea24d16e87110237635ef221b18387815954ce133affe3187d8830b4"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "software_depth",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_nanite_scene_v3/software_depth/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 9796,
+            "sha256": "c2c29f46ba28f46aec376a8ed20818af963f3965c056e072e3bdf3a9cf18108a"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 22268,
+            "sha256": "44a5a3d0bd70195536ab281816dc346534dd066a0b451fb3f7ca3b16d2644eef"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "software_primitives",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_nanite_scene_v3/software_primitives/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 10400,
+            "sha256": "0279b795d2e3b96fe0d00c4ef8aaefccbb54698180b55222145be9d64ebeb21f"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 23188,
+            "sha256": "3ddad02e5a385394199d31cd066f871db6f5c57f02c74b6614e0008c4e578836"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "vertex_passthrough",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_nanite_scene_v3/vertex_passthrough/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 2780,
+            "sha256": "449438b850543462510de68602a1dc294b57ff69037b6665040f60de32486a5d"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 3808,
+            "sha256": "d8e2a02821645b39bdfe1c27ad20dc9da51f084cdbf4f5bd939d72c0d96be993"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "shading_geometry",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_nanite_scene_v3/shading_geometry/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 30784,
+            "sha256": "7dc0c4ce8ad3d3231ec741e9a98801e8dfb904cd98da65adceb96bafaf8b10f3"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 55708,
+            "sha256": "818d2c4913ac7515b909708801111c14738193d9383ec29892decc6f9aefe8e9"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    }
+  ]
+}

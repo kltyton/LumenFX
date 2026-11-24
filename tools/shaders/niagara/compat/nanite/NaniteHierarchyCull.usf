@@ -1,0 +1,410 @@
+#include "LumenFX/Nanite/NanitePageAddress.ush"
+
+StructuredBuffer<uint> NaniteHierarchy;
+StructuredBuffer<uint> NaniteRootNodes;
+StructuredBuffer<uint> NaniteClusterPages;
+StructuredBuffer<float4> NaniteAssemblyRows;
+StructuredBuffer<float4> MeshSceneTransforms;
+StructuredBuffer<uint> NaniteInstanceIds;
+StructuredBuffer<uint> NaniteInstanceCount;
+RWStructuredBuffer<uint4> NaniteVisibleClusters;
+RWStructuredBuffer<uint> NaniteStreamingRequests;
+RWStructuredBuffer<uint> NaniteCullCounts;
+#if NANITE_OCCLUSION_PASS != 0
+Texture2D<float> NaniteFurthestDepth;
+#endif
+#if NANITE_OCCLUSION_PASS == 1
+RWStructuredBuffer<uint4> NaniteDeferred;
+#elif NANITE_OCCLUSION_PASS == 2
+StructuredBuffer<uint4> NaniteDeferred;
+StructuredBuffer<uint> NaniteMainCounts;
+#endif
+
+cbuffer NaniteCullView
+{
+    float4 NaniteTranslatedWorldToClip[4];
+    float4 NaniteViewForwardNear;
+    float4 NaniteLodScales;
+    uint4 NaniteCullLimits;
+    uint4 NanitePageLayout;
+    uint4 NaniteCullFlags;
+    float4 NaniteCullViewOrigin;
+    float4 NaniteFirstPerson[3];
+    float4 NanitePreviousFirstPerson[3];
+    uint4 NaniteFeedback;
+#if NANITE_OCCLUSION_PASS != 0
+    float4 NaniteHzbWorldToClip[4];
+    uint4 NaniteHzbViewport;
+    uint4 NaniteDeferredLayout;
+#endif
+};
+
+static const uint INVALID_REFERENCE = 0xffffffffu;
+static const uint INVALID_ASSEMBLY = 0xffffu;
+static const uint NODE_WORDS = 60u;
+static const uint NODE_STACK_CAPACITY = 1u + 3u * 32u;
+static const uint GPU_HEADER_WORDS = 4u;
+static const uint STREAMING_LEAF = 2u;
+
+float4x4 AssemblyMatrix(uint assembly)
+{
+    uint row = assembly * 3u;
+    float4 x = NaniteAssemblyRows[row];
+    float4 y = NaniteAssemblyRows[row + 1u];
+    float4 z = NaniteAssemblyRows[row + 2u];
+    return transpose(float4x4(x, y, z, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+}
+
+float3 TransformScale(float4x4 transform)
+{
+    return float3(length(transform[0].xyz), length(transform[1].xyz), length(transform[2].xyz));
+}
+
+// The same near-plane tangency bounds used by GetProjectedEdgeScales.
+float2 ProjectedEdgeScales(float3 center, float radius)
+{
+    if (NaniteLodScales.z != 0.0f) return 1.0f;
+    center -= NaniteCullViewOrigin.xyz;
+    float nearPlane = NaniteViewForwardNear.w;
+    float z = dot(NaniteViewForwardNear.xyz, center);
+    if (z + radius <= nearPlane) return 0.0f;
+    float distanceSquared = dot(center, center);
+    float xSquared = distanceSquared - z * z;
+    float x = sqrt(max(0.0f, xSquared));
+    float tangentSquared = distanceSquared - radius * radius;
+    float tangentDistance = sqrt(max(0.0f, tangentSquared));
+    float inverseDistanceSquared = rcp(max(distanceSquared, 1.0e-20f));
+    float bottom = (radius * x + tangentDistance * z) * inverseDistanceSquared;
+    float top = (-radius * x + tangentDistance * z) * inverseDistanceSquared;
+    float planeHeight = nearPlane - z;
+    float atNear = sqrt(max(0.0f, radius * radius - planeHeight * planeHeight));
+    if (tangentSquared < 0.0f || bottom * tangentDistance < nearPlane)
+    {
+        float bx = max(x - atNear, 0.0f);
+        bottom = nearPlane * rsqrt(bx * bx + nearPlane * nearPlane);
+    }
+    if (tangentSquared < 0.0f || top * tangentDistance < nearPlane)
+    {
+        float tx = x + atNear;
+        top = nearPlane * rsqrt(tx * tx + nearPlane * nearPlane);
+    }
+    float h = max(planeHeight, 0.0f);
+    bool spansViewAxis = radius * radius - xSquared >= h * h;
+    return float2(max(z - radius, nearPlane) * top, max(z + radius, nearPlane) * (spansViewAxis ? 1.0f : bottom));
+}
+
+bool PrimitiveCullBox(uint assembly, float4x4 instance, bool previous, inout float3 center, inout float3 extent)
+{
+    if (assembly != INVALID_ASSEMBLY)
+    {
+        float4x4 transform = AssemblyMatrix(assembly);
+        center = mul(float4(center, 1.0f), transform).xyz;
+        extent = mul(extent, abs((float3x3)transform));
+    }
+    float maximumWpoExtent = asfloat(NaniteCullFlags.y);
+    if (maximumWpoExtent > 0.0f)
+    {
+        float3 scale = TransformScale(instance);
+        float3 inverseScale = float3(scale.x > 0.0f ? rcp(scale.x) : 0.0f,
+            scale.y > 0.0f ? rcp(scale.y) : 0.0f, scale.z > 0.0f ? rcp(scale.z) : 0.0f);
+        extent += maximumWpoExtent * inverseScale;
+    }
+
+    if ((previous ? NaniteCullFlags.w : NaniteCullFlags.z) == 0u) return true;
+    float3x3 firstPerson = previous
+        ? float3x3(NanitePreviousFirstPerson[0].xyz, NanitePreviousFirstPerson[1].xyz, NanitePreviousFirstPerson[2].xyz)
+        : float3x3(NaniteFirstPerson[0].xyz, NaniteFirstPerson[1].xyz, NaniteFirstPerson[2].xyz);
+    float3 a = instance[0].xyz, b = instance[1].xyz, c = instance[2].xyz;
+    float3 inverseX = cross(b, c);
+    float determinant = dot(a, inverseX);
+    if (determinant == 0.0f) return false;
+    float3x3 inverse = transpose(float3x3(inverseX, cross(c, a), cross(a, b))) / determinant;
+    float3x3 localDeformation = mul(mul(float3x3(a, b, c), firstPerson), inverse);
+    float3 origin = instance[3].xyz;
+    float3 translation = mul(mul(origin, firstPerson) - origin, inverse);
+    float3 transformedCenter = mul(center, localDeformation) + translation;
+    float3 transformedExtent = mul(extent, abs(localDeformation));
+    float3 minimum = min(center - extent, transformedCenter - transformedExtent);
+    float3 maximum = max(center + extent, transformedCenter + transformedExtent);
+    center = (minimum + maximum) * 0.5f;
+    extent = maximum - center;
+    return true;
+}
+
+bool FrustumVisible(float3 center, float3 extent, float4x4 localToWorld, out bool needsClipping)
+{
+    float4x4 projection = float4x4(NaniteTranslatedWorldToClip[0], NaniteTranslatedWorldToClip[1],
+        NaniteTranslatedWorldToClip[2], NaniteTranslatedWorldToClip[3]);
+    float4x4 localToClip = mul(localToWorld, projection);
+    float4 clipCenter = mul(float4(center, 1.0f), localToClip);
+    float4 dx = localToClip[0] * extent.x;
+    float4 dy = localToClip[1] * extent.y;
+    float4 dz = localToClip[2] * extent.z;
+    uint outside = 63u;
+    needsClipping = false;
+    [unroll]
+    for (uint corner = 0; corner < 8u; ++corner)
+    {
+        float4 v = clipCenter + ((corner & 1u) != 0u ? dx : -dx)
+            + ((corner & 2u) != 0u ? dy : -dy) + ((corner & 4u) != 0u ? dz : -dz);
+        uint code = (v.x < -v.w ? 1u : 0u) | (v.x > v.w ? 2u : 0u)
+            | (v.y < -v.w ? 4u : 0u) | (v.y > v.w ? 8u : 0u)
+            | (v.z < (NaniteLodScales.w != 0.0f ? 0.0f : -v.w) ? 16u : 0u)
+            | ((NaniteCullFlags.x & 4u) == 0u && v.z > v.w ? 32u : 0u);
+        outside &= code;
+        needsClipping = needsClipping || (code & 48u) != 0u || v.w <= 0.0f;
+    }
+    return outside == 0u || (NaniteCullFlags.x & 2u) != 0u;
+}
+
+uint PageOffsetWords(uint page)
+{
+    return NanitePageWord(page, NanitePageLayout.x);
+}
+
+float3 HierarchyVector(uint address)
+{
+    return asfloat(uint3(NaniteHierarchy[address], NaniteHierarchy[address + 1u], NaniteHierarchy[address + 2u]));
+}
+
+float4 ClusterVector(uint address)
+{
+    return asfloat(uint4(NaniteClusterPages[address], NaniteClusterPages[address + 1u],
+        NaniteClusterPages[address + 2u], NaniteClusterPages[address + 3u]));
+}
+
+void RequestPageRange(uint range, float priority)
+{
+    if (NaniteCullLimits.w == 0u || (range & (1u << 30u)) == 0u || (range & 31u) == 0u) return;
+    uint index;
+    InterlockedAdd(NaniteStreamingRequests[0], 1u, index);
+    if (index >= NaniteCullLimits.w) return;
+    uint offset = (index + 1u) * 3u;
+    NaniteStreamingRequests[offset] = NaniteFeedback.x;
+    NaniteStreamingRequests[offset + 1u] = range;
+    NaniteStreamingRequests[offset + 2u] = clamp((NaniteFeedback.y << 30u) | (asuint(priority) >> 2u),
+        1u, 0xffffffe0u);
+}
+
+float4x4 InstanceMatrix(uint particle, bool previous)
+{
+    uint index = particle * 9u + (previous ? 5u : 0u);
+    return float4x4(MeshSceneTransforms[index], MeshSceneTransforms[index + 1u],
+        MeshSceneTransforms[index + 2u], MeshSceneTransforms[index + 3u]);
+}
+
+#if NANITE_OCCLUSION_PASS != 0
+bool Occluded(float3 center, float3 extent, uint particle, uint assembly)
+{
+    bool previous = NANITE_OCCLUSION_PASS == 1 && NaniteDeferredLayout.y != 0u;
+    float4x4 transform = InstanceMatrix(particle, previous);
+    if (!PrimitiveCullBox(assembly, transform, previous, center, extent)) return false;
+    float4x4 projection = float4x4(NaniteHzbWorldToClip[0], NaniteHzbWorldToClip[1],
+        NaniteHzbWorldToClip[2], NaniteHzbWorldToClip[3]);
+    float4x4 localToClip = mul(transform, projection);
+    float4 origin = mul(float4(center, 1.0f), localToClip);
+    float4 dx = localToClip[0] * extent.x;
+    float4 dy = localToClip[1] * extent.y;
+    float4 dz = localToClip[2] * extent.z;
+    float3 minimum = 1.0e30f;
+    float3 maximum = -1.0e30f;
+    [unroll]
+    for (uint corner = 0u; corner < 8u; ++corner)
+    {
+        float4 v = origin + ((corner & 1u) != 0u ? dx : -dx)
+            + ((corner & 2u) != 0u ? dy : -dy) + ((corner & 4u) != 0u ? dz : -dz);
+        if (v.w <= 0.0f || v.z >= v.w) return false;
+        float3 ndc = v.xyz / v.w;
+        minimum = min(minimum, ndc);
+        maximum = max(maximum, ndc);
+    }
+    if (any(minimum.xy > 1.0f) || any(maximum.xy < -1.0f)) return false;
+    float2 uvMin = minimum.xy * 0.5f + 0.5f;
+    float2 uvMax = maximum.xy * 0.5f + 0.5f;
+    if (NaniteHzbViewport.w != 0u)
+    {
+        uvMin.y = 0.5f - maximum.y * 0.5f;
+        uvMax.y = 0.5f - minimum.y * 0.5f;
+    }
+    int2 edge = int2(NaniteHzbViewport.xy) - 1;
+    int2 lo = clamp(int2(uvMin * NaniteHzbViewport.xy + 0.5f), 0, edge) >> 1;
+    int2 hi = max(lo, clamp(int2(uvMax * NaniteHzbViewport.xy - 0.5f), 0, edge) >> 1);
+    uint mip = 0u;
+    while (mip < NaniteHzbViewport.z && any(hi - lo > 3))
+    {
+        lo >>= 1;
+        hi >>= 1;
+        ++mip;
+    }
+    uint width, height, levels;
+    NaniteFurthestDepth.GetDimensions(mip, width, height, levels);
+    int2 hzbEdge = int2(width, height) - 1;
+    lo = min(lo, hzbEdge);
+    hi = min(hi, hzbEdge);
+    float furthest = 1.0f;
+    for (int y = lo.y; y <= hi.y; ++y)
+        for (int x = lo.x; x <= hi.x; ++x)
+            furthest = min(furthest, NaniteFurthestDepth.Load(int3(x, y, int(mip))));
+    float nearest = NaniteLodScales.w != 0.0f ? maximum.z : maximum.z * 0.5f + 0.5f;
+    return nearest < furthest;
+}
+#endif
+
+#if NANITE_OCCLUSION_PASS == 1
+void Defer(uint4 candidate)
+{
+    uint index;
+    InterlockedAdd(NaniteCullCounts[3], 1u, index);
+    if (index < NaniteDeferredLayout.x) NaniteDeferred[index] = candidate;
+    else InterlockedOr(NaniteCullCounts[2], 8u);
+}
+#endif
+
+static const uint DEFERRED_CLUSTER = 1u << 31u;
+static const uint HARDWARE_CLUSTER = 1u << 16u;
+static const uint SKIP_FIRST_LOD = 1u << 4u;
+
+void VisitCluster(uint particle, uint page, uint cluster, uint assembly, float4x4 transform,
+                  float minScale, float maxScale, bool testLod, bool hardware)
+{
+    uint pageOffset = PageOffsetWords(page);
+    uint pageClusters = NaniteClusterPages[pageOffset] & 0xffffu;
+    if (cluster >= pageClusters) return;
+    uint stride = pageClusters * 4u;
+    uint base = pageOffset + GPU_HEADER_WORDS + cluster * 4u;
+    float4 bounds = ClusterVector(base + 2u * stride);
+    float4 box = ClusterVector(base + 3u * stride);
+    float4 extent = ClusterVector(base + 4u * stride);
+    float depthScale = ProjectedEdgeScales(mul(float4(bounds.xyz, 1.0f), transform).xyz, bounds.w * maxScale).x;
+    uint errorAndEdge = asuint(box.w);
+    float lodError = f16tof32(errorAndEdge & 0xffffu);
+    float edgeLength = f16tof32(errorAndEdge >> 16u);
+    bool leaf = (asuint(extent.w) & STREAMING_LEAF) != 0u;
+    if (testLod && !leaf && depthScale <= minScale * lodError * NaniteLodScales.x) return;
+    float4x4 instance = InstanceMatrix(particle, false);
+    float3 cullCenter = box.xyz;
+    float3 cullExtent = extent.xyz;
+    bool needsClipping = true;
+    if (PrimitiveCullBox(assembly, instance, false, cullCenter, cullExtent)
+        && !FrustumVisible(cullCenter, cullExtent, instance, needsClipping)) return;
+    hardware = (NaniteCullFlags.x & 1u) != 0u || hardware || needsClipping || depthScale < maxScale * abs(edgeLength) * NaniteLodScales.y;
+#if NANITE_OCCLUSION_PASS != 0
+    if (Occluded(box.xyz, extent.xyz, particle, assembly))
+    {
+#if NANITE_OCCLUSION_PASS == 1
+        Defer(uint4(particle, page, cluster, assembly | DEFERRED_CLUSTER | (hardware ? HARDWARE_CLUSTER : 0u)));
+#endif
+        return;
+    }
+#endif
+    uint index;
+    InterlockedAdd(NaniteCullCounts[0], 1u, index);
+    if (index < NaniteCullLimits.z)
+        NaniteVisibleClusters[index] = uint4(particle, page, cluster, assembly | (hardware ? HARDWARE_CLUSTER : 0u));
+    else InterlockedOr(NaniteCullCounts[2], 1u);
+}
+
+void Traverse(uint particle, float4x4 instance, uint root, uint inheritedAssembly, uint mask)
+{
+    uint3 stack[NODE_STACK_CAPACITY];
+    uint top = 1u;
+    stack[0] = uint3(root, inheritedAssembly, mask);
+    while (top > 0u)
+    {
+        uint3 node = stack[--top];
+        uint address = node.x * NODE_WORDS;
+        [unroll]
+        for (uint child = 0; child < 4u; ++child)
+        {
+            if ((node.z & (1u << child)) == 0u) continue;
+            uint boundsAddress = address + child * 4u;
+            uint misc = address + 48u + child * 3u;
+            uint range = NaniteHierarchy[misc];
+            uint countAndAssembly = NaniteHierarchy[misc + 1u];
+            bool leaf = range != INVALID_REFERENCE;
+            uint count = (countAndAssembly >> 16u) & 0x1ffu;
+            if (leaf && range == 0u && count == 0u) continue;
+
+            uint assembly = countAndAssembly & 0xffffu;
+            if (assembly == INVALID_ASSEMBLY) assembly = node.y;
+            float4x4 transform = instance;
+            if (assembly != INVALID_ASSEMBLY) transform = mul(AssemblyMatrix(assembly), instance);
+            float3 scale = TransformScale(transform);
+            float minScale = min(scale.x, min(scale.y, scale.z));
+            float maxScale = max(scale.x, max(scale.y, scale.z));
+            float4 sphere = float4(HierarchyVector(boundsAddress), asfloat(NaniteHierarchy[boundsAddress + 3u]));
+            float2 projection = ProjectedEdgeScales(mul(float4(sphere.xyz, 1.0f), transform).xyz, sphere.w * maxScale);
+            uint errors = NaniteHierarchy[boundsAddress + 19u];
+            float maxParent = f16tof32(errors & 0xffffu);
+            float minLod = f16tof32(errors >> 16u);
+            float threshold = NaniteLodScales.x * minScale * maxParent;
+            bool testLod = (node.z & SKIP_FIRST_LOD) == 0u;
+            if (testLod && (projection.x > threshold || (leaf && projection.y < NaniteLodScales.x * minScale * minLod))) continue;
+            float3 center = HierarchyVector(boundsAddress + 16u);
+            float3 extent = HierarchyVector(boundsAddress + 32u);
+            float3 cullCenter = center;
+            float3 cullExtent = extent;
+            bool needsClipping;
+            if (PrimitiveCullBox(assembly, instance, false, cullCenter, cullExtent)
+                && !FrustumVisible(cullCenter, cullExtent, instance, needsClipping)) continue;
+            uint reference = NaniteHierarchy[boundsAddress + 35u];
+#if NANITE_OCCLUSION_PASS != 0
+            if (Occluded(center, extent, particle, assembly))
+            {
+#if NANITE_OCCLUSION_PASS == 1
+                if (reference != INVALID_REFERENCE) Defer(uint4(particle, node.x, 1u << child, node.y));
+#endif
+                continue;
+            }
+#endif
+            if (leaf)
+            {
+                RequestPageRange(range, threshold / max(projection.x, 1.0e-20f));
+                if (reference == INVALID_REFERENCE) continue;
+                uint page = reference >> 8u;
+                uint first = reference & 0xffu;
+                for (uint cluster = 0; cluster < count; ++cluster)
+                    VisitCluster(particle, page, first + cluster, assembly, transform, minScale, maxScale, true, false);
+            }
+            else if (reference != INVALID_REFERENCE)
+            {
+                if (top < NODE_STACK_CAPACITY) stack[top++] = uint3(reference, assembly, 15u);
+                else InterlockedOr(NaniteCullCounts[2], 4u);
+            }
+        }
+    }
+}
+
+[numthreads(64, 1, 1)]
+void CullNaniteHierarchy(uint3 id : SV_DispatchThreadID)
+{
+    uint rank = id.x + id.y * NanitePageLayout.w;
+#if NANITE_OCCLUSION_PASS == 2
+    if (rank >= min(NaniteMainCounts[3], NaniteDeferredLayout.x)) return;
+    uint4 deferred = NaniteDeferred[rank];
+    uint particle = deferred.x;
+    float4x4 instance = InstanceMatrix(particle, false);
+    uint assembly = deferred.w & 0xffffu;
+    if ((deferred.w & DEFERRED_CLUSTER) == 0u)
+    {
+        Traverse(particle, instance, deferred.y, assembly, deferred.z | SKIP_FIRST_LOD);
+    }
+    else
+    {
+        if (assembly != INVALID_ASSEMBLY) instance = mul(AssemblyMatrix(assembly), instance);
+        float3 scale = TransformScale(instance);
+        VisitCluster(particle, deferred.y, deferred.z, assembly, instance,
+            min(scale.x, min(scale.y, scale.z)), max(scale.x, max(scale.y, scale.z)),
+            false, (deferred.w & HARDWARE_CLUSTER) != 0u);
+    }
+#else
+    uint instances = NaniteCullLimits.x;
+    if (NanitePageLayout.z != INVALID_REFERENCE) instances = min(instances, NaniteInstanceCount[NanitePageLayout.z]);
+    if (rank >= instances) return;
+    uint particle = NanitePageLayout.y == INVALID_REFERENCE ? rank : NaniteInstanceIds[NanitePageLayout.y + rank];
+    if (MeshSceneTransforms[particle * 9u + 4u].w == 0.0f) return;
+    float4x4 instance = InstanceMatrix(particle, false);
+    for (uint root = 0; root < NaniteCullLimits.y; ++root)
+        Traverse(particle, instance, NaniteRootNodes[root], INVALID_ASSEMBLY, 15u);
+#endif
+}

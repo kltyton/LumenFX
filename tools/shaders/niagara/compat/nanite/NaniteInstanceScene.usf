@@ -1,0 +1,120 @@
+#include "/Engine/Private/Common.ush"
+#include "/Plugin/FX/Niagara/Private/NiagaraTransformUtils.ush"
+
+StructuredBuffer<float> NaniteParticleFloats;
+StructuredBuffer<uint> NaniteParticleHalves;
+StructuredBuffer<int> NaniteParticleIntegers;
+StructuredBuffer<uint> NaniteParticleCounts;
+StructuredBuffer<uint2> NaniteCustomFloatBindings;
+RWStructuredBuffer<float4> NaniteInstanceTransforms;
+RWStructuredBuffer<float> NaniteInstanceCustomFloats;
+
+cbuffer NaniteInstanceLayout
+{
+    uint4 InstanceDispatch;
+    uint4 InstanceParticleLayout;
+    int4 InstanceCurrentAttributes;
+    int4 InstancePreviousAttributes;
+    float4 InstancePosition;
+    float4 InstanceRotation;
+    float4 InstanceScale;
+    float4 InstanceMeshRotation;
+    float4 InstanceMeshScale;
+    float4 InstanceCurrentOwnerTranslation;
+    float4 InstanceCurrentOwnerRotation;
+    float4 InstanceCurrentOwnerScale;
+    float4 InstancePreviousOwnerTranslation;
+    float4 InstancePreviousOwnerRotation;
+    float4 InstancePreviousOwnerScale;
+    float4 InstanceCurrentOriginHigh;
+    float4 InstanceCurrentOriginLow;
+    float4 InstancePreviousOriginHigh;
+    float4 InstancePreviousOriginLow;
+};
+
+float ParticleFloat(int attribute, uint index, float fallback)
+{
+    if (attribute == -1) return fallback;
+    const uint halfBit = 0x80000000u;
+    uint address = (uint(attribute) & ~halfBit) * InstanceParticleLayout.x + index;
+    if ((uint(attribute) & halfBit) == 0u) return NaniteParticleFloats[address];
+    uint word = NaniteParticleHalves[address >> 1u];
+    return f16tof32(word >> ((address & 1u) * 16u));
+}
+
+int ParticleInt(int attribute, uint index, int fallback)
+{
+    return attribute == -1 ? fallback : NaniteParticleIntegers[uint(attribute) * InstanceParticleLayout.x + index];
+}
+
+float3 ParticleVector3(int attribute, uint index, float3 fallback)
+{
+    if (attribute == -1) return fallback;
+    return float3(ParticleFloat(attribute, index, fallback.x), ParticleFloat(attribute + 1, index, fallback.y),
+        ParticleFloat(attribute + 2, index, fallback.z));
+}
+
+float4 ParticleVector4(int attribute, uint index, float4 fallback)
+{
+    if (attribute == -1) return fallback;
+    return float4(ParticleVector3(attribute, index, fallback.xyz), ParticleFloat(attribute + 3, index, fallback.w));
+}
+
+FNiagaraTransform LoadInstance(uint index, int3 attributes, FNiagaraTransform owner,
+                             float3 originHigh, float3 originLow, float3 defaultPosition,
+                             float4 defaultRotation, float3 defaultScale)
+{
+    FNiagaraTransform particle = MakeTransform(
+        ParticleVector3(attributes.x, index, defaultPosition),
+        MultiplyQuat(ParticleVector4(attributes.y, index, defaultRotation), InstanceMeshRotation),
+        ParticleVector3(attributes.z, index, defaultScale) * InstanceMeshScale.xyz);
+    FNiagaraTransform transform = MultiplyTransform(particle, owner);
+    transform.Translation = (transform.Translation + originLow) + originHigh;
+    return transform;
+}
+
+[numthreads(64, 1, 1)]
+void PrepareNaniteInstanceScene(uint3 thread : SV_DispatchThreadID)
+{
+    uint index = thread.x + thread.y * InstanceDispatch.z;
+    uint count = InstanceParticleLayout.w != 0u ? 1u : min(InstanceDispatch.x, NaniteParticleCounts[InstanceDispatch.y]);
+    if (index >= count) return;
+    uint output = index * 9u;
+    if (ParticleInt(InstanceCurrentAttributes.w, index, int(InstanceParticleLayout.y)) != int(InstanceParticleLayout.y)
+        || ParticleInt(InstancePreviousAttributes.w, index, int(InstanceParticleLayout.z)) != int(InstanceParticleLayout.z))
+    {
+        NaniteInstanceTransforms[output + 4u] = 0.0f;
+        return;
+    }
+
+    FNiagaraTransform currentOwner = MakeTransform(InstanceCurrentOwnerTranslation.xyz,
+        InstanceCurrentOwnerRotation, InstanceCurrentOwnerScale.xyz);
+    FNiagaraTransform previousOwner = MakeTransform(InstancePreviousOwnerTranslation.xyz,
+        InstancePreviousOwnerRotation, InstancePreviousOwnerScale.xyz);
+    FNiagaraTransform current = LoadInstance(index, InstanceCurrentAttributes.xyz, currentOwner,
+        InstanceCurrentOriginHigh.xyz, InstanceCurrentOriginLow.xyz, InstancePosition.xyz,
+        InstanceRotation, InstanceScale.xyz);
+    FNiagaraTransform previous = LoadInstance(index, InstancePreviousAttributes.xyz, previousOwner,
+        InstancePreviousOriginHigh.xyz, InstancePreviousOriginLow.xyz, InstancePosition.xyz,
+        InstanceRotation, InstanceScale.xyz);
+    float4x4 currentMatrix = TransformToMatrix44(current);
+    float4x4 previousMatrix = TransformToMatrix44(previous);
+    float3 scale = abs(current.Scale);
+    float3 inverseScale = float3(scale.x == 0.0f ? 0.0f : rcp(scale.x),
+        scale.y == 0.0f ? 0.0f : rcp(scale.y), scale.z == 0.0f ? 0.0f : rcp(scale.z));
+    float determinantSign = current.Scale.x * current.Scale.y * current.Scale.z < 0.0f ? -1.0f : 1.0f;
+    [unroll]
+    for (uint row = 0u; row < 4u; ++row)
+    {
+        NaniteInstanceTransforms[output + row] = currentMatrix[row];
+        NaniteInstanceTransforms[output + 5u + row] = previousMatrix[row];
+    }
+    NaniteInstanceTransforms[output + 4u] = float4(inverseScale, determinantSign);
+
+    for (uint component = 0u; component < InstanceDispatch.w; ++component)
+    {
+        uint2 binding = NaniteCustomFloatBindings[component];
+        NaniteInstanceCustomFloats[index * InstanceDispatch.w + component] =
+            ParticleFloat(int(binding.x), index, asfloat(binding.y));
+    }
+}

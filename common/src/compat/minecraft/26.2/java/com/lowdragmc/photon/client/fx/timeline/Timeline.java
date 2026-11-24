@@ -1,0 +1,296 @@
+/* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
+package com.lowdragmc.photon.client.fx.timeline;
+
+import com.lowdragmc.lowdraglib2.Platform;
+import com.lowdragmc.photon.Photon;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.util.ExtraCodecs;
+import com.lowdragmc.photon.utils.PhotonValueSerializable;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * A timeline attached to an FX: a tree of {@link Track}s. The top-level {@link #tracks()} are the roots;
+ * a {@link TrackGroup} nests further tracks. Each leaf track is bound to a child of root.
+ * <p>
+ * The timeline is the master clock for tracked objects. An <b>empty</b> timeline (no tracks) is the
+ * backward-compatible default: it changes nothing, and existing FX without timeline data deserialize
+ * to an empty timeline.
+ */
+@ParametersAreNonnullByDefault
+public class Timeline implements PhotonValueSerializable {
+    /** Every top-level key {@link #serializeNBT} writes; {@link #serialize} passes exactly these through ValueIO. */
+    private static final List<String> KEYS = List.of("tracks", "markers", "sections", "release");
+
+    private final List<Track> tracks = new ArrayList<>();
+    /** Named bookmarks on the master clock: snapping aids + visual markers (see {@link Marker}). */
+    private final List<Marker> markers = new ArrayList<>();
+    private final List<TimelineSection> sections = new ArrayList<>();
+    /** The section a non-forced destroy (or a release request) plays; null for none. */
+    @Nullable
+    private String releaseSection;
+    /** Whether a release jumps at once or waits for the end of the current pass. */
+    private boolean releaseNow = true;
+
+    public List<Track> tracks() {
+        return tracks;
+    }
+
+    public List<Marker> markers() {
+        return markers;
+    }
+
+    public List<TimelineSection> sections() {
+        return sections;
+    }
+
+    @Nullable
+    public String releaseSection() {
+        return releaseSection;
+    }
+
+    public Timeline releaseSection(@Nullable String releaseSection) {
+        this.releaseSection = releaseSection == null || releaseSection.isEmpty() ? null : releaseSection;
+        return this;
+    }
+
+    public boolean releaseNow() {
+        return releaseNow;
+    }
+
+    public Timeline releaseNow(boolean releaseNow) {
+        this.releaseNow = releaseNow;
+        return this;
+    }
+
+    public boolean isEmpty() {
+        return tracks.isEmpty();
+    }
+
+    /**
+     * Depth-first list of all non-group (leaf) tracks. When {@code includeMuted} is false, a muted
+     * {@link TrackGroup}'s whole subtree is skipped (muted group = as if absent). A leaf's own
+     * {@link Track#mute()} is left to the caller.
+     */
+    public List<Track> leafTracks(boolean includeMuted) {
+        var out = new ArrayList<Track>();
+        collectLeaves(tracks, includeMuted, out);
+        return out;
+    }
+
+    private static void collectLeaves(List<Track> list, boolean includeMuted, List<Track> out) {
+        for (var track : list) {
+            if (track instanceof TrackGroup group) {
+                if (!includeMuted && group.mute()) continue;
+                collectLeaves(group.children(), includeMuted, out);
+            } else {
+                out.add(track);
+            }
+        }
+    }
+
+    /**
+     * The timeline's content end in master-clock ticks: the max {@link Track#contentEnd()} over all
+     * non-muted leaf tracks (a muted leaf or muted group subtree contributes nothing, matching what
+     * the player evaluates). 0 for an empty timeline. The timeline is finished once the clock passes
+     * it — after that, activator/control-gated objects stay permanently inactive and no signal,
+     * animation key, or audio clip remains. Cheap on-demand tree walk; not cached here (the player
+     * snapshots it per playback in {@code TimelinePlayer.begin}).
+     */
+    public double getDuration() {
+        double duration = 0;
+        for (var track : leafTracks(false)) {
+            if (track.mute()) continue;
+            duration = Math.max(duration, track.contentEnd());
+        }
+        return duration;
+    }
+
+    /**
+     * Ripple-insert {@code deltaTicks} of empty time at {@code atTick} across the whole timeline: every
+     * marker and every track's content at or after the insertion point shifts later by {@code delta}
+     * (each track decides how — see {@link Track#insertTime}). A no-op for {@code delta == 0}.
+     */
+    public void insertTime(double atTick, double deltaTicks) {
+        if (deltaTicks == 0) {
+            return;
+        }
+        Marker.insertTime(markers, atTick, deltaTicks);
+        TimelineSection.insertTime(sections, atTick, deltaTicks);
+        for (var track : tracks) {
+            track.insertTime(atTick, deltaTicks);
+        }
+    }
+
+    /** The children-list (root list or a group's children) that directly contains {@code track}, or null. */
+    @Nullable
+    public List<Track> parentListOf(Track track) {
+        return findParentList(tracks, track);
+    }
+
+    @Nullable
+    private static List<Track> findParentList(List<Track> list, Track track) {
+        if (list.contains(track)) return list;
+        for (var t : list) {
+            if (t instanceof TrackGroup group) {
+                var found = findParentList(group.children(), track);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    /** Whether {@code track} is {@code maybeAncestor} itself or nested anywhere inside it. */
+    public static boolean isDescendant(Track maybeAncestor, Track track) {
+        if (maybeAncestor == track) return true;
+        if (maybeAncestor instanceof TrackGroup group) {
+            for (var child : group.children()) {
+                if (isDescendant(child, track)) return true;
+            }
+        }
+        return false;
+    }
+
+    /** An independent copy of this timeline (provider-free, used by {@code FXData.copy}). */
+    public Timeline copy() {
+        var copied = new Timeline();
+        for (var track : tracks) {
+            copied.tracks.add(track.copy());
+        }
+        for (var marker : markers) {
+            copied.markers.add(marker.copy());
+        }
+        for (var section : sections) {
+            copied.sections.add(section.copy());
+        }
+        copied.releaseSection = releaseSection;
+        copied.releaseNow = releaseNow;
+        return copied;
+    }
+
+    /** Serialize one track to a {@code {type, data}} entry (shared by Timeline + {@link TrackGroup}). */
+    public static CompoundTag writeTrack(Track track, HolderLookup.Provider provider) {
+        var entry = new CompoundTag();
+        entry.putString("type", track.name());
+        entry.put("data", track.writeData(provider));
+        return entry;
+    }
+
+    /** Deserialize one {@code {type, data}} entry, or null if the type is unknown (warns). */
+    @Nullable
+    public static Track readTrack(HolderLookup.Provider provider, CompoundTag entry) {
+        var type = entry.getStringOr("type", "");
+        var trackType = PhotonTrackTypes.REGISTRY.get(type);
+        if (trackType == null) {
+            Photon.LOGGER.warn("Unknown timeline track type '{}' skipped while loading", type);
+            return null;
+        }
+        var track = trackType.create();
+        track.readData(provider, entry.getCompoundOrEmpty("data"));
+        return track;
+    }
+
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
+        var tag = new CompoundTag();
+        var list = new ListTag();
+        for (var track : tracks) {
+            list.add(writeTrack(track, provider));
+        }
+        tag.put("tracks", list);
+        var markerList = new ListTag();
+        for (var marker : markers) {
+            var m = new CompoundTag();
+            m.putDouble("tick", marker.tick());
+            m.putString("name", marker.name());
+            markerList.add(m);
+        }
+        tag.put("markers", markerList);
+        // written only when used, so a timeline without sections saves exactly as before
+        if (!sections.isEmpty()) {
+            var sectionList = new ListTag();
+            for (var section : sections) {
+                var s = new CompoundTag();
+                s.putString("name", section.name());
+                s.putDouble("start", section.start());
+                if (section.repeat() != 1) s.putInt("repeat", section.repeat());
+                if (section.then() != TimelineSection.Then.LINEAR) {
+                    s.putString("then", section.then().name().toLowerCase(Locale.ROOT));
+                }
+                if (section.then() == TimelineSection.Then.GOTO) s.putString("target", section.target());
+                sectionList.add(s);
+            }
+            tag.put("sections", sectionList);
+        }
+        if (releaseSection != null) {
+            var release = new CompoundTag();
+            release.putString("section", releaseSection);
+            release.putString("timing", releaseNow ? "now" : "section_end");
+            tag.put("release", release);
+        }
+        return tag;
+    }
+
+    /**
+     * As a {@code @Persisted} field (an FX instance's own timeline), which LDLib2 saves through ValueIO: the same
+     * compound {@link #serializeNBT} writes, so files read the same on every version.
+     */
+    @Override
+    public void serialize(ValueOutput output) {
+        var tag = serializeNBT(Platform.getFrozenRegistry());
+        for (var key : KEYS) {
+            var value = tag.get(key);
+            if (value != null) output.store(key, ExtraCodecs.NBT, value);
+        }
+    }
+
+    @Override
+    public void deserialize(ValueInput input) {
+        var tag = new CompoundTag();
+        for (var key : KEYS) {
+            input.read(key, ExtraCodecs.NBT).ifPresent(value -> tag.put(key, value));
+        }
+        deserializeNBT(Platform.getFrozenRegistry(), tag);
+    }
+
+    public void deserializeNBT(HolderLookup.Provider provider, CompoundTag tag) {
+        tracks.clear();
+        for (var element : tag.getListOrEmpty("tracks")) {
+            if (element instanceof CompoundTag entry) {
+                var track = readTrack(provider, entry);
+                if (track != null) {
+                    tracks.add(track);
+                }
+            }
+        }
+        markers.clear();
+        // absent "markers" key (legacy .fx) deserializes to an empty list — backward compatible
+        for (var element : tag.getListOrEmpty("markers")) {
+            if (element instanceof CompoundTag m) {
+                markers.add(new Marker(m.getDoubleOr("tick", 0.0D), m.getStringOr("name", "")));
+            }
+        }
+        sections.clear();
+        for (var element : tag.getListOrEmpty("sections")) {
+            if (element instanceof CompoundTag s) {
+                var then = switch (s.getStringOr("then", "")) {
+                    case "end" -> TimelineSection.Then.END;
+                    case "goto" -> TimelineSection.Then.GOTO;
+                    default -> TimelineSection.Then.LINEAR;
+                };
+                sections.add(new TimelineSection(s.getStringOr("name", ""), s.getDoubleOr("start", 0.0D))
+                        .repeat(s.getIntOr("repeat", 1)).then(then).target(s.getStringOr("target", "")));
+            }
+        }
+        var release = tag.getCompoundOrEmpty("release");
+        releaseSection(release.getStringOr("section", ""));
+        releaseNow = !"section_end".equals(release.getStringOr("timing", ""));
+    }
+}

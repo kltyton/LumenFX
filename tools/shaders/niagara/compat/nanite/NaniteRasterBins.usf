@@ -1,0 +1,98 @@
+#include "LumenFX/Nanite/NaniteTriangleDecode.ush"
+
+StructuredBuffer<uint4> NaniteVisibleClusters;
+StructuredBuffer<uint> NaniteCullCounts;
+RWStructuredBuffer<uint> NaniteBinCounts;
+RWStructuredBuffer<uint> NaniteBinOffsets;
+RWStructuredBuffer<uint> NaniteBinCursors;
+RWStructuredBuffer<uint2> NaniteBinTriangles;
+RWStructuredBuffer<uint4> NaniteRasterCommands;
+RWStructuredBuffer<uint> NaniteRasterOverflow;
+
+cbuffer NaniteRasterLayout
+{
+    uint NaniteStreamingSlots;
+    uint NaniteClusterCapacity;
+    uint NaniteTriangleCapacity;
+    uint NaniteClusterDispatchWidth;
+};
+
+static const uint NANITE_MATERIAL_SLOTS = 64u;
+static const uint NANITE_RASTER_BINS = 128u;
+
+uint RasterBin(NaniteTriangleCluster cluster, uint triangleIndex, uint flags)
+{
+    uint material = NaniteTriangleMaterial(cluster, triangleIndex);
+    if (material >= NANITE_MATERIAL_SLOTS) return NANITE_RASTER_BINS;
+    return material + ((flags & (1u << 16u)) == 0u ? 0u : NANITE_MATERIAL_SLOTS);
+}
+
+void BinClusterTriangles(uint3 group, uint lane, bool scatter)
+{
+    uint index = group.x + group.y * NaniteClusterDispatchWidth;
+    if (index >= min(NaniteCullCounts[0], NaniteClusterCapacity)) return;
+
+    uint4 visible = NaniteVisibleClusters[index];
+    NaniteTriangleCluster cluster = NaniteLoadTriangleCluster(visible.y, visible.z, NaniteStreamingSlots);
+    for (uint triangleIndex = lane; triangleIndex < cluster.triangleCount; triangleIndex += 64u)
+    {
+        uint bin = RasterBin(cluster, triangleIndex, visible.w);
+        if (bin == NANITE_RASTER_BINS)
+        {
+            if (!scatter) InterlockedOr(NaniteRasterOverflow[0], 2u);
+            continue;
+        }
+        if (scatter)
+        {
+            uint slot;
+            InterlockedAdd(NaniteBinCursors[bin], 1u, slot);
+            uint first = NaniteBinOffsets[bin];
+            if (slot < NaniteTriangleCapacity - first)
+                NaniteBinTriangles[first + slot] = uint2(index, triangleIndex);
+        }
+        else InterlockedAdd(NaniteBinCounts[bin], 1u);
+    }
+}
+
+[numthreads(64, 1, 1)]
+void CountNaniteRasterTriangles(uint3 group : SV_GroupID, uint lane : SV_GroupIndex)
+{
+    BinClusterTriangles(group, lane, false);
+}
+
+groupshared uint NaniteBinScan[NANITE_RASTER_BINS];
+
+[numthreads(128, 1, 1)]
+void AllocateNaniteRasterBins(uint lane : SV_GroupIndex)
+{
+    uint count = NaniteBinCounts[lane];
+    NaniteBinScan[lane] = count;
+    GroupMemoryBarrierWithGroupSync();
+    [unroll]
+    for (uint step = 1u; step < NANITE_RASTER_BINS; step *= 2u)
+    {
+        uint prior = lane >= step ? NaniteBinScan[lane - step] : 0u;
+        GroupMemoryBarrierWithGroupSync();
+        NaniteBinScan[lane] += prior;
+        GroupMemoryBarrierWithGroupSync();
+    }
+
+    uint first = min(NaniteBinScan[lane] - count, NaniteTriangleCapacity);
+    uint retained = min(count, NaniteTriangleCapacity - first);
+    NaniteBinOffsets[lane] = first;
+    NaniteBinCursors[lane] = 0u;
+    NaniteRasterCommands[lane] = uint4(retained * 3u, 1u, first * 3u, 0u);
+    if (lane == NANITE_RASTER_BINS - 1u)
+    {
+        uint firstHardware = min(NaniteBinScan[NANITE_MATERIAL_SLOTS - 1u], NaniteTriangleCapacity);
+        uint hardwareCount = min(NaniteBinScan[lane], NaniteTriangleCapacity) - firstHardware;
+        NaniteRasterCommands[NANITE_RASTER_BINS] = uint4(hardwareCount * 3u, 1u, firstHardware * 3u, 0u);
+    }
+    if (count != retained) InterlockedOr(NaniteRasterOverflow[0], 1u);
+}
+
+[numthreads(64, 1, 1)]
+void ScatterNaniteRasterTriangles(uint3 group : SV_GroupID, uint lane : SV_GroupIndex)
+{
+    BinClusterTriangles(group, lane, true);
+}

@@ -1,0 +1,202 @@
+{
+  "schema": "lumenfx.niagara.gaussian_splat.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2",
+    "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPILER_DXC": 1,
+      "COMPILER_HLSL": 1,
+      "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0,
+      "COMPILER_GLSL_ES3_1": 0,
+      "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0,
+      "SM5_PROFILE": 1,
+      "FEATURE_LEVEL": 5,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0,
+      "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1,
+      "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0,
+      "COMPILER_SUPPORTS_HLSL2021": 1,
+      "SUPPORTS_INDEPENDENT_SAMPLERS": 1,
+      "UE_BINDLESS_ENABLED": 0,
+      "WORKING_COLOR_SPACE_IS_SRGB": 1,
+      "GAUSSIAN_SPLAT_USE_WAVE_OPS": 0
+    },
+    "include_overrides": [
+      {"from": "Engine/Shaders/Private/Common.ush", "to": "tools/shaders/shared/compat/Common.ush"},
+      {"from": "Engine/Shaders/Public/Platform.ush", "to": "tools/shaders/shared/compat/Platform.ush"},
+      {"from": "Engine/Shaders/Private/GPUMessaging.ush", "to": "tools/shaders/niagara/compat/splat/GPUMessaging.ush"},
+      {"from": "Engine/Shaders/Shared/HLSLStaticAssert.h", "to": "tools/shaders/niagara/compat/splat/HLSLStaticAssert.ush"},
+      {"from": "Engine/Shaders/Generated/BuildSplatsParticleBuffers.ush", "to": "tools/shaders/niagara/compat/splat/BuildSplatsParticleBuffers.ush"}
+    ]
+  },
+  "passes": [
+    {
+      "name": "build_splats",
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Plugins/GaussianSplat/Shaders/Private/NiagaraGaussianSplatBuildSplats.usf",
+      "niagara_gaussian_splat_source": true,
+      "niagara_gaussian_splat_half": true,
+      "generated_preincludes": ["/Engine/Generated/BuildSplatsParticleBuffers.ush"],
+      "defines": {
+        "THREADGROUP_SIZE_1D": 64,
+        "USE_GLOBAL_NIAGARA_DATA_BUFFERS": 0,
+        "ENABLE_NIAGARA_INT_DATA_ACCESS": 1
+      },
+      "variants": [
+        {"id": "default", "defines": {}}
+      ],
+      "resources": [
+        {"name": "ParticleCountBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4}
+      ]
+    },
+    {
+      "name": "shading",
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Plugins/GaussianSplat/Shaders/Private/GaussianSplatShading.usf",
+      "niagara_gaussian_splat_source": true,
+      "defines": {
+        "THREADGROUP_SIZE_1D": 64,
+        "SHADER_DEBUG": 1
+      },
+      "variants": [
+        {"id": "sh0", "defines": {"SH_DEGREE": 0}},
+        {"id": "sh1", "defines": {"SH_DEGREE": 1}},
+        {"id": "sh2", "defines": {"SH_DEGREE": 2}},
+        {"id": "sh3", "defines": {"SH_DEGREE": 3}}
+      ],
+      "resources": [
+        {"name": "ClusterCountBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4},
+        {"name": "ClusterIndexBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4},
+        {"name": "RWSplatCount", "kind": "storage_buffer", "niagara_buffer_lowering": "write:uint", "stride_bytes": 4, "uav": true},
+        {"name": "RWSortKeys", "kind": "storage_buffer", "niagara_buffer_lowering": "write:uint", "stride_bytes": 4, "uav": true},
+        {"name": "RWSortValues", "kind": "storage_buffer", "niagara_buffer_lowering": "write:uint", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "draw_indirect_args",
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Plugins/GaussianSplat/Shaders/Private/GaussianSplatDrawIndirectArgs.usf",
+      "niagara_gaussian_splat_source": true,
+      "variants": [
+        {"id": "default", "defines": {}}
+      ],
+      "resources": [
+        {"name": "SplatCountBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4},
+        {"name": "RWDrawIndirectArgs", "kind": "storage_buffer", "niagara_buffer_lowering": "write:uint", "stride_bytes": 4, "uav": true},
+        {"name": "StatsClusterCountBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4}
+      ]
+    },
+    {
+      "name": "gather_shaded_splats",
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Plugins/GaussianSplat/Shaders/Private/GaussianSplatGatherShadedSplats.usf",
+      "niagara_gaussian_splat_source": true,
+      "defines": {
+        "THREADGROUP_SIZE_1D": 64,
+        "GAUSSIAN_SPLAT_VERTEX_ATTRIBUTE_FETCH": 0
+      },
+      "variants": [
+        {"id": "gpu_0", "defines": {"GAUSSIAN_SPLAT_GPU_DRIVEN_PIPELINE": 0}},
+        {"id": "gpu_1", "defines": {"GAUSSIAN_SPLAT_GPU_DRIVEN_PIPELINE": 1}}
+      ],
+      "resources": [
+        {"name": "SortedIndexBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4},
+        {"name": "SplatCountBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4},
+        {"name": "RWGatheredShadedGaussianSplatVertexBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "write:uint", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "tile_count",
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Plugins/GaussianSplat/Shaders/Private/GaussianSplatTileCount.usf",
+      "niagara_gaussian_splat_source": true,
+      "defines": {
+        "THREADGROUP_SIZE_1D": 64,
+        "SHADER_DEBUG": 0
+      },
+      "variants": [
+        {"id": "default", "defines": {}}
+      ],
+      "resources": [
+        {"name": "RWTileCountBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "write:uint", "stride_bytes": 4, "uav": true},
+        {"name": "RWMinDepthPerTileBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "write:uint", "stride_bytes": 4, "uav": true},
+        {"name": "RWMaxDepthPerTileBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "write:uint", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "prefix_sum",
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Plugins/GaussianSplat/Shaders/Private/GaussianSplatPrefixSum.usf",
+      "niagara_gaussian_splat_source": true,
+      "defines": {
+        "THREADGROUP_SIZE_1D": 1024,
+        "NUM_THREADS_PER_GROUP": 1024
+      },
+      "variants": [
+        {"id": "default", "defines": {}}
+      ],
+      "resources": [
+        {"name": "ItemBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4},
+        {"name": "RWPrefixSumBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "write:uint", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "fill_splat_index_buffer",
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Plugins/GaussianSplat/Shaders/Private/GaussianSplatFillSplatIndexBuffer.usf",
+      "niagara_gaussian_splat_source": true,
+      "defines": {
+        "THREADGROUP_SIZE_1D": 64
+      },
+      "variants": [
+        {"id": "default", "defines": {}}
+      ],
+      "resources": [
+        {"name": "SplatOffsetPerTileBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4},
+        {"name": "MinDepthPerTileBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4},
+        {"name": "MaxDepthPerTileBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4},
+        {"name": "RWNumSplatsPerTileBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "write:uint", "stride_bytes": 4, "uav": true},
+        {"name": "RWSortKeyBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "write:uint", "stride_bytes": 4, "uav": true},
+        {"name": "RWSplatIndexBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "write:uint", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "tile_rasterize",
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Plugins/GaussianSplat/Shaders/Private/GaussianSplatTileRasterize.usf",
+      "niagara_gaussian_splat_source": true,
+      "defines": {
+        "THREADGROUP_SIZE_2D": 8
+      },
+      "variants": [
+        {"id": "default", "defines": {}}
+      ],
+      "resources": [
+        {"name": "NumSplatsPerTileBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4},
+        {"name": "SplatOffsetPerTileBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4},
+        {"name": "SplatIndexBuffer", "kind": "storage_buffer", "niagara_buffer_lowering": "read:uint", "stride_bytes": 4},
+        {
+          "name": "RWColorTexture",
+          "kind": "niagara_render_target_2d",
+          "hlsl_type": "RWTexture2D<float4>",
+          "gpuFormat": "RGBA16_FLOAT",
+          "dxcImageFormat": "rgba16f",
+          "uav": true
+        }
+      ]
+    }
+  ]
+}

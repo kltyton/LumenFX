@@ -1,0 +1,1233 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_async_trace",
+  "name": "global_distance_field",
+  "pass": "global_distance_field",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "default",
+    "defines": {},
+    "selectionKeys": [],
+    "selector": {}
+  },
+  "stageClass": "compute",
+  "abiLowering": [
+    {
+      "resource": "TraceCounts",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    }
+  ],
+  "sourceResources": [
+    {
+      "name": "TraceCounts",
+      "kind": "niagara_async_trace_buffer",
+      "original_hlsl_type": "Buffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "Traces",
+      "kind": "niagara_async_trace_buffer",
+      "hlsl_type": "StructuredBuffer<FNiagaraAsyncGpuTrace>",
+      "stride_bytes": 32
+    },
+    {
+      "name": "Results",
+      "kind": "niagara_async_trace_buffer",
+      "hlsl_type": "RWStructuredBuffer<FNiagaraAsyncGpuTraceResult>",
+      "stride_bytes": 32,
+      "uav": true
+    },
+    {
+      "name": "GlobalDistanceFieldPageAtlasTexture",
+      "kind": "niagara_distance_field",
+      "hlsl_type": "Texture3D",
+      "format": "PF_R8"
+    },
+    {
+      "name": "GlobalDistanceFieldCoverageAtlasTexture",
+      "kind": "niagara_distance_field",
+      "hlsl_type": "Texture3D",
+      "format": "PF_R8"
+    },
+    {
+      "name": "GlobalDistanceFieldMipTexture",
+      "kind": "niagara_distance_field",
+      "hlsl_type": "Texture3D",
+      "format": "PF_R8"
+    },
+    {
+      "name": "GlobalDistanceFieldPageTableTexture",
+      "kind": "niagara_distance_field_page_table",
+      "hlsl_type": "Texture3D<uint>",
+      "format": "PF_R32_UINT"
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "NiagaraRayMarchGlobalSdfCS",
+      "source": "Engine/Plugins/FX/Niagara/Shaders/Private/NiagaraRayMarchingShaders.usf",
+      "workgroup": {
+        "x": 32,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "ViewUniformBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 0,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "uniformBuffer",
+          "name": "Globals",
+          "sourceName": "$Globals",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "Traces",
+          "descriptorSet": 0,
+          "descriptorBinding": 6,
+          "access": "READ_WRITE",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "TraceCounts",
+          "descriptorSet": 0,
+          "descriptorBinding": 7,
+          "access": "READ_WRITE",
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "Results",
+          "descriptorSet": 0,
+          "descriptorBinding": 8,
+          "access": "READ_WRITE",
+          "glBinding": 2,
+          "stage": "compute"
+        },
+        {
+          "kind": "sampledTexture",
+          "name": "GlobalDistanceFieldPageAtlasTexture",
+          "image": "GlobalDistanceFieldPageAtlasTexture",
+          "sampler": "GlobalTrilinearWrappedSampler",
+          "format": "R8_UNORM",
+          "formatRef": "PF_R8",
+          "formatRule": "source-selected manifest resource format",
+          "descriptorForm": "SEPARATE_IMAGE_AND_SAMPLER",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "samplerDescriptorBinding": 69,
+          "glBinding": 0,
+          "array": false,
+          "volume": true,
+          "cube": false,
+          "dummySampler": false,
+          "sharedImage": false,
+          "dynamicFloatFormat": true,
+          "stage": "compute"
+        },
+        {
+          "kind": "sampledTexture",
+          "name": "GlobalDistanceFieldPageTableTexture",
+          "image": "GlobalDistanceFieldPageTableTexture",
+          "format": "R32_UINT",
+          "formatRef": "PF_R32_UINT",
+          "formatRule": "source-selected manifest resource format",
+          "descriptorForm": "SAMPLED_IMAGE",
+          "descriptorSet": 0,
+          "descriptorBinding": 4,
+          "samplerDescriptorBinding": -1,
+          "glBinding": 1,
+          "array": false,
+          "volume": true,
+          "cube": false,
+          "dummySampler": true,
+          "sharedImage": false,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [
+        {
+          "name": "GlobalTrilinearWrappedSampler",
+          "descriptorSet": 0,
+          "descriptorBinding": 69,
+          "shared": false
+        }
+      ],
+      "samplerPairs": [
+        {
+          "image": "GlobalDistanceFieldPageAtlasTexture",
+          "imageUniform": "GlobalDistanceFieldPageAtlasTexture",
+          "imageBinding": 2,
+          "sampler": "GlobalTrilinearWrappedSampler",
+          "samplerBinding": 69,
+          "descriptorSet": 0,
+          "glBinding": 0,
+          "dummy": false,
+          "shared": false
+        },
+        {
+          "image": "GlobalDistanceFieldPageTableTexture",
+          "imageUniform": "GlobalDistanceFieldPageTableTexture",
+          "imageBinding": 4,
+          "samplerBinding": -1,
+          "descriptorSet": 0,
+          "glBinding": 1,
+          "dummy": true,
+          "shared": false
+        }
+      ],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 17220,
+          "sha256": "cd22ae02eb6b90e682a09d5a41c8f45c4d5d6536deb9e7ac94734460093f9d81"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 37580,
+          "sha256": "01e18a12a59d74bbb1d14da6ec302f79b020819e22441842db9975d9ff2f83db"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          32,
+          1,
+          1
+        ],
+        "capabilities": [
+          1
+        ],
+        "uniformBuffers": [
+          {
+            "name": "ViewUniformBuffer",
+            "sourceName": "ViewUniformBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 0,
+            "size": 428,
+            "members": [
+              {
+                "name": "View",
+                "type": "struct",
+                "baseType": "struct",
+                "bitWidth": 0,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 428,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": [
+                  {
+                    "name": "ViewToClip",
+                    "type": "mat4x4",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 4,
+                    "columns": 4,
+                    "arrayDimensions": [],
+                    "offset": 0,
+                    "size": 64,
+                    "matrixStride": 16,
+                    "matrixOrder": "row-major",
+                    "rowMajor": true,
+                    "members": []
+                  },
+                  {
+                    "name": "InvDeviceZToWorldZTransform",
+                    "type": "vec4",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 4,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 64,
+                    "size": 16,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "ScreenToTranslatedWorld",
+                    "type": "mat4x4",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 4,
+                    "columns": 4,
+                    "arrayDimensions": [],
+                    "offset": 80,
+                    "size": 64,
+                    "matrixStride": 16,
+                    "matrixOrder": "row-major",
+                    "rowMajor": true,
+                    "members": []
+                  },
+                  {
+                    "name": "PreViewTranslation",
+                    "type": "struct",
+                    "baseType": "struct",
+                    "bitWidth": 0,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 144,
+                    "size": 28,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": [
+                      {
+                        "name": "High",
+                        "type": "vec3",
+                        "baseType": "float",
+                        "bitWidth": 32,
+                        "vectorSize": 3,
+                        "columns": 1,
+                        "arrayDimensions": [],
+                        "offset": 0,
+                        "size": 12,
+                        "matrixOrder": "unspecified",
+                        "rowMajor": false,
+                        "members": []
+                      },
+                      {
+                        "name": "Low",
+                        "type": "vec3",
+                        "baseType": "float",
+                        "bitWidth": 32,
+                        "vectorSize": 3,
+                        "columns": 1,
+                        "arrayDimensions": [],
+                        "offset": 16,
+                        "size": 12,
+                        "matrixOrder": "unspecified",
+                        "rowMajor": false,
+                        "members": []
+                      }
+                    ]
+                  },
+                  {
+                    "name": "PrevPreViewTranslation",
+                    "type": "struct",
+                    "baseType": "struct",
+                    "bitWidth": 0,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 176,
+                    "size": 28,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": [
+                      {
+                        "name": "High",
+                        "type": "vec3",
+                        "baseType": "float",
+                        "bitWidth": 32,
+                        "vectorSize": 3,
+                        "columns": 1,
+                        "arrayDimensions": [],
+                        "offset": 0,
+                        "size": 12,
+                        "matrixOrder": "unspecified",
+                        "rowMajor": false,
+                        "members": []
+                      },
+                      {
+                        "name": "Low",
+                        "type": "vec3",
+                        "baseType": "float",
+                        "bitWidth": 32,
+                        "vectorSize": 3,
+                        "columns": 1,
+                        "arrayDimensions": [],
+                        "offset": 16,
+                        "size": 12,
+                        "matrixOrder": "unspecified",
+                        "rowMajor": false,
+                        "members": []
+                      }
+                    ]
+                  },
+                  {
+                    "name": "PrevScreenToTranslatedWorld",
+                    "type": "mat4x4",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 4,
+                    "columns": 4,
+                    "arrayDimensions": [],
+                    "offset": 208,
+                    "size": 64,
+                    "matrixStride": 16,
+                    "matrixOrder": "row-major",
+                    "rowMajor": true,
+                    "members": []
+                  },
+                  {
+                    "name": "ClipToPrevClip",
+                    "type": "mat4x4",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 4,
+                    "columns": 4,
+                    "arrayDimensions": [],
+                    "offset": 272,
+                    "size": 64,
+                    "matrixStride": 16,
+                    "matrixOrder": "row-major",
+                    "rowMajor": true,
+                    "members": []
+                  },
+                  {
+                    "name": "WorldDepthToPixelWorldRadius",
+                    "type": "vec2",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 2,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 336,
+                    "size": 8,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "StateFrameIndexMod8",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 344,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "StateFrameIndex",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 348,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "GeneralPurposeTweak",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 352,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "TileOffset",
+                    "type": "struct",
+                    "baseType": "struct",
+                    "bitWidth": 0,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 368,
+                    "size": 60,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": [
+                      {
+                        "name": "PreViewTranslation",
+                        "type": "struct",
+                        "baseType": "struct",
+                        "bitWidth": 0,
+                        "vectorSize": 1,
+                        "columns": 1,
+                        "arrayDimensions": [],
+                        "offset": 0,
+                        "size": 28,
+                        "matrixOrder": "unspecified",
+                        "rowMajor": false,
+                        "members": [
+                          {
+                            "name": "Tile",
+                            "type": "vec3",
+                            "baseType": "float",
+                            "bitWidth": 32,
+                            "vectorSize": 3,
+                            "columns": 1,
+                            "arrayDimensions": [],
+                            "offset": 0,
+                            "size": 12,
+                            "matrixOrder": "unspecified",
+                            "rowMajor": false,
+                            "members": []
+                          },
+                          {
+                            "name": "Offset",
+                            "type": "vec3",
+                            "baseType": "float",
+                            "bitWidth": 32,
+                            "vectorSize": 3,
+                            "columns": 1,
+                            "arrayDimensions": [],
+                            "offset": 16,
+                            "size": 12,
+                            "matrixOrder": "unspecified",
+                            "rowMajor": false,
+                            "members": []
+                          }
+                        ]
+                      },
+                      {
+                        "name": "PrevPreViewTranslation",
+                        "type": "struct",
+                        "baseType": "struct",
+                        "bitWidth": 0,
+                        "vectorSize": 1,
+                        "columns": 1,
+                        "arrayDimensions": [],
+                        "offset": 32,
+                        "size": 28,
+                        "matrixOrder": "unspecified",
+                        "rowMajor": false,
+                        "members": [
+                          {
+                            "name": "Tile",
+                            "type": "vec3",
+                            "baseType": "float",
+                            "bitWidth": 32,
+                            "vectorSize": 3,
+                            "columns": 1,
+                            "arrayDimensions": [],
+                            "offset": 0,
+                            "size": 12,
+                            "matrixOrder": "unspecified",
+                            "rowMajor": false,
+                            "members": []
+                          },
+                          {
+                            "name": "Offset",
+                            "type": "vec3",
+                            "baseType": "float",
+                            "bitWidth": 32,
+                            "vectorSize": 3,
+                            "columns": 1,
+                            "arrayDimensions": [],
+                            "offset": 16,
+                            "size": 12,
+                            "matrixOrder": "unspecified",
+                            "rowMajor": false,
+                            "members": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Globals",
+            "sourceName": "$Globals",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "size": 504,
+            "members": [
+              {
+                "name": "MaxGlobalDFAOConeDistance",
+                "type": "float",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GlobalVolumeTranslatedCenterAndExtent",
+                "type": "vec4[6]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  6
+                ],
+                "offset": 16,
+                "size": 96,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GlobalVolumeTranslatedWorldToUVAddAndMul",
+                "type": "vec4[6]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  6
+                ],
+                "offset": 112,
+                "size": 96,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GlobalDistanceFieldMipTranslatedWorldToUVScale",
+                "type": "vec4[6]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  6
+                ],
+                "offset": 208,
+                "size": 96,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GlobalDistanceFieldMipTranslatedWorldToUVBias",
+                "type": "vec4[6]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  6
+                ],
+                "offset": 304,
+                "size": 96,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GlobalDistanceFieldMipFactor",
+                "type": "float",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 400,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GlobalDistanceFieldMipTransition",
+                "type": "float",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 404,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GlobalDistanceFieldInvPageAtlasSize",
+                "type": "vec3",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 3,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 416,
+                "size": 12,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GlobalDistanceFieldInvCoverageAtlasSize",
+                "type": "vec3",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 3,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 432,
+                "size": 12,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GlobalDistanceFieldClipmapSizeInPages",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 444,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GlobalVolumeDimension",
+                "type": "float",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 448,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GlobalVolumeTexelSize",
+                "type": "float",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 452,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NumGlobalSDFClipmaps",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 456,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CoveredExpandSurfaceScale",
+                "type": "float",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 460,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NotCoveredExpandSurfaceScale",
+                "type": "float",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 464,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NotCoveredMinStepScale",
+                "type": "float",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 468,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "DitheredTransparencyStepThreshold",
+                "type": "float",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 472,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "DitheredTransparencyTraceThreshold",
+                "type": "float",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 476,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "TracesOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 480,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "TraceCountsOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 484,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "ResultsOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 488,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "DistanceThreshold",
+                "type": "float",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 492,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MaxTraceCount",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 496,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "TraceRowThreads",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 500,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [
+          {
+            "name": "Traces",
+            "sourceName": "Traces",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "struct[]",
+                "baseType": "struct",
+                "bitWidth": 0,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 32,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": [
+                  {
+                    "name": "",
+                    "type": "vec3",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 3,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 0,
+                    "size": 12,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 12,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "vec3",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 3,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 16,
+                    "size": 12,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 28,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "TraceCounts",
+            "sourceName": "TraceCounts",
+            "descriptorSet": 0,
+            "descriptorBinding": 7,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "Results",
+            "sourceName": "Results",
+            "descriptorSet": 0,
+            "descriptorBinding": 8,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "struct[]",
+                "baseType": "struct",
+                "bitWidth": 0,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 32,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": [
+                  {
+                    "name": "",
+                    "type": "vec3",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 3,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 0,
+                    "size": 12,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 12,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "vec3",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 3,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 16,
+                    "size": 12,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 28,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "default",
+      "pipelinePass": "global_distance_field",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "NiagaraRayMarchGlobalSdfCS",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "ViewUniformBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 0,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "uniformBuffer",
+      "name": "Globals",
+      "sourceName": "$Globals",
+      "descriptorSet": 0,
+      "descriptorBinding": 1,
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "Traces",
+      "descriptorSet": 0,
+      "descriptorBinding": 6,
+      "access": "READ_WRITE",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "TraceCounts",
+      "descriptorSet": 0,
+      "descriptorBinding": 7,
+      "access": "READ_WRITE",
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "Results",
+      "descriptorSet": 0,
+      "descriptorBinding": 8,
+      "access": "READ_WRITE",
+      "glBinding": 2,
+      "stage": "compute"
+    },
+    {
+      "kind": "sampledTexture",
+      "name": "GlobalDistanceFieldPageAtlasTexture",
+      "image": "GlobalDistanceFieldPageAtlasTexture",
+      "sampler": "GlobalTrilinearWrappedSampler",
+      "format": "R8_UNORM",
+      "formatRef": "PF_R8",
+      "formatRule": "source-selected manifest resource format",
+      "descriptorForm": "SEPARATE_IMAGE_AND_SAMPLER",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "samplerDescriptorBinding": 69,
+      "glBinding": 0,
+      "array": false,
+      "volume": true,
+      "cube": false,
+      "dummySampler": false,
+      "sharedImage": false,
+      "dynamicFloatFormat": true,
+      "stage": "compute"
+    },
+    {
+      "kind": "sampledTexture",
+      "name": "GlobalDistanceFieldPageTableTexture",
+      "image": "GlobalDistanceFieldPageTableTexture",
+      "format": "R32_UINT",
+      "formatRef": "PF_R32_UINT",
+      "formatRule": "source-selected manifest resource format",
+      "descriptorForm": "SAMPLED_IMAGE",
+      "descriptorSet": 0,
+      "descriptorBinding": 4,
+      "samplerDescriptorBinding": -1,
+      "glBinding": 1,
+      "array": false,
+      "volume": true,
+      "cube": false,
+      "dummySampler": true,
+      "sharedImage": false,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 17220,
+        "sha256": "cd22ae02eb6b90e682a09d5a41c8f45c4d5d6536deb9e7ac94734460093f9d81"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 37580,
+        "sha256": "01e18a12a59d74bbb1d14da6ec302f79b020819e22441842db9975d9ff2f83db"
+      }
+    }
+  }
+}

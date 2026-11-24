@@ -1,0 +1,37 @@
+{
+  "schema": "lumenfx.niagara.render_target_mips.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2", "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPILER_DXC": 1, "COMPILER_HLSL": 1, "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0, "COMPILER_GLSL_ES3_1": 0, "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0, "SM5_PROFILE": 1, "FEATURE_LEVEL": 5,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0, "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1, "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0,
+      "COMPILER_SUPPORTS_HLSL2021": 1, "SUPPORTS_INDEPENDENT_SAMPLERS": 1, "UE_BINDLESS_ENABLED": 0
+    },
+    "include_overrides": [
+      {"from": "Engine/Shaders/Private/Common.ush", "to": "tools/shaders/shared/compat/Common.ush"},
+      {"from": "Engine/Shaders/Public/Platform.ush", "to": "tools/shaders/shared/compat/Platform.ush"}
+    ]
+  },
+  "passes": [{
+    "name": "generate", "stage": "compute", "entrypoint": "MainCS",
+    "source": "Engine/Plugins/FX/Niagara/Shaders/Private/NiagaraGenerateMips.usf",
+    "defines": {"THREADGROUPSIZE": 8},
+    "variants": [
+      {"id": "linear", "defines": {"GENMIPS_GAUSSIAN": 0, "GENMIPS_SRGB": 0}},
+      {"id": "linear_srgb", "defines": {"GENMIPS_GAUSSIAN": 0, "GENMIPS_SRGB": 1}},
+      {"id": "blur", "defines": {"GENMIPS_GAUSSIAN": 1, "GENMIPS_SRGB": 0}},
+      {"id": "blur_srgb", "defines": {"GENMIPS_GAUSSIAN": 1, "GENMIPS_SRGB": 1}}
+    ],
+    "resources": [
+      {"name": "MipInSRV", "kind": "niagara_render_target_2d", "hlsl_type": "Texture2D", "format": "PF_FloatRGBA"},
+      {"name": "MipOutUAV", "kind": "niagara_render_target_2d", "hlsl_type": "RWTexture2D<float4>",
+        "gpuFormat": "RGBA16_FLOAT", "dxcImageFormat": "unknown", "uav": true}
+    ]
+  }]
+}

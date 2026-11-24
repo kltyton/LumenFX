@@ -1,0 +1,76 @@
+{
+  "schema": "lumenfx.shaders.index.v1",
+  "pipeline": "niagara_bitonic_sort",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "programs": [
+    {
+      "pass": "local_sort",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_bitonic_sort/local_sort/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 12188,
+            "sha256": "0fecb9ca164484537b98901b4b11d8129d97d05a11111c75bbb121a01a288cb0"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 25588,
+            "sha256": "fce9c25df6f17f40b1d78a60c5e388d68317af060a85f1f25d937f75c7e55a78"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "global_merge",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_bitonic_sort/global_merge/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 1936,
+            "sha256": "b619716294115b1cc099c19a60e9a727646393089a22a5624a3ef05150f9d714"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 2964,
+            "sha256": "50868aa462d5397660c7a902fb65f85b2406aaeb6e721c8204221de22aae5fea"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "local_merge",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_bitonic_sort/local_merge/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 7332,
+            "sha256": "12b8730f1f0354f40e1adb231de89658cdf303398b35d09cc6ccddee434f5e00"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 15116,
+            "sha256": "506bff8198ceea93855a142e2ab3a1dacba4c94d74c3ec0486dfa8743144a761"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    }
+  ]
+}

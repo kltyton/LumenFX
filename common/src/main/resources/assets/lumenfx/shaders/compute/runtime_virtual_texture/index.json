@@ -1,0 +1,168 @@
+{
+  "schema": "lumenfx.shaders.index.v1",
+  "pipeline": "runtime_virtual_texture",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "programs": [
+    {
+      "pass": "base_color",
+      "variant": "windows_sm5",
+      "selectionKeys": [],
+      "path": "runtime_virtual_texture/base_color/windows_sm5/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 12388,
+            "sha256": "95fc5a54f32afe694b5f741def5503fb56c094b90e050d5bf7f198e4f13327aa"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 27044,
+            "sha256": "bbeeea76771250fd0ef81fcbc98f39d43f607a734d563a364acea7a17290602c"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "base_color_normal_roughness",
+      "variant": "windows_sm5",
+      "selectionKeys": [],
+      "path": "runtime_virtual_texture/base_color_normal_roughness/windows_sm5/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 22084,
+            "sha256": "10614f700b6902a827381a86a71ce96a5768c18d58074da0a55f99445095792b"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 51548,
+            "sha256": "1751df2034d85eafa97db12f467fbbe0d65282292b11137269c7e1f1807150b9"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "base_color_normal_specular",
+      "variant": "windows_sm5",
+      "selectionKeys": [],
+      "path": "runtime_virtual_texture/base_color_normal_specular/windows_sm5/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 31388,
+            "sha256": "c41ad4df81070762d98239fc432110b59096042e241ab1f7306806020a71a1a9"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 67536,
+            "sha256": "170d366b3ff03736746828f144670f7c38b73b5e10f4e333246cdaf488857f53"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "base_color_normal_specular_ycocg",
+      "variant": "windows_sm5",
+      "selectionKeys": [],
+      "path": "runtime_virtual_texture/base_color_normal_specular_ycocg/windows_sm5/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 35492,
+            "sha256": "27668d8207ae1c193dc23a97ee8c725aee030a4ad35126df11c367d11b220b66"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 71664,
+            "sha256": "8e9af4d4ed76e473c9b2d51588ca1c03620a2575988e17e2c11fd19d243bb2e8"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "base_color_normal_specular_mask_ycocg",
+      "variant": "windows_sm5",
+      "selectionKeys": [],
+      "path": "runtime_virtual_texture/base_color_normal_specular_mask_ycocg/windows_sm5/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 39836,
+            "sha256": "49607fea66eb7ce4651d5021fa88c828b9e5de3b6122155fd0c6ca97f98c9356"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 80132,
+            "sha256": "b704c8875d05c741e55c3e8ab10bf6b925c107a415ae03511123763ddedc3ee4"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "mask4",
+      "variant": "windows_sm5",
+      "selectionKeys": [],
+      "path": "runtime_virtual_texture/mask4/windows_sm5/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 16136,
+            "sha256": "a95ab71e7959f3338fc37d252d3af8b9f9d39561495468659663d7aed9ff75ca"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 34172,
+            "sha256": "a22288f330842bb8c00cf365580c778ec4eedf70d431ba1c7c85f10c3ab3fe22"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "displacement",
+      "variant": "windows_sm5",
+      "selectionKeys": [],
+      "path": "runtime_virtual_texture/displacement/windows_sm5/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 7400,
+            "sha256": "0112c2e4af062d8f2d88cdf9dc436e887287a43c65f3f7591ca3bf28d1b8299a"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 12296,
+            "sha256": "4bef10db99f493dc86764afb3c3a88f684682b21d1ffa686d7e555d811a353fe"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    }
+  ]
+}

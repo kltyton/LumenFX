@@ -1,0 +1,391 @@
+/* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
+package com.lowdragmc.photon.client.gameobject.emitter.data;
+
+import com.lowdragmc.photon.client.gameobject.particle.IParticle;
+import lombok.Getter;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import com.lowdragmc.photon.Photon;
+
+import java.nio.FloatBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Supplier;
+
+/**
+ * Per-emitter selection of {@link PhotonGpuChannels} to expose as per-instance data. Two paths,
+ * uploaded from the same channel set but stored differently so both material kinds keep working:
+ * <ul>
+ *   <li><b>Vertex attributes (legacy):</b> the user-toggled channels ({@link #userMask()}) are laid
+ *   out one attribute per channel, sequentially from the kind's base location, in registry order —
+ *   byte-identical to the pre-packing layout. Hand-written {@code CustomShaderMaterial} shaders read
+ *   them via their own {@code layout(location = N) in ...} declarations. This layout depends ONLY on
+ *   the user toggles, never on what a shadergraph auto-enables, so those declarations never shift.</li>
+ *   <li><b>Data buffer texture (shadergraph):</b> the effective channels ({@code userMask | materialMask})
+ *   are packed into the kind's fixed vec4 slots and uploaded to the {@code PhotonData} buffer texture,
+ *   indexed by {@code gl_InstanceID}. The {@code photon_data_*()} GLSL accessors read it at a
+ *   config-independent fixed offset — so one compiled shadergraph program serves every config.</li>
+ * </ul>
+ * The two are independent: a pass batching both material kinds populates both. Only the attribute
+ * layout is a vertex layout ({@link #planAttribs}); the TBO record size is fixed per kind.
+ *
+ * <h3>Custom data</h3>
+ * Beyond the fixed registry, an emitter may define up to {@link #MAX_CUSTOM_DATA} user {@link CustomData}
+ * streams (Unity-style Custom Data), each uploaded as one {@code vec4}. Custom shaders read them as extra
+ * vertex attributes appended after the registry-channel attributes ({@link #planAttribs}); shadergraphs
+ * read them from a SEPARATE {@code PhotonCustomData} buffer texture with a constant stride of
+ * {@code MAX_CUSTOM_DATA} slots ({@link #uploadCustomRecord}), so the {@code photon_custom_data(i)}
+ * accessor stays config-independent. The custom TBO is only uploaded when a shadergraph material on the
+ * pass actually reads custom data ({@link #hasCustomRecord()}).
+ */
+public abstract class AdditionalGPUDataSetting extends ToggleGroup {
+
+    /** Max user custom-data streams per emitter — mirrored by {@code PHOTON_CUSTOM_TEXELS} in particle.glsl. */
+    public static final int MAX_CUSTOM_DATA = 4;
+
+    /** Channel → float offset inside the packed TBO record of one instance. */
+    protected record PlannedChannel(PhotonGpuChannels.Channel channel, int floatOffset) {
+    }
+
+    // channels required by shadergraph materials on the pass, independent of the user toggles
+    @Getter
+    private long materialMask = 0;
+
+    // ---- vertex-attribute path (legacy custom shaders) ----
+    private int lastCustomDataCount = -1; // custom-data streams the current attribute layout was built for
+    private final List<PhotonGpuChannels.Channel> attribPlan = new ArrayList<>();
+
+    // ---- data-TBO record path (shadergraph accessors) ----
+    private long recordPlanMask = -1;
+    private final List<PlannedChannel> recordPlan = new ArrayList<>();
+    private float[] recordScratch = new float[0];
+    private FloatBuffer recordView = FloatBuffer.wrap(recordScratch);
+
+    // ---- custom-data path ----
+    private boolean customDataMaterialUsed = false;
+    private final float[] customScratch = new float[4];
+    /** Stable per-particle memoized-random keys, one per custom-data stream (avoids per-frame allocation). */
+    private static final Object[] CUSTOM_RANDOM_KEYS = new Object[MAX_CUSTOM_DATA];
+
+    static {
+        for (int i = 0; i < MAX_CUSTOM_DATA; i++) {
+            CUSTOM_RANDOM_KEYS[i] = "photon_custom_data_" + i;
+        }
+    }
+
+    public abstract PhotonGpuChannels.Kind kind();
+
+    /** The persisted set of user-enabled channel ids. */
+    protected abstract Set<String> enabledChannelIds();
+
+    /** Writes {@code channel.floats()} floats for this instance at the buffer's current position. */
+    protected abstract void uploadChannel(PhotonGpuChannels.Channel channel, IParticle particle,
+                                          FloatBuffer target, float partialTicks);
+
+    /** User-defined custom-data streams (a mutable live list); empty for kinds without support. */
+    protected List<CustomData> customDataList() {
+        return List.of();
+    }
+
+    /** Whether this kind exposes the custom-data editor / upload (per-particle instanced kinds). */
+    protected boolean supportsCustomData() {
+        return false;
+    }
+
+    /** Read-only view of the custom-data streams (for the editor / timeline enumeration; empty when unsupported). */
+    public List<CustomData> customDataStreams() {
+        return customDataList();
+    }
+
+    /**
+     * Per-particle custom-data override resolver for stream {@code streamIndex}, or {@code null} when the
+     * particle's emitter has no override for it (the common case). Overriding kinds (tile) resolve it
+     * against the particle's {@code ParticleRuntime.customData}; only the sampled channel functions can
+     * change (structure stays from config), so batching / the GPU layout are untouched. Returning null
+     * keeps the fast, authored-value path.
+     */
+    @Nullable
+    protected CustomData.ChannelResolver customResolver(IParticle particle, int streamIndex) {
+        return null;
+    }
+
+    /**
+     * The sampling {@code t} for a custom-data stream, per its {@link CustomData.TSource}. Base falls back
+     * to the particle's own t for every source; each concrete kind overrides to resolve {@code EMITTER}
+     * (the emitter's t) and, for trail/ara, {@code SELF}/{@code LENGTH} from the staged per-segment values.
+     */
+    protected float customSampleT(IParticle particle, CustomData.TSource source, float partialTicks) {
+        return particle.getT(partialTicks);
+    }
+
+    /** The t-sources selectable in the custom-data editor for this kind. Default = the per-particle ones
+     *  (no {@code LENGTH}); trail/ara add {@code LENGTH}. */
+    protected Set<CustomData.TSource> availableTSources() {
+        return EnumSet.of(CustomData.TSource.EMITTER, CustomData.TSource.SELF);
+    }
+
+    public void setMaterialMask(long materialMask) {
+        this.materialMask = materialMask & PhotonGpuChannels.supportedMask(kind());
+    }
+
+    public long userMask() {
+        return PhotonGpuChannels.maskOf(kind(), enabledChannelIds());
+    }
+
+    /** Channels physically present: user toggles (when enabled) plus material-required ones. */
+    public long effectiveMask() {
+        return attribMask() | materialMask;
+    }
+
+    /** The channels backing the vertex-attribute layout — user toggles only, never shadergraph's. */
+    private long attribMask() {
+        return isEnable() ? userMask() : 0L;
+    }
+
+    /** Custom-data streams actually uploaded, capped at {@link #MAX_CUSTOM_DATA} (0 when disabled). */
+    private int customDataCount() {
+        return isEnable() ? Math.min(customDataList().size(), MAX_CUSTOM_DATA) : 0;
+    }
+
+    // ---------------------------------------------------------------------
+    // vertex-attribute path (legacy)
+    // ---------------------------------------------------------------------
+
+    /** Whether any user-toggled channel or custom-data stream needs vertex attributes this frame. */
+    public boolean hasAttribs() {
+        return attribMask() != 0 || customDataCount() > 0;
+    }
+
+    /** Floats per instance the attribute tail occupies in the instance VBO (enabled channels + custom vec4s). */
+    public int attribFloats() {
+        var mask = attribMask();
+        int floats = 0;
+        for (var channel : PhotonGpuChannels.CHANNELS) {
+            if ((mask & channel.bit()) != 0 && channel.supported().contains(kind()) && channel.uploadable()) {
+                floats += channel.floats();
+            }
+        }
+        return floats + customDataCount() * 4;
+    }
+
+    /** One attribute-tail slot at its 1.21 {@code location}, {@code offsetFloats} into the instance record. */
+    public record TailAttrib(int location, int floats, int offsetFloats) {
+    }
+
+    /** 26.2's vertex attribute cap across all bindings of a pipeline. */
+    public static final int MAX_VERTEX_ATTRIBUTES = 16;
+
+    /**
+     * One attribute per enabled channel, sequentially from the kind's base location, in registry order (the
+     * legacy layout), then one {@code vec4} per custom-data stream after them — the 1.21
+     * {@code layoutAttribs} layout. The tail sits at the end of each instance record.
+     * <p>
+     * {@code offsetFloats} is where the tail starts inside the instance record, i.e. the variant's base
+     * stride. Rebuilds the upload plan {@link #uploadAttribs} follows, so layout and upload can't disagree.
+     */
+    public List<TailAttrib> planAttribs(int offsetFloats) {
+        var kind = kind();
+        var mask = attribMask();
+        attribPlan.clear();
+        var attribs = new ArrayList<TailAttrib>();
+
+        int limit = MAX_VERTEX_ATTRIBUTES;
+        int attribIndex = kind.baseAttribLocation;
+        for (var channel : PhotonGpuChannels.CHANNELS) {
+            if ((mask & channel.bit()) == 0 || !channel.supported().contains(kind) || !channel.uploadable()) continue;
+            // The floats stay in the record either way — dropping only the DECLARATION keeps every later
+            // channel's offset (and the stride the upload writes) unchanged.
+            if (attribIndex < limit) {
+                attribs.add(new TailAttrib(attribIndex, channel.floats(), offsetFloats));
+            } else {
+                warnAttribOverflow(kind, limit);
+            }
+            attribIndex++;
+            offsetFloats += channel.floats();
+            attribPlan.add(channel);
+        }
+
+        // custom-data streams: one vec4 divisor-1 attribute each, appended after the registry channels
+        int customCount = customDataCount();
+        lastCustomDataCount = customCount;
+        for (int i = 0; i < customCount; i++) {
+            if (attribIndex < limit) {
+                attribs.add(new TailAttrib(attribIndex, 4, offsetFloats));
+            } else {
+                warnAttribOverflow(kind, limit);
+            }
+            attribIndex++;
+            offsetFloats += 4;
+        }
+        return attribs;
+    }
+
+    /** Appends one instance's attribute tail (enabled channels in registry order, then custom vec4s). */
+    public void uploadAttribs(IParticle particle, FloatBuffer buffer, float partialTicks) {
+        for (var channel : attribPlan) {
+            uploadChannel(channel, particle, buffer, partialTicks);
+        }
+        int count = lastCustomDataCount;
+        if (count > 0) {
+            var list = customDataList();
+            for (int i = 0; i < count && i < list.size(); i++) {
+                var stream = list.get(i);
+                float t = customSampleT(particle, stream.getTSource(), partialTicks);
+                stream.sampleInto(customScratch, t, randomFor(particle, i), customResolver(particle, i));
+                buffer.put(customScratch[0]).put(customScratch[1]).put(customScratch[2]).put(customScratch[3]);
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // data-TBO record path (shadergraph accessors)
+    // ---------------------------------------------------------------------
+
+    /**
+     * Whether any shadergraph channel this KIND supports is requested. Note the caller decides whether to
+     * upload from the RAW material union instead ({@code Emitter.bakeInstancedGroup}): a graph asking
+     * only for channels this kind doesn't have still gets a (zeroed) record, because its pipeline declares
+     * {@code PhotonData} and a declared uniform must be bound.
+     */
+    public boolean hasDataRecord() {
+        return materialMask != 0;
+    }
+
+    /** RGBA32F texels per instance in the {@code PhotonData} record — fixed per kind (all declared slots). */
+    public int dataTexels() {
+        return PhotonGpuChannels.declaredSlotCount(kind());
+    }
+
+    /**
+     * Appends one instance's packed record to the data staging buffer: the effective channels at
+     * their fixed canonical slots, everything else zero (so a disabled channel's accessor reads 0).
+     */
+    public void uploadDataRecord(IParticle particle, FloatBuffer buffer, float partialTicks) {
+        var mask = effectiveMask();
+        ensureRecordPlan(mask);
+        if (recordScratch.length == 0) return;
+        Arrays.fill(recordScratch, 0f);
+        for (var planned : recordPlan) {
+            recordView.position(planned.floatOffset());
+            uploadChannel(planned.channel(), particle, recordView, partialTicks);
+        }
+        buffer.put(recordScratch);
+    }
+
+    private void ensureRecordPlan(long mask) {
+        if (mask == recordPlanMask && recordScratch.length != 0) return;
+        recordPlanMask = mask;
+        var kind = kind();
+        recordScratch = new float[dataTexels() * 4];
+        recordView = FloatBuffer.wrap(recordScratch);
+        recordPlan.clear();
+        for (var channel : PhotonGpuChannels.CHANNELS) {
+            if ((mask & channel.bit()) == 0 || !channel.supported().contains(kind) || !channel.uploadable()) continue;
+            var ref = PhotonGpuChannels.slotOf(kind, channel);
+            recordPlan.add(new PlannedChannel(channel, ref.slot() * 4 + ref.component()));
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // custom-data TBO path (shadergraph CustomDataNode)
+    // ---------------------------------------------------------------------
+
+    /** Set by the render pass: whether any shadergraph material on the pass reads custom data. */
+    public void setCustomDataMaterialUsed(boolean used) {
+        this.customDataMaterialUsed = used;
+    }
+
+    /** RGBA32F texels per instance in the {@code PhotonCustomData} record — the constant custom-data stride. */
+    public int customDataTexels() {
+        return MAX_CUSTOM_DATA;
+    }
+
+    /**
+     * Whether a shadergraph material on the pass reads custom data. The record is uploaded even when the
+     * emitter defines no streams (all-zero), so the shared graph's {@code photon_custom_data(i)} accessor
+     * always fetches a valid (zeroed) texel rather than a stale texture unit; a pass with no
+     * custom-data-reading graph skips it entirely.
+     */
+    public boolean hasCustomRecord() {
+        return customDataMaterialUsed;
+    }
+
+    /**
+     * Appends one instance's custom-data record ({@code MAX_CUSTOM_DATA} vec4 texels) to the staging
+     * buffer: each defined stream sampled at its slot, remaining slots zero.
+     */
+    public void uploadCustomRecord(IParticle particle, FloatBuffer buffer, float partialTicks) {
+        var list = customDataList();
+        int count = customDataCount();
+        for (int i = 0; i < MAX_CUSTOM_DATA; i++) {
+            if (i < count && i < list.size()) {
+                var stream = list.get(i);
+                float t = customSampleT(particle, stream.getTSource(), partialTicks);
+                stream.sampleInto(customScratch, t, randomFor(particle, i), customResolver(particle, i));
+                buffer.put(customScratch[0]).put(customScratch[1]).put(customScratch[2]).put(customScratch[3]);
+            } else {
+                buffer.put(0f).put(0f).put(0f).put(0f);
+            }
+        }
+    }
+
+    /** Kinds already warned about, so the message appears once per kind rather than every frame. */
+    private static final Set<PhotonGpuChannels.Kind> WARNED_OVERFLOW = EnumSet.noneOf(PhotonGpuChannels.Kind.class);
+
+    /**
+     * The legacy attribute layout is one attribute PER CHANNEL from the kind's base location, so a config
+     * with enough channels + custom-data streams runs past the device's attribute budget (TILE starts at 8
+     * and can ask for 15). The record/TBO path is unaffected — it packs into fixed vec4 slots — so this only
+     * costs hand-written custom shaders their highest-numbered {@code in} declarations.
+     */
+    private static void warnAttribOverflow(PhotonGpuChannels.Kind kind, int limit) {
+        if (WARNED_OVERFLOW.add(kind)) {
+            Photon.LOGGER.warn("{}: additional-GPU-data attributes exceed the device's {} vertex attribute "
+                    + "slots — the overflow is uploaded but not bound. Disable channels, or read them from "
+                    + "a shader graph (which uses the packed PhotonData buffer instead).", kind, limit);
+        }
+    }
+
+    /** A stable per-particle random in [0,1) for the {@code i}-th custom-data stream (shared by its channels). */
+    private static Supplier<Float> randomFor(IParticle particle, int streamIndex) {
+        Object key = CUSTOM_RANDOM_KEYS[streamIndex];
+        return () -> particle.getMemRandom(key);
+    }
+
+    // ---------------------------------------------------------------------
+    // persistence — custom-data list (NumberFunctions round-trip via their CODEC wrapper)
+    // ---------------------------------------------------------------------
+
+    @Override
+    public Tag serializeAdditionalNBT(HolderLookup.@NotNull Provider provider) {
+        if (!supportsCustomData()) return super.serializeAdditionalNBT(provider);
+        var tag = new CompoundTag();
+        var list = new ListTag();
+        for (var data : customDataList()) {
+            list.add(data.toNBT());
+        }
+        tag.put("custom_data", list);
+        return tag;
+    }
+
+    @Override
+    public void deserializeAdditionalNBT(Tag tag, HolderLookup.@NotNull Provider provider) {
+        if (!supportsCustomData() || !(tag instanceof CompoundTag compound)) return;
+        var streams = customDataList();
+        streams.clear();
+        var dataList = compound.getListOrEmpty("custom_data");
+        for (int i = 0; i < dataList.size(); i++) {
+            streams.add(CustomData.fromNBT(dataList.getCompoundOrEmpty(i)));
+        }
+    }
+
+    // ---------------------------------------------------------------------
+}

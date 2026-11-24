@@ -1,0 +1,8 @@
+{
+  "FileVersion": 3,
+  "Category": "Asset Processing",
+  "Description": "Offline resolution and comparison of serialized Unreal text.",
+  "Modules": [
+    { "Name": "LumenFxTextResolve", "Type": "Program", "LoadingPhase": "Default" }
+  ]
+}

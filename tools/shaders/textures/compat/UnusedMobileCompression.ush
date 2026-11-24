@@ -1,0 +1,2 @@
+#pragma once
+// The Windows SM5 material page permutations exclusively use the source BC codecs.

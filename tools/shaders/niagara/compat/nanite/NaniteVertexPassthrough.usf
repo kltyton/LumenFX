@@ -1,0 +1,27 @@
+StructuredBuffer<uint4> NaniteVertexPrimitives;
+StructuredBuffer<uint4> NaniteRasterCommands;
+StructuredBuffer<float4> NaniteVertexGeometry;
+RWStructuredBuffer<float4> NaniteVertexInterpolants;
+
+cbuffer NaniteVertexDispatch
+{
+    uint4 NaniteVertexLayout;
+};
+
+[numthreads(64, 1, 1)]
+void PrepareNaniteVertexPassthrough(uint3 id : SV_DispatchThreadID)
+{
+    uint vertex = id.x + id.y * NaniteVertexLayout.z;
+    uint4 lastBin = NaniteRasterCommands[127u];
+    uint triangles = min(NaniteVertexLayout.x, (lastBin.x + lastBin.z) / 3u);
+    if (vertex >= triangles * 3u || NaniteVertexPrimitives[vertex / 3u].y != NaniteVertexLayout.y) return;
+    uint source = vertex * 9u;
+    uint target = vertex * 5u;
+    float4 uv01 = NaniteVertexGeometry[source + 5u];
+    float4 uv23 = NaniteVertexGeometry[source + 6u];
+    NaniteVertexInterpolants[target] = NaniteVertexGeometry[source];
+    NaniteVertexInterpolants[target + 1u] = uv01;
+    NaniteVertexInterpolants[target + 2u] = uv23;
+    NaniteVertexInterpolants[target + 3u] = uv23.zwzw;
+    NaniteVertexInterpolants[target + 4u] = uv23.zwzw;
+}

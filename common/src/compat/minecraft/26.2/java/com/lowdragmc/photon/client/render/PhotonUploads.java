@@ -1,0 +1,114 @@
+/* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
+package com.lowdragmc.photon.client.render;
+
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.buffers.Std140Builder;
+import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.systems.TransientMemory;
+import org.lwjgl.system.MemoryUtil;
+
+import javax.annotation.Nullable;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+import java.util.List;
+import java.util.function.Consumer;
+
+/**
+ * Per-frame vertex data and uniform blocks in {@link TransientMemory}: every slice is fresh, so an emitter baked for
+ * two views in one frame never overwrites data still to be read. Texel buffers go through {@link PhotonTexelPool}.
+ */
+public final class PhotonUploads {
+
+    private static final long ALIGNMENT = 16;
+
+    private PhotonUploads() {
+    }
+
+    private static TransientMemory memory() {
+        return RenderSystem.getDevice().createCommandEncoder().transientMemory();
+    }
+
+    /** A uniform block for this frame, aligned as a uniform binding requires. */
+    public static GpuBufferSlice block(ByteBuffer data) {
+        var alignment = RenderSystem.getDevice().getDeviceInfo().limits().minUniformOffsetAlignment();
+        return memory().uploadGpu(data, alignment, GpuBuffer.USAGE_UNIFORM);
+    }
+
+    /** A std140 block of {@code size} bytes filled by {@code fill}, for this frame. */
+    public static GpuBufferSlice block(int size, Consumer<Std140Builder> fill) {
+        var staging = MemoryUtil.memCalloc(size);
+        try {
+            fill.accept(Std140Builder.intoBuffer(staging));
+            staging.rewind();
+            return block(staging);
+        } finally {
+            MemoryUtil.memFree(staging);
+        }
+    }
+
+    public static GpuBufferSlice vertices(ByteBuffer data) {
+        return memory().uploadGpu(data, ALIGNMENT, GpuBuffer.USAGE_VERTEX);
+    }
+
+    /** The blocks back to back in one slice. */
+    public static GpuBufferSlice vertices(List<ByteBuffer> blocks) {
+        return memory().uploadGpu(blocks, ALIGNMENT, GpuBuffer.USAGE_VERTEX);
+    }
+
+    /** Streams floating-point instance records without creating a separate CPU staging buffer. */
+    public static GpuBufferSlice records(CommandEncoder encoder, long bytes, long alignment, int extraUsage,
+                                         Consumer<FloatBuffer> fill) {
+        try (var view = encoder.transientMemory().allocateGpuMapped(bytes, alignment, GpuBuffer.USAGE_VERTEX | extraUsage)) {
+            fill.accept(view.data().order(ByteOrder.nativeOrder()).asFloatBuffer());
+            return view.slice();
+        }
+    }
+
+    public static GpuBufferSlice records(FloatBuffer staging) {
+        return vertices(MemoryUtil.memByteBuffer(staging));
+    }
+
+    /**
+     * Uploads record {@code order[i]} of {@code staging} as record {@code i}, for distance sorting. {@code order}
+     * may be longer than {@code count}.
+     */
+    public static GpuBufferSlice records(FloatBuffer staging, @Nullable int[] order, int count, int recordFloats) {
+        if (order == null || recordFloats <= 0) {
+            return records(staging);
+        }
+        var recordBytes = (long) recordFloats * Float.BYTES;
+        var bytes = count * recordBytes;
+        try (var view = memory().allocateGpuMapped(bytes, ALIGNMENT, GpuBuffer.USAGE_VERTEX)) {
+            var source = MemoryUtil.memAddress0(staging);
+            var destination = MemoryUtil.memAddress(view.data());
+            for (int i = 0; i < count; i++) {
+                MemoryUtil.memCopy(source + order[i] * recordBytes, destination + i * recordBytes, recordBytes);
+            }
+            return view.slice();
+        }
+    }
+
+    /** {@link #records(FloatBuffer, int[], int, int)} into a texel buffer. */
+    public static GpuBuffer texels(String label, FloatBuffer staging, @Nullable int[] order, int count,
+                                   int recordFloats) {
+        if (order == null || recordFloats <= 0) {
+            return PhotonTexelPool.upload(label, MemoryUtil.memByteBuffer(staging));
+        }
+        var recordBytes = recordFloats * Float.BYTES;
+        var scratch = MemoryUtil.memAlloc(count * recordBytes);
+        try {
+            var source = MemoryUtil.memAddress0(staging);
+            var destination = MemoryUtil.memAddress(scratch);
+            for (int i = 0; i < count; i++) {
+                MemoryUtil.memCopy(source + (long) order[i] * recordBytes,
+                        destination + (long) i * recordBytes, recordBytes);
+            }
+            return PhotonTexelPool.upload(label, scratch);
+        } finally {
+            MemoryUtil.memFree(scratch);
+        }
+    }
+}

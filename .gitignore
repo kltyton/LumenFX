@@ -1,0 +1,39 @@
+# Gradle & build outputs
+.gradle/
+**/.gradle/
+build/
+**/build/
+run/
+**/run/
+
+# IDE & editor files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.omo/
+
+# C# / Native / Unreal intermediate build outputs
+**/bin/
+**/obj/
+tools/unreal/**/Intermediate/
+tools/unreal/**/Saved/
+tools/unreal/**/Binaries/
+
+# Stray root-level Minecraft runtime / extracted asset directories
+/assets/
+/com/
+/net/
+/logs/
+/pack.png
+/version.json
+
+# Internal development notes & private import presets
+/docs/runtime/
+/tools/imports/
+
+# Logs & OS junk
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1006 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_ribbon_aggregation",
+  "name": "step",
+  "pass": "step",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "single",
+    "defines": {
+      "RIBBONID_IS_NIAGARAID": "0",
+      "RIBBONID_IS_INT": "0"
+    },
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [
+    {
+      "resource": "NiagaraParticleDataFloat",
+      "from": "Buffer<float>",
+      "to": "StructuredBuffer<float>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "NiagaraParticleDataInt",
+      "from": "Buffer<int>",
+      "to": "StructuredBuffer<int>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "EmitterParticleCountsBuffer",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "SortedIndices",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "NiagaraParticleDataHalf",
+      "from": "Buffer<float> bound as R16F",
+      "to": "StructuredBuffer<uint>",
+      "packing": "two binary16 elements per uint32"
+    }
+  ],
+  "sourceResources": [
+    {
+      "name": "NiagaraParticleDataFloat",
+      "kind": "niagara_ribbon_buffer",
+      "original_hlsl_type": "Buffer<float>",
+      "hlsl_type": "StructuredBuffer<float>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "NiagaraParticleDataInt",
+      "kind": "niagara_ribbon_buffer",
+      "original_hlsl_type": "Buffer<int>",
+      "hlsl_type": "StructuredBuffer<int>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "EmitterParticleCountsBuffer",
+      "kind": "niagara_ribbon_buffer",
+      "original_hlsl_type": "Buffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "SortedIndices",
+      "kind": "niagara_ribbon_buffer",
+      "original_hlsl_type": "Buffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "RibbonAggregationStep",
+      "source": "Engine/Plugins/FX/Niagara/Shaders/Private/Ribbons/NiagaraRibbonAggregationStep.usf",
+      "workgroup": {
+        "x": 64,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "Globals",
+          "sourceName": "$Globals",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "EmitterParticleCountsBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "access": "READ_WRITE",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "InputAccumulation",
+          "descriptorSet": 0,
+          "descriptorBinding": 7,
+          "access": "READ_WRITE",
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "OutputAccumulation",
+          "descriptorSet": 0,
+          "descriptorBinding": 8,
+          "access": "READ_WRITE",
+          "glBinding": 2,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 5740,
+          "sha256": "c40900b1015035b3ca20e95202607f0666944683477fa6ec53026677981856a7"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 6980,
+          "sha256": "970680ebb56be6236832e3f2eca713b919032870b855f1e322443090704f9204"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          64,
+          1,
+          1
+        ],
+        "capabilities": [
+          1
+        ],
+        "uniformBuffers": [
+          {
+            "name": "Globals",
+            "sourceName": "$Globals",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "size": 132,
+            "members": [
+              {
+                "name": "TotalNumParticlesDirect",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "EmitterParticleCountsBufferOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 4,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NiagaraFloatDataStride",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 8,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NiagaraIntDataStride",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 12,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "RibbonIdDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 16,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "PositionDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 20,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "PrevPositionDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 24,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "VelocityDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 28,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "WidthDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 32,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "PrevWidthDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 36,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "TwistDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 40,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "PrevTwistDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 44,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "ColorDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 48,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "FacingDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 52,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "PrevFacingDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 56,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NormalizedAgeDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 60,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MaterialRandomDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 64,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MaterialParamValidMask",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 68,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MaterialParamDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 72,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MaterialParam1DataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 76,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MaterialParam2DataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 80,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MaterialParam3DataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 84,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "DistanceFromStartOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 88,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "U0OverrideDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 92,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "V0RangeOverrideDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 96,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "U1OverrideDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 100,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "V1RangeOverrideDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 104,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "U0DistributionMode",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 108,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "U1DistributionMode",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 112,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "RibbonLinkOrderIsFloat",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 116,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "RibbonLinkOrderDataOffset",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 120,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "RibbonTessellationMode",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 124,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "PrefixScanStride",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 128,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [
+          {
+            "name": "EmitterParticleCountsBuffer",
+            "sourceName": "EmitterParticleCountsBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "InputAccumulation",
+            "sourceName": "InputAccumulation",
+            "descriptorSet": 0,
+            "descriptorBinding": 7,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "struct[]",
+                "baseType": "struct",
+                "bitWidth": 0,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 32,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": [
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 0,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 4,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 8,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 12,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 16,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 20,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 24,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 28,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "OutputAccumulation",
+            "sourceName": "OutputAccumulation",
+            "descriptorSet": 0,
+            "descriptorBinding": 8,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "struct[]",
+                "baseType": "struct",
+                "bitWidth": 0,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 32,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": [
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 0,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 4,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 8,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 12,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 16,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 20,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 24,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 28,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "single",
+      "pipelinePass": "step",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "RibbonAggregationStep",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "Globals",
+      "sourceName": "$Globals",
+      "descriptorSet": 0,
+      "descriptorBinding": 1,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "EmitterParticleCountsBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "access": "READ_WRITE",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "InputAccumulation",
+      "descriptorSet": 0,
+      "descriptorBinding": 7,
+      "access": "READ_WRITE",
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "OutputAccumulation",
+      "descriptorSet": 0,
+      "descriptorBinding": 8,
+      "access": "READ_WRITE",
+      "glBinding": 2,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 5740,
+        "sha256": "c40900b1015035b3ca20e95202607f0666944683477fa6ec53026677981856a7"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 6980,
+        "sha256": "970680ebb56be6236832e3f2eca713b919032870b855f1e322443090704f9204"
+      }
+    }
+  }
+}

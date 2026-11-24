@@ -1,0 +1,354 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "runtime_virtual_texture",
+  "name": "base_color_normal_roughness",
+  "pass": "base_color_normal_roughness",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "windows_sm5",
+    "defines": {},
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [],
+  "sourceResources": [
+    {
+      "name": "RenderTexture0",
+      "kind": "rvt_material_page",
+      "hlsl_type": "Texture2D<float4>",
+      "gpuFormat": "RGBA8_UNORM"
+    },
+    {
+      "name": "RenderTexture1",
+      "kind": "rvt_material_page",
+      "hlsl_type": "Texture2D<float4>",
+      "gpuFormat": "RGBA8_UNORM"
+    },
+    {
+      "name": "OutCompressTexture0_64bit",
+      "kind": "rvt_packed_blocks",
+      "hlsl_type": "RWTexture2D<uint2>",
+      "gpuFormat": "RG32_UINT",
+      "dxcImageFormat": "rg32ui",
+      "uav": true
+    },
+    {
+      "name": "OutCompressTexture1_128bit",
+      "kind": "rvt_packed_blocks",
+      "hlsl_type": "RWTexture2D<uint4>",
+      "gpuFormat": "RGBA32_UINT",
+      "dxcImageFormat": "rgba32ui",
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "CompressBaseColorNormalRoughnessCS",
+      "source": "Engine/Shaders/Private/VirtualTextureCompress.usf",
+      "workgroup": {
+        "x": 8,
+        "y": 8,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": true,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": false
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "Globals",
+          "sourceName": "$Globals",
+          "descriptorSet": 0,
+          "descriptorBinding": 12,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageImage",
+          "name": "OutCompressTexture0_64bit",
+          "format": "RG32_UINT",
+          "formatRule": "source-selected manifest resource format",
+          "descriptorSet": 0,
+          "descriptorBinding": 6,
+          "access": "READ_WRITE",
+          "array": false,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageImage",
+          "name": "OutCompressTexture1_128bit",
+          "format": "RGBA32_UINT",
+          "formatRule": "source-selected manifest resource format",
+          "descriptorSet": 0,
+          "descriptorBinding": 10,
+          "access": "READ_WRITE",
+          "array": false,
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "sampledTexture",
+          "name": "RenderTexture0",
+          "image": "RenderTexture0",
+          "sampler": "TextureSampler0",
+          "format": "RGBA8_UNORM",
+          "formatRule": "source-selected manifest resource format",
+          "descriptorForm": "SEPARATE_IMAGE_AND_SAMPLER",
+          "descriptorSet": 0,
+          "descriptorBinding": 0,
+          "samplerDescriptorBinding": 1,
+          "glBinding": 0,
+          "array": false,
+          "volume": false,
+          "cube": false,
+          "dummySampler": false,
+          "sharedImage": false,
+          "stage": "compute"
+        },
+        {
+          "kind": "sampledTexture",
+          "name": "RenderTexture1",
+          "image": "RenderTexture1",
+          "sampler": "TextureSampler2",
+          "format": "RGBA8_UNORM",
+          "formatRule": "source-selected manifest resource format",
+          "descriptorForm": "SEPARATE_IMAGE_AND_SAMPLER",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "samplerDescriptorBinding": 5,
+          "glBinding": 1,
+          "array": false,
+          "volume": false,
+          "cube": false,
+          "dummySampler": false,
+          "sharedImage": false,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [
+        {
+          "name": "TextureSampler0",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "shared": false
+        },
+        {
+          "name": "TextureSampler2",
+          "descriptorSet": 0,
+          "descriptorBinding": 5,
+          "shared": false
+        }
+      ],
+      "samplerPairs": [
+        {
+          "image": "RenderTexture0",
+          "imageUniform": "RenderTexture0",
+          "imageBinding": 0,
+          "sampler": "TextureSampler0",
+          "samplerBinding": 1,
+          "descriptorSet": 0,
+          "glBinding": 0,
+          "dummy": false,
+          "shared": false
+        },
+        {
+          "image": "RenderTexture1",
+          "imageUniform": "RenderTexture1",
+          "imageBinding": 2,
+          "sampler": "TextureSampler2",
+          "samplerBinding": 5,
+          "descriptorSet": 0,
+          "glBinding": 1,
+          "dummy": false,
+          "shared": false
+        }
+      ],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 22084,
+          "sha256": "10614f700b6902a827381a86a71ce96a5768c18d58074da0a55f99445095792b"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 51548,
+          "sha256": "1751df2034d85eafa97db12f467fbbe0d65282292b11137269c7e1f1807150b9"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          8,
+          8,
+          1
+        ],
+        "capabilities": [
+          1,
+          49
+        ],
+        "uniformBuffers": [
+          {
+            "name": "Globals",
+            "sourceName": "$Globals",
+            "descriptorSet": 0,
+            "descriptorBinding": 12,
+            "size": 48,
+            "members": [
+              {
+                "name": "SourceRect",
+                "type": "uvec4",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "DestPos",
+                "type": "uvec4[2]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  2
+                ],
+                "offset": 16,
+                "size": 32,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [],
+        "storageImages": [
+          {
+            "name": "OutCompressTexture0_64bit",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "array": false,
+            "imageStorageFormat": 35
+          },
+          {
+            "name": "OutCompressTexture1_128bit",
+            "descriptorSet": 0,
+            "descriptorBinding": 10,
+            "array": false,
+            "imageStorageFormat": 30
+          }
+        ],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "windows_sm5",
+      "pipelinePass": "base_color_normal_roughness",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "CompressBaseColorNormalRoughnessCS",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "Globals",
+      "sourceName": "$Globals",
+      "descriptorSet": 0,
+      "descriptorBinding": 12,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageImage",
+      "name": "OutCompressTexture0_64bit",
+      "format": "RG32_UINT",
+      "formatRule": "source-selected manifest resource format",
+      "descriptorSet": 0,
+      "descriptorBinding": 6,
+      "access": "READ_WRITE",
+      "array": false,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageImage",
+      "name": "OutCompressTexture1_128bit",
+      "format": "RGBA32_UINT",
+      "formatRule": "source-selected manifest resource format",
+      "descriptorSet": 0,
+      "descriptorBinding": 10,
+      "access": "READ_WRITE",
+      "array": false,
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "sampledTexture",
+      "name": "RenderTexture0",
+      "image": "RenderTexture0",
+      "sampler": "TextureSampler0",
+      "format": "RGBA8_UNORM",
+      "formatRule": "source-selected manifest resource format",
+      "descriptorForm": "SEPARATE_IMAGE_AND_SAMPLER",
+      "descriptorSet": 0,
+      "descriptorBinding": 0,
+      "samplerDescriptorBinding": 1,
+      "glBinding": 0,
+      "array": false,
+      "volume": false,
+      "cube": false,
+      "dummySampler": false,
+      "sharedImage": false,
+      "stage": "compute"
+    },
+    {
+      "kind": "sampledTexture",
+      "name": "RenderTexture1",
+      "image": "RenderTexture1",
+      "sampler": "TextureSampler2",
+      "format": "RGBA8_UNORM",
+      "formatRule": "source-selected manifest resource format",
+      "descriptorForm": "SEPARATE_IMAGE_AND_SAMPLER",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "samplerDescriptorBinding": 5,
+      "glBinding": 1,
+      "array": false,
+      "volume": false,
+      "cube": false,
+      "dummySampler": false,
+      "sharedImage": false,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 22084,
+        "sha256": "10614f700b6902a827381a86a71ce96a5768c18d58074da0a55f99445095792b"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 51548,
+        "sha256": "1751df2034d85eafa97db12f467fbbe0d65282292b11137269c7e1f1807150b9"
+      }
+    }
+  }
+}

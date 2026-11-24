@@ -1,0 +1,228 @@
+#ifndef LUMENFX_NANITE_TRIANGLE_DECODE
+#define LUMENFX_NANITE_TRIANGLE_DECODE
+
+#include "LumenFX/Nanite/NanitePageAddress.ush"
+
+StructuredBuffer<uint> NaniteClusterPages;
+
+struct NaniteTriangleCluster
+{
+    uint pageWord;
+    uint triangleCount;
+    uint indexOffset;
+    uint indexBits;
+    uint positionOffset;
+    uint3 positionBits;
+    int3 positionStart;
+    float positionScale;
+    uint attributeOffset;
+    uint attributeBits;
+    uint normalBits;
+    uint tangentBits;
+    bool hasTangents;
+    uint colorMinimum;
+    uint colorBits;
+    uint uvCount;
+    uint decodeOffset;
+    uint materialEncoding;
+};
+
+struct NaniteTriangleVertex
+{
+    float3 position;
+    float3 normal;
+    float4 tangent;
+    float4 color;
+    float2 uv[4];
+};
+
+uint NaniteField(uint word, uint offset, uint bits)
+{
+    return (word >> offset) & ((1u << bits) - 1u);
+}
+
+uint4 NaniteLoadWords(uint offset)
+{
+    return uint4(NaniteClusterPages[offset], NaniteClusterPages[offset + 1u],
+        NaniteClusterPages[offset + 2u], NaniteClusterPages[offset + 3u]);
+}
+
+NaniteTriangleCluster NaniteLoadTriangleCluster(uint page, uint clusterIndex, uint streamingSlots)
+{
+    NaniteTriangleCluster cluster;
+    cluster.pageWord = NanitePageWord(page, streamingSlots);
+    uint clusterStride = (NaniteClusterPages[cluster.pageWord] & 0xffffu) * 4u;
+    uint address = cluster.pageWord + 4u + clusterIndex * 4u;
+    uint4 geometry = NaniteLoadWords(address);
+    uint4 position = NaniteLoadWords(address + clusterStride);
+    uint4 attributes = NaniteLoadWords(address + 5u * clusterStride);
+    cluster.triangleCount = NaniteField(geometry.y, 0u, 8u);
+    cluster.indexOffset = geometry.y >> 8u;
+    cluster.indexBits = NaniteField(position.w, 0u, 3u) + 1u;
+    cluster.positionOffset = geometry.x >> 14u;
+    cluster.positionBits = uint3(NaniteField(position.w, 9u, 5u), NaniteField(position.w, 14u, 5u),
+        NaniteField(position.w, 19u, 5u));
+    cluster.positionStart = asint(position.xyz);
+    int precision = int(NaniteField(position.w, 3u, 6u)) - 20;
+    cluster.positionScale = exp2(float(-precision));
+    cluster.attributeOffset = NaniteField(attributes.x, 0u, 22u);
+    cluster.attributeBits = attributes.x >> 22u;
+    cluster.normalBits = NaniteField(position.w, 24u, 4u);
+    cluster.tangentBits = position.w >> 28u;
+    cluster.hasTangents = NaniteField(attributes.y, 22u, 1u) != 0u;
+    cluster.colorMinimum = geometry.z;
+    cluster.colorBits = geometry.w & 0xffffu;
+    cluster.uvCount = NaniteField(attributes.y, 24u, 3u);
+    cluster.decodeOffset = NaniteField(attributes.y, 0u, 22u);
+    cluster.materialEncoding = attributes.w;
+    return cluster;
+}
+
+uint NaniteReadBits(inout uint address, uint bits)
+{
+    if (bits == 0u) return 0u;
+    uint word = address >> 5u;
+    uint shift = address & 31u;
+    uint value = NaniteClusterPages[word] >> shift;
+    if (shift + bits > 32u) value |= NaniteClusterPages[word + 1u] << (32u - shift);
+    address += bits;
+    return value & ((1u << bits) - 1u);
+}
+
+uint3 NaniteTriangleIndices(NaniteTriangleCluster cluster, uint triangleIndex)
+{
+    uint address = (cluster.pageWord << 5u) + cluster.indexOffset * 8u + triangleIndex * (cluster.indexBits + 10u);
+    uint base = NaniteReadBits(address, cluster.indexBits);
+    uint delta0 = NaniteReadBits(address, 5u);
+    uint delta1 = NaniteReadBits(address, 5u);
+    return base + uint3(0u, delta0, delta1);
+}
+
+uint NaniteTriangleMaterial(NaniteTriangleCluster cluster, uint triangleIndex)
+{
+    uint encoding = cluster.materialEncoding;
+    if (encoding < 0xfe000000u)
+    {
+        uint firstLength = NaniteField(encoding, 18u, 7u) + 1u;
+        uint secondLength = encoding >> 25u;
+        uint slot = triangleIndex < firstLength ? 0u : (triangleIndex < firstLength + secondLength ? 6u : 12u);
+        return NaniteField(encoding, slot, 6u);
+    }
+    uint start = cluster.pageWord + NaniteField(encoding, 0u, 19u);
+    uint count = NaniteField(encoding, 19u, 6u) + 1u;
+    for (uint range = 0u; range < count; ++range)
+    {
+        uint packed = NaniteClusterPages[start + range];
+        uint firstTriangle = packed & 255u;
+        if (triangleIndex >= firstTriangle && triangleIndex < firstTriangle + NaniteField(packed, 8u, 8u))
+            return NaniteField(packed, 16u, 6u);
+    }
+    return 0xffffffffu;
+}
+
+float NaniteDecodeUv(uint bits)
+{
+    const uint magnitudeMask = (1u << 19u) - 1u;
+    bool negative = bits <= magnitudeMask;
+    uint magnitude = (negative ? ~bits : bits) & magnitudeMask;
+    float value = asfloat(0x3f000000u + (magnitude << 9u));
+    value = min(value * 2.0f - 1.0f, value);
+    return negative ? -value : value;
+}
+
+float3 NaniteDecodeNormal(uint2 bits, uint precision)
+{
+    float2 unfolded = float2(bits) * (2.0f / float((1u << precision) - 1u)) - 1.0f;
+    float3 normal = float3(unfolded, 1.0f - abs(unfolded.x) - abs(unfolded.y));
+    float fold = saturate(-normal.z);
+    normal.x += normal.x >= 0.0f ? -fold : fold;
+    normal.y += normal.y >= 0.0f ? -fold : fold;
+    return normalize(normal);
+}
+
+float4 NaniteDecodeTangent(float3 normal, uint angle, uint precision, uint signBit)
+{
+    bool swapXZ = abs(normal.z) > abs(normal.x);
+    if (swapXZ) normal = normal.zyx;
+    float3 axis = normalize(float3(-normal.y, normal.x, 0.0f));
+    float sine, cosine;
+    sincos(float(angle) * (6.283185307179586f / float(1u << precision)), sine, cosine);
+    float3 tangent = axis * cosine + cross(normal, axis) * sine;
+    return float4(swapXZ ? tangent.zyx : tangent, signBit == 0u ? 1.0f : -1.0f);
+}
+
+NaniteTriangleVertex NaniteDecodeTriangleVertex(NaniteTriangleCluster cluster, uint vertexIndex)
+{
+    NaniteTriangleVertex vertex = (NaniteTriangleVertex)0;
+    uint baseBits = cluster.pageWord << 5u;
+    uint3 widths = cluster.positionBits;
+    uint address = baseBits + cluster.positionOffset * 8u + vertexIndex * (widths.x + widths.y + widths.z);
+    uint x = NaniteReadBits(address, widths.x);
+    uint y = NaniteReadBits(address, widths.y);
+    uint z = NaniteReadBits(address, widths.z);
+    vertex.position = float3(cluster.positionStart + int3(x, y, z)) * cluster.positionScale;
+
+    address = baseBits + cluster.attributeOffset * 8u + vertexIndex * cluster.attributeBits;
+    x = NaniteReadBits(address, cluster.normalBits);
+    y = NaniteReadBits(address, cluster.normalBits);
+    vertex.normal = NaniteDecodeNormal(uint2(x, y), cluster.normalBits);
+    if (cluster.hasTangents)
+    {
+        uint angle = NaniteReadBits(address, cluster.tangentBits);
+        uint signBit = NaniteReadBits(address, 1u);
+        vertex.tangent = NaniteDecodeTangent(vertex.normal, angle, cluster.tangentBits, signBit);
+    }
+
+    [unroll]
+    for (uint channel = 0u; channel < 4u; ++channel)
+    {
+        uint componentBits = NaniteField(cluster.colorBits, channel * 4u, 4u);
+        uint minimum = NaniteField(cluster.colorMinimum, channel * 8u, 8u);
+        vertex.color[channel] = float(minimum + NaniteReadBits(address, componentBits)) / 255.0f;
+    }
+
+    for (uint uv = 0u; uv < cluster.uvCount; ++uv)
+    {
+        uint header = cluster.pageWord + (cluster.decodeOffset >> 2u) + uv * 2u;
+        uint hx = NaniteClusterPages[header];
+        uint hy = NaniteClusterPages[header + 1u];
+        x = (hx >> 5u) + NaniteReadBits(address, hx & 31u);
+        y = (hy >> 5u) + NaniteReadBits(address, hy & 31u);
+        vertex.uv[uv] = float2(NaniteDecodeUv(x), NaniteDecodeUv(y));
+    }
+    if (cluster.uvCount != 0u)
+        for (uint unused = cluster.uvCount; unused < 4u; ++unused) vertex.uv[unused] = vertex.uv[cluster.uvCount - 1u];
+    return vertex;
+}
+
+float3 NaniteFallbackTangent(float3 normal)
+{
+    float signZ = normal.z >= 0.0f ? 1.0f : -1.0f;
+    float a = -rcp(signZ + normal.z);
+    return float3(1.0f + signZ * a * normal.x * normal.x, signZ * a * normal.x * normal.y, -signZ * normal.x);
+}
+
+void NaniteDecodeTriangle(NaniteTriangleCluster cluster, uint triangleIndex, out NaniteTriangleVertex vertices[3])
+{
+    uint3 indices = NaniteTriangleIndices(cluster, triangleIndex);
+    [unroll]
+    for (uint corner = 0u; corner < 3u; ++corner) vertices[corner] = NaniteDecodeTriangleVertex(cluster, indices[corner]);
+    if (cluster.hasTangents) return;
+
+    float2 uv10 = vertices[1].uv[0] - vertices[0].uv[0];
+    float2 uv20 = vertices[2].uv[0] - vertices[0].uv[0];
+    bool valid = abs(uv10.x) + abs(uv20.x) > 1.0e-6f;
+    float3 point10 = vertices[1].position - vertices[0].position;
+    float3 point20 = vertices[2].position - vertices[0].position;
+    float3 geometryNormal = cross(point10, point20);
+    float uvSign = uv10.x * uv20.y - uv20.x * uv10.y;
+    [unroll]
+    for (uint i = 0u; i < 3u; ++i)
+    {
+        float3 normal = vertices[i].normal;
+        vertices[i].tangent = valid ? float4(normalize(cross(normal, point20) * uv10.x + cross(point10, normal) * uv20.x),
+            uvSign * dot(normal, geometryNormal) < 0.0f ? -1.0f : 1.0f) : float4(NaniteFallbackTangent(normal), 1.0f);
+    }
+}
+
+#endif

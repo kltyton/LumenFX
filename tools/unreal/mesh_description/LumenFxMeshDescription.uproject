@@ -1,0 +1,11 @@
+{
+  "FileVersion": 3,
+  "Category": "Asset Processing",
+  "Description": "Offline source mesh preparation and native LOD reduction.",
+  "Modules": [
+    { "Name": "LumenFxMeshDescription", "Type": "Program", "LoadingPhase": "Default" }
+  ],
+  "Plugins": [
+    { "Name": "GaussianSplat", "Enabled": true }
+  ]
+}

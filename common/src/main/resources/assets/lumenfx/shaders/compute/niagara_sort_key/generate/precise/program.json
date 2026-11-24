@@ -1,0 +1,832 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_sort_key",
+  "name": "generate",
+  "pass": "generate",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "precise",
+    "defines": {
+      "ENABLE_CULLING": "0",
+      "SORT_MAX_PRECISION": "1"
+    },
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [
+    {
+      "resource": "NiagaraParticleDataFloat",
+      "from": "Buffer<float>",
+      "to": "StructuredBuffer<float>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "NiagaraParticleDataInt",
+      "from": "Buffer<int>",
+      "to": "StructuredBuffer<int>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "GPUParticleCountBuffer",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "OutKeys",
+      "from": "RWBuffer<uint>",
+      "to": "RWStructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "OutParticleIndices",
+      "from": "RWBuffer<int>",
+      "to": "RWStructuredBuffer<int>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "OutCulledParticleCounts",
+      "from": "RWBuffer<uint>",
+      "to": "RWStructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "NiagaraParticleDataHalf",
+      "from": "Buffer<half>",
+      "to": "StructuredBuffer<uint>",
+      "packing": "two binary16 elements per uint32"
+    }
+  ],
+  "sourceResources": [
+    {
+      "name": "NiagaraParticleDataFloat",
+      "kind": "niagara_sort_buffer",
+      "original_hlsl_type": "Buffer<float>",
+      "hlsl_type": "StructuredBuffer<float>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "NiagaraParticleDataInt",
+      "kind": "niagara_sort_buffer",
+      "original_hlsl_type": "Buffer<int>",
+      "hlsl_type": "StructuredBuffer<int>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "GPUParticleCountBuffer",
+      "kind": "niagara_sort_buffer",
+      "original_hlsl_type": "Buffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "OutKeys",
+      "kind": "niagara_sort_buffer",
+      "original_hlsl_type": "RWBuffer<uint>",
+      "hlsl_type": "RWStructuredBuffer<uint>",
+      "stride_bytes": 4,
+      "uav": true
+    },
+    {
+      "name": "OutParticleIndices",
+      "kind": "niagara_sort_buffer",
+      "original_hlsl_type": "RWBuffer<int>",
+      "hlsl_type": "RWStructuredBuffer<int>",
+      "stride_bytes": 4,
+      "uav": true
+    },
+    {
+      "name": "OutCulledParticleCounts",
+      "kind": "niagara_sort_buffer",
+      "original_hlsl_type": "RWBuffer<uint>",
+      "hlsl_type": "RWStructuredBuffer<uint>",
+      "stride_bytes": 4,
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "GenerateParticleSortKeys",
+      "source": "Engine/Plugins/FX/Niagara/Shaders/Private/NiagaraSortKeyGen.usf",
+      "workgroup": {
+        "x": 64,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "Globals",
+          "sourceName": "$Globals",
+          "descriptorSet": 0,
+          "descriptorBinding": 5,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NiagaraParticleDataFloat",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "access": "READ_WRITE",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NiagaraParticleDataHalf",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "access": "READ_WRITE",
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "GPUParticleCountBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 4,
+          "access": "READ_WRITE",
+          "glBinding": 2,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "OutKeys",
+          "descriptorSet": 0,
+          "descriptorBinding": 6,
+          "access": "READ_WRITE",
+          "glBinding": 3,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "OutParticleIndices",
+          "descriptorSet": 0,
+          "descriptorBinding": 7,
+          "access": "READ_WRITE",
+          "glBinding": 4,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 8312,
+          "sha256": "80ab634d54f5e5154758490c28495581fa0c4001b26c4a7bdc41a428d082e78e"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 11252,
+          "sha256": "a6129b500b592e8ae919093769110a6daa841f0a09770cdc74acc42f50c0dbb5"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          64,
+          1,
+          1
+        ],
+        "capabilities": [
+          1
+        ],
+        "uniformBuffers": [
+          {
+            "name": "Globals",
+            "sourceName": "$Globals",
+            "descriptorSet": 0,
+            "descriptorBinding": 5,
+            "size": 364,
+            "members": [
+              {
+                "name": "FloatDataStride",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "HalfDataStride",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 4,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "IntDataStride",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 8,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "ParticleCount",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 12,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "GPUParticleCountOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 16,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CulledGPUParticleCountOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 20,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "EmitterKey",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 24,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "OutputOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 28,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CameraPosition",
+                "type": "vec3",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 3,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 32,
+                "size": 12,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CameraDirection",
+                "type": "vec3",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 3,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 48,
+                "size": 12,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "SortMode",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 60,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "SortAttributeOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 64,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "SortKeyMask",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 68,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "SortKeyShift",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 72,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "SortKeySignBit",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 76,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullPositionAttributeOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 80,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullOrientationAttributeOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 84,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullScaleAttributeOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 88,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NumCullPlanes",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 92,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullPlanes",
+                "type": "vec4[12]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  12
+                ],
+                "offset": 96,
+                "size": 192,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "RendererVisibility",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 288,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "RendererVisTagAttributeOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 292,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshIndex",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 296,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshIndexAttributeOffset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 300,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullDistanceRangeSquared",
+                "type": "vec2",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 2,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 304,
+                "size": 8,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "LODScreenSize",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 320,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "LocalBoundingSphere",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 336,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "CullingWorldSpaceOffset",
+                "type": "vec3",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 3,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 352,
+                "size": 12,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [
+          {
+            "name": "NiagaraParticleDataFloat",
+            "sourceName": "NiagaraParticleDataFloat",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "float[]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "NiagaraParticleDataHalf",
+            "sourceName": "NiagaraParticleDataHalf",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "GPUParticleCountBuffer",
+            "sourceName": "GPUParticleCountBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 4,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "OutKeys",
+            "sourceName": "OutKeys",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "OutParticleIndices",
+            "sourceName": "OutParticleIndices",
+            "descriptorSet": 0,
+            "descriptorBinding": 7,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "int[]",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "precise",
+      "pipelinePass": "generate",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "GenerateParticleSortKeys",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "Globals",
+      "sourceName": "$Globals",
+      "descriptorSet": 0,
+      "descriptorBinding": 5,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NiagaraParticleDataFloat",
+      "descriptorSet": 0,
+      "descriptorBinding": 1,
+      "access": "READ_WRITE",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NiagaraParticleDataHalf",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "access": "READ_WRITE",
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "GPUParticleCountBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 4,
+      "access": "READ_WRITE",
+      "glBinding": 2,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "OutKeys",
+      "descriptorSet": 0,
+      "descriptorBinding": 6,
+      "access": "READ_WRITE",
+      "glBinding": 3,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "OutParticleIndices",
+      "descriptorSet": 0,
+      "descriptorBinding": 7,
+      "access": "READ_WRITE",
+      "glBinding": 4,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 8312,
+        "sha256": "80ab634d54f5e5154758490c28495581fa0c4001b26c4a7bdc41a428d082e78e"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 11252,
+        "sha256": "a6129b500b592e8ae919093769110a6daa841f0a09770cdc74acc42f50c0dbb5"
+      }
+    }
+  }
+}

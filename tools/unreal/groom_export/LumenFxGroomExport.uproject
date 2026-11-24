@@ -1,0 +1,11 @@
+{
+  "FileVersion": 3,
+  "Category": "Asset Processing",
+  "Description": "Offline exchange of native Groom simulation guides.",
+  "Modules": [
+    { "Name": "LumenFxGroomExport", "Type": "Program", "LoadingPhase": "Default" }
+  ],
+  "Plugins": [
+    { "Name": "HairStrands", "Enabled": true }
+  ]
+}

@@ -1,0 +1,111 @@
+#include "LumenFX/Nanite/NaniteRasterCoverage.ush"
+
+StructuredBuffer<uint2> NaniteBinTriangles;
+StructuredBuffer<uint4> NaniteRasterCommands;
+StructuredBuffer<uint4> NaniteShadingPrimitives;
+StructuredBuffer<float4> NaniteShadingVertices;
+StructuredBuffer<uint> NaniteMaterialRasterFlags;
+RWStructuredBuffer<float4> NaniteHardwarePositions;
+RWStructuredBuffer<uint2> NaniteHardwarePrimitives;
+RWStructuredBuffer<uint> NaniteSoftwareDepth;
+RWStructuredBuffer<uint> NaniteSoftwarePrimitives;
+
+cbuffer NaniteRasterView
+{
+    float4 NaniteRasterWorldToClip[4];
+    uint4 NaniteRasterViewport;
+    uint4 NaniteRasterLimits;
+};
+
+static const uint TWO_SIDED = 1u;
+static const uint INACTIVE_MATERIAL = 2u;
+static const uint PROGRAMMABLE_MATERIAL = 4u;
+
+uint BinEnd(uint bin)
+{
+    uint4 command = NaniteRasterCommands[bin];
+    return (command.z + command.x) / 3u;
+}
+
+void ProjectTriangle(uint triangleIndex, out float4 clip[3], out uint material)
+{
+    uint4 primitive = NaniteShadingPrimitives[triangleIndex];
+    material = primitive.y;
+    bool reverse = ((primitive.w ^ (primitive.w >> 1u)) & 1u) != 0u;
+    float4x4 projection = float4x4(NaniteRasterWorldToClip[0], NaniteRasterWorldToClip[1],
+        NaniteRasterWorldToClip[2], NaniteRasterWorldToClip[3]);
+    [unroll]
+    for (uint corner = 0u; corner < 3u; ++corner)
+    {
+        uint sourceCorner = reverse && corner != 0u ? 3u - corner : corner;
+        clip[corner] = mul(NaniteShadingVertices[(triangleIndex * 3u + sourceCorner) * 9u], projection);
+    }
+}
+
+uint PackedPrimitive(uint2 primitive)
+{
+    return ((primitive.x + 1u) << 8u) | primitive.y;
+}
+
+[numthreads(64, 1, 1)]
+void PrepareNaniteHardware(uint3 id : SV_DispatchThreadID)
+{
+    uint first = BinEnd(63u);
+    uint localTriangle = id.x + id.y * NaniteRasterLimits.y;
+    if (localTriangle >= BinEnd(127u) - first) return;
+    uint triangleIndex = first + localTriangle;
+    uint2 primitive = NaniteBinTriangles[triangleIndex];
+    float4 clip[3];
+    uint material;
+    ProjectTriangle(triangleIndex, clip, material);
+    uint flags = NaniteMaterialRasterFlags[material];
+    [unroll]
+    for (uint corner = 0u; corner < 3u; ++corner)
+        NaniteHardwarePositions[triangleIndex * 3u + corner] = (flags & INACTIVE_MATERIAL) != 0u ? float4(2.0, 2.0, 2.0, 1.0) : clip[corner];
+    if (NaniteRasterLimits.z != 0u) flags |= NaniteRasterViewport.z != 0u ? 24u : 8u;
+    NaniteHardwarePrimitives[triangleIndex] = uint2(PackedPrimitive(primitive), flags);
+}
+
+void RasterizeNaniteSoftware(uint3 id, bool writeIdentity)
+{
+    uint index = id.x + id.y * NaniteRasterLimits.y;
+    if (index >= BinEnd(63u)) return;
+    uint2 primitive = NaniteBinTriangles[index];
+    float4 clip[3];
+    uint material;
+    ProjectTriangle(index, clip, material);
+    int2 size = int2(NaniteRasterViewport.xy);
+    uint flags = NaniteMaterialRasterFlags[material];
+    if ((flags & (INACTIVE_MATERIAL | PROGRAMMABLE_MATERIAL)) != 0u) return;
+    bool twoSided = (flags & TWO_SIDED) != 0u;
+    NaniteRasterTriangle rasterTriangle = NaniteRasterTriangleFromClip(clip, size, NaniteRasterViewport.z != 0u, twoSided);
+    if (!rasterTriangle.visible) return;
+    uint packed = PackedPrimitive(primitive);
+    for (int y = rasterTriangle.minimum.y; y <= rasterTriangle.maximum.y; ++y)
+    {
+        uint row = NaniteRasterViewport.w != 0u ? uint(y) : uint(size.y - y - 1);
+        for (int x = rasterTriangle.minimum.x; x <= rasterTriangle.maximum.x; ++x)
+        {
+            uint depth;
+            if (!NaniteRasterDepthAtPixel(rasterTriangle, int2(x, y), NaniteRasterLimits.z != 0u, depth)) continue;
+            uint pixel = row * uint(size.x) + uint(x);
+            if (writeIdentity)
+            {
+                if (depth == NaniteSoftwareDepth[pixel]) InterlockedMax(NaniteSoftwarePrimitives[pixel], packed);
+            }
+            else InterlockedMax(NaniteSoftwareDepth[pixel], depth);
+        }
+    }
+}
+
+[numthreads(64, 1, 1)]
+void RasterizeNaniteSoftwareDepth(uint3 id : SV_DispatchThreadID)
+{
+    RasterizeNaniteSoftware(id, false);
+}
+
+[numthreads(64, 1, 1)]
+void RasterizeNaniteSoftwarePrimitives(uint3 id : SV_DispatchThreadID)
+{
+    RasterizeNaniteSoftware(id, true);
+}

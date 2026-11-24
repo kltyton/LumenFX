@@ -1,0 +1,296 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "texture_target_mips",
+  "name": "generate",
+  "pass": "generate",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "linear",
+    "defines": {
+      "GENMIPS_SRGB": "0"
+    },
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [
+    {
+      "scope": "RenderCore 2D mip destination",
+      "sourceSemantics": "SM5 out-of-image UAV stores have no effect",
+      "preservesInBoundsShader": true
+    }
+  ],
+  "sourceResources": [
+    {
+      "name": "MipInSRV",
+      "kind": "texture_target_mips",
+      "hlsl_type": "Texture2D",
+      "format": "PF_FloatRGBA"
+    },
+    {
+      "name": "MipOutUAV",
+      "kind": "texture_target_mips",
+      "hlsl_type": "RWTexture2D<float4>",
+      "gpuFormat": "RGBA16_FLOAT",
+      "dxcImageFormat": "unknown",
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Shaders/Private/ComputeGenerateMips.usf",
+      "workgroup": {
+        "x": 8,
+        "y": 8,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": true,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": false
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "Globals",
+          "sourceName": "$Globals",
+          "descriptorSet": 0,
+          "descriptorBinding": 3,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageImage",
+          "name": "MipOutUAV",
+          "format": "RGBA16_FLOAT",
+          "formatRule": "source-selected manifest resource format",
+          "descriptorSet": 0,
+          "descriptorBinding": 4,
+          "access": "WRITE_ONLY",
+          "array": false,
+          "glBinding": 0,
+          "dynamicFloatFormat": true,
+          "stage": "compute"
+        },
+        {
+          "kind": "sampledTexture",
+          "name": "MipInSRV",
+          "image": "MipInSRV",
+          "sampler": "MipSampler",
+          "format": "RGBA16_FLOAT",
+          "formatRef": "PF_FloatRGBA",
+          "formatRule": "source-selected manifest resource format",
+          "descriptorForm": "SEPARATE_IMAGE_AND_SAMPLER",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "samplerDescriptorBinding": 2,
+          "glBinding": 0,
+          "array": false,
+          "volume": false,
+          "cube": false,
+          "dummySampler": false,
+          "sharedImage": false,
+          "dynamicFloatFormat": true,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [
+        {
+          "name": "MipSampler",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "shared": false
+        }
+      ],
+      "samplerPairs": [
+        {
+          "image": "MipInSRV",
+          "imageUniform": "MipInSRV",
+          "imageBinding": 1,
+          "sampler": "MipSampler",
+          "samplerBinding": 2,
+          "descriptorSet": 0,
+          "glBinding": 0,
+          "dummy": false,
+          "shared": false
+        }
+      ],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 1688,
+          "sha256": "300ba7ce4123c1fc996c4e856ac5aeb464fe59c3d147f1f27aca044d6af63585"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 1788,
+          "sha256": "c6448321b4e24a413553e60ccaaebc6298f47c7d281bd6df9af0eef49aaa511e"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          8,
+          8,
+          1
+        ],
+        "capabilities": [
+          1,
+          46,
+          47,
+          50,
+          56
+        ],
+        "uniformBuffers": [
+          {
+            "name": "Globals",
+            "sourceName": "$Globals",
+            "descriptorSet": 0,
+            "descriptorBinding": 3,
+            "size": 24,
+            "members": [
+              {
+                "name": "TexelSize",
+                "type": "vec2",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 2,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 8,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "TextureSize",
+                "type": "uvec2",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 2,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 8,
+                "size": 8,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "Offset",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 16,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NumMips",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 20,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [],
+        "storageImages": [
+          {
+            "name": "MipOutUAV",
+            "descriptorSet": 0,
+            "descriptorBinding": 4,
+            "array": false,
+            "imageStorageFormat": 0
+          }
+        ],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "linear",
+      "pipelinePass": "generate",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "MainCS",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "Globals",
+      "sourceName": "$Globals",
+      "descriptorSet": 0,
+      "descriptorBinding": 3,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageImage",
+      "name": "MipOutUAV",
+      "format": "RGBA16_FLOAT",
+      "formatRule": "source-selected manifest resource format",
+      "descriptorSet": 0,
+      "descriptorBinding": 4,
+      "access": "WRITE_ONLY",
+      "array": false,
+      "glBinding": 0,
+      "dynamicFloatFormat": true,
+      "stage": "compute"
+    },
+    {
+      "kind": "sampledTexture",
+      "name": "MipInSRV",
+      "image": "MipInSRV",
+      "sampler": "MipSampler",
+      "format": "RGBA16_FLOAT",
+      "formatRef": "PF_FloatRGBA",
+      "formatRule": "source-selected manifest resource format",
+      "descriptorForm": "SEPARATE_IMAGE_AND_SAMPLER",
+      "descriptorSet": 0,
+      "descriptorBinding": 1,
+      "samplerDescriptorBinding": 2,
+      "glBinding": 0,
+      "array": false,
+      "volume": false,
+      "cube": false,
+      "dummySampler": false,
+      "sharedImage": false,
+      "dynamicFloatFormat": true,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 1688,
+        "sha256": "300ba7ce4123c1fc996c4e856ac5aeb464fe59c3d147f1f27aca044d6af63585"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 1788,
+        "sha256": "c6448321b4e24a413553e60ccaaebc6298f47c7d281bd6df9af0eef49aaa511e"
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.kltyton.lumenfx.client.compat.iris.mixin",
+  "plugin": "com.kltyton.lumenfx.client.compat.iris.IrisMixinConfigPlugin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["IrisRenderingPipelineAccessor", "CompositePassAccessor", "CompositeRendererMixin", "IrisFinalizeMixin", "IrisDepthCopyMixin", "IrisShaderCreatorMixin", "IrisProgramDeletionMixin", "IrisPartialShaderMixin", "IrisCustomUniformsAccessor", "IrisCustomUniformsMixin", "IrisGlProgramAccessor", "IrisExtendedShaderAccessor", "IrisProgramSamplersAccessor", "IrisSamplerBindingAccessor", "IrisGlRenderPassAccessor", "IrisMaterialDrawMixin"],
+  "mixinextras": {"minVersion": "0.5.4"},
+  "injectors": {"defaultRequire": 1}
+}

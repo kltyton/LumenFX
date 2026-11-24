@@ -1,0 +1,99 @@
+{
+  "schema": "lumenfx.shaders.index.v1",
+  "pipeline": "niagara_neighbor_query",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "programs": [
+    {
+      "pass": "histogram",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_neighbor_query/histogram/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 1604,
+            "sha256": "818b4cf1a9473498c74ff7ea1eab06ff1015548d52ad4a5a55faaea12ed0e91b"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 2124,
+            "sha256": "db4b55591fea63741e23844474f3507f734dc9b2b639294887b8910ec74e919f"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "scan",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_neighbor_query/scan/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 3844,
+            "sha256": "341e0e1e2d552e092566c4517c0d7a91d34e58703c42c3100f1da91fbf211614"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 5916,
+            "sha256": "7bb5a33f527f80ef8f5310578589bf3fbabd8b4fed160662b1f93cc784c507b4"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "propagate",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_neighbor_query/propagate/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 2056,
+            "sha256": "8c62036e21fb9572f89d7bd95ad1f211678fbf9cbaca1cfbe6b58176f4b6f7c5"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 2800,
+            "sha256": "fb3934bd678564eae72d741bb15fdb1db9a13be80840c411fc550b96e983b8aa"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "scatter",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_neighbor_query/scatter/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 5092,
+            "sha256": "af53dbdf6b1c52e4f09310434bbfee6be0a7b91538baa774734b70b037ba20ab"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 8824,
+            "sha256": "6800398bdabd75fb5f7fb3414cba6860ef1b5ef7fa677dae992a7cb8acb844ed"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    }
+  ]
+}

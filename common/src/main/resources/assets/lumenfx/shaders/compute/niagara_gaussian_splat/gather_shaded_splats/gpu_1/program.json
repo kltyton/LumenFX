@@ -1,0 +1,468 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_gaussian_splat",
+  "name": "gather_shaded_splats",
+  "pass": "gather_shaded_splats",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "gpu_1",
+    "defines": {
+      "GAUSSIAN_SPLAT_GPU_DRIVEN_PIPELINE": "1"
+    },
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [
+    {
+      "resource": "SortedIndexBuffer",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "SplatCountBuffer",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "RWGatheredShadedGaussianSplatVertexBuffer",
+      "from": "RWBuffer<uint>",
+      "to": "RWStructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    }
+  ],
+  "sourceResources": [
+    {
+      "name": "SortedIndexBuffer",
+      "kind": "storage_buffer",
+      "niagara_buffer_lowering": "read:uint",
+      "stride_bytes": 4
+    },
+    {
+      "name": "SplatCountBuffer",
+      "kind": "storage_buffer",
+      "niagara_buffer_lowering": "read:uint",
+      "stride_bytes": 4
+    },
+    {
+      "name": "RWGatheredShadedGaussianSplatVertexBuffer",
+      "kind": "storage_buffer",
+      "niagara_buffer_lowering": "write:uint",
+      "stride_bytes": 4,
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Plugins/GaussianSplat/Shaders/Private/GaussianSplatGatherShadedSplats.usf",
+      "workgroup": {
+        "x": 64,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "Globals",
+          "sourceName": "$Globals",
+          "descriptorSet": 0,
+          "descriptorBinding": 112,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "ShadedGaussianSplatBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 113,
+          "access": "READ_ONLY",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "SortedIndexBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 114,
+          "access": "READ_ONLY",
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "SplatCountBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 115,
+          "access": "READ_ONLY",
+          "glBinding": 2,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "RWGatheredShadedGaussianSplatBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 116,
+          "access": "READ_WRITE",
+          "glBinding": 3,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 2400,
+          "sha256": "d3380405cf7760cf87c8b20f31df33e346b477ec85b53edcb0ef42af12e7173e"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 4064,
+          "sha256": "575cf5b1b33dde2b5c5c1f763e84037a72bc85700e6a3268d4b0105592fecb6b"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          64,
+          1,
+          1
+        ],
+        "capabilities": [
+          1,
+          46
+        ],
+        "uniformBuffers": [
+          {
+            "name": "Globals",
+            "sourceName": "$Globals",
+            "descriptorSet": 0,
+            "descriptorBinding": 112,
+            "size": 4,
+            "members": [
+              {
+                "name": "NumSplats",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [
+          {
+            "name": "ShadedGaussianSplatBuffer",
+            "sourceName": "ShadedGaussianSplatBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 113,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "struct[]",
+                "baseType": "struct",
+                "bitWidth": 0,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 24,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": [
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 0,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 4,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uvec2",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 2,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 8,
+                    "size": 8,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uvec2",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 2,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 16,
+                    "size": 8,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "SortedIndexBuffer",
+            "sourceName": "SortedIndexBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 114,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "SplatCountBuffer",
+            "sourceName": "SplatCountBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 115,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "RWGatheredShadedGaussianSplatBuffer",
+            "sourceName": "RWGatheredShadedGaussianSplatBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 116,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "struct[]",
+                "baseType": "struct",
+                "bitWidth": 0,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 24,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": [
+                  {
+                    "name": "",
+                    "type": "float",
+                    "baseType": "float",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 0,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uint",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 1,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 4,
+                    "size": 4,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uvec2",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 2,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 8,
+                    "size": 8,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  },
+                  {
+                    "name": "",
+                    "type": "uvec2",
+                    "baseType": "uint",
+                    "bitWidth": 32,
+                    "vectorSize": 2,
+                    "columns": 1,
+                    "arrayDimensions": [],
+                    "offset": 16,
+                    "size": 8,
+                    "matrixOrder": "unspecified",
+                    "rowMajor": false,
+                    "members": []
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "gpu_1",
+      "pipelinePass": "gather_shaded_splats",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "MainCS",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "Globals",
+      "sourceName": "$Globals",
+      "descriptorSet": 0,
+      "descriptorBinding": 112,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "ShadedGaussianSplatBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 113,
+      "access": "READ_ONLY",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "SortedIndexBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 114,
+      "access": "READ_ONLY",
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "SplatCountBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 115,
+      "access": "READ_ONLY",
+      "glBinding": 2,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "RWGatheredShadedGaussianSplatBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 116,
+      "access": "READ_WRITE",
+      "glBinding": 3,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 2400,
+        "sha256": "d3380405cf7760cf87c8b20f31df33e346b477ec85b53edcb0ef42af12e7173e"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 4064,
+        "sha256": "575cf5b1b33dde2b5c5c1f763e84037a72bc85700e6a3268d4b0105592fecb6b"
+      }
+    }
+  }
+}

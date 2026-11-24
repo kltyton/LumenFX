@@ -1,0 +1,679 @@
+{
+  "schema": "lumenfx.fog_integration.v1",
+  "name": "VolumetricFogIntegrate",
+  "shader": {
+    "name": "VolumetricFogIntegrate",
+    "stage": "compute",
+    "vulkanEntryPoint": "main",
+    "openglEntryPoint": "main",
+    "workgroup": {
+      "x": 8,
+      "y": 8,
+      "z": 1
+    },
+    "capabilities": {
+      "waveOperations": false,
+      "nativeFp16": false,
+      "storageImageExtendedFormats": false,
+      "storageBuffers": false,
+      "storage16": false
+    },
+    "bindings": [
+      {
+        "kind": "uniformBuffer",
+        "name": "FogVolume",
+        "descriptorSet": 0,
+        "descriptorBinding": 0,
+        "glBinding": 0
+      },
+      {
+        "kind": "sampledTexture",
+        "name": "ScatteringSampler",
+        "format": "RGBA16_FLOAT",
+        "descriptorForm": "COMBINED_IMAGE_SAMPLER",
+        "array": false,
+        "descriptorSet": 0,
+        "descriptorBinding": 1,
+        "samplerDescriptorBinding": -1,
+        "glBinding": 1
+      },
+      {
+        "kind": "storageImage",
+        "name": "IntegratedOutput",
+        "format": "RGBA16_FLOAT",
+        "access": "WRITE_ONLY",
+        "array": false,
+        "descriptorSet": 0,
+        "descriptorBinding": 2,
+        "glBinding": 2
+      }
+    ]
+  },
+  "artifacts": {
+    "vulkan": {
+      "path": "vulkan.spv",
+      "size": 11560,
+      "sha256": "ad74a5f9561db3538674be5eb31130e364d92a878c6faa662cb6dc08b2b7adc0"
+    },
+    "opengl": {
+      "path": "opengl.spv",
+      "size": 11560,
+      "sha256": "ad74a5f9561db3538674be5eb31130e364d92a878c6faa662cb6dc08b2b7adc0"
+    }
+  },
+  "capabilities": {
+    "vulkan": {
+      "waveOperations": false,
+      "nativeFp16": false,
+      "storageImageExtendedFormats": false,
+      "storageBuffers": false,
+      "storage16": false
+    },
+    "opengl": {
+      "waveOperations": false,
+      "nativeFp16": false,
+      "storageImageExtendedFormats": false,
+      "storageBuffers": false,
+      "storage16": false
+    }
+  },
+  "reflection": {
+    "vulkan": {
+      "localSize": [
+        8,
+        8,
+        1
+      ],
+      "capabilities": [
+        1
+      ],
+      "capabilitySet": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "float16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageBuffers": false
+      },
+      "uniformBuffers": [
+        {
+          "name": "FogVolume",
+          "descriptorSet": 0,
+          "descriptorBinding": 0,
+          "size": 400,
+          "members": [
+            {
+              "name": "FogWorldToClip",
+              "type": "mat4x4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 4,
+              "arrayDimensions": [],
+              "offset": 0,
+              "size": 64,
+              "matrixStride": 16,
+              "matrixOrder": "column-major",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogClipToWorld",
+              "type": "mat4x4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 4,
+              "arrayDimensions": [],
+              "offset": 64,
+              "size": 64,
+              "matrixStride": 16,
+              "matrixOrder": "column-major",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogPreviousWorldToClip",
+              "type": "mat4x4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 4,
+              "arrayDimensions": [],
+              "offset": 128,
+              "size": 64,
+              "matrixStride": 16,
+              "matrixOrder": "column-major",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogGrid",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 192,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogAtlas",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 208,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogDepth",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 224,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogFrame",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 240,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogProjection",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 256,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogVolumeRange",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 272,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogEmissive",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 288,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogPreviousGrid",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 304,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogPreviousAtlas",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 320,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogUvBounds",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 336,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogHistoryBounds",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 352,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogViewForward",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 368,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogMaterial",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 384,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            }
+          ]
+        }
+      ],
+      "storageBuffers": [],
+      "sampledImages": [
+        {
+          "name": "ScatteringSampler",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "array": false,
+          "dimension": 1,
+          "imageStorageFormat": 0,
+          "nonWritable": false,
+          "nonReadable": false
+        }
+      ],
+      "storageImages": [
+        {
+          "name": "IntegratedOutput",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "array": false,
+          "dimension": 1,
+          "imageStorageFormat": 2,
+          "imageFormat": "rgba16f",
+          "nonWritable": false,
+          "nonReadable": true,
+          "access": "WRITE_ONLY"
+        }
+      ],
+      "separateSamplers": [],
+      "stageInputs": [],
+      "stageOutputs": []
+    },
+    "opengl": {
+      "localSize": [
+        8,
+        8,
+        1
+      ],
+      "capabilities": [
+        1
+      ],
+      "capabilitySet": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "float16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageBuffers": false
+      },
+      "uniformBuffers": [
+        {
+          "name": "FogVolume",
+          "descriptorSet": 0,
+          "descriptorBinding": 0,
+          "size": 400,
+          "members": [
+            {
+              "name": "FogWorldToClip",
+              "type": "mat4x4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 4,
+              "arrayDimensions": [],
+              "offset": 0,
+              "size": 64,
+              "matrixStride": 16,
+              "matrixOrder": "column-major",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogClipToWorld",
+              "type": "mat4x4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 4,
+              "arrayDimensions": [],
+              "offset": 64,
+              "size": 64,
+              "matrixStride": 16,
+              "matrixOrder": "column-major",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogPreviousWorldToClip",
+              "type": "mat4x4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 4,
+              "arrayDimensions": [],
+              "offset": 128,
+              "size": 64,
+              "matrixStride": 16,
+              "matrixOrder": "column-major",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogGrid",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 192,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogAtlas",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 208,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogDepth",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 224,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogFrame",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 240,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogProjection",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 256,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogVolumeRange",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 272,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogEmissive",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 288,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogPreviousGrid",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 304,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogPreviousAtlas",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 320,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogUvBounds",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 336,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogHistoryBounds",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 352,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogViewForward",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 368,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            },
+            {
+              "name": "FogMaterial",
+              "type": "vec4",
+              "baseType": "float",
+              "bitWidth": 32,
+              "vectorSize": 4,
+              "columns": 1,
+              "arrayDimensions": [],
+              "offset": 384,
+              "size": 16,
+              "matrixOrder": "unspecified",
+              "rowMajor": false,
+              "members": []
+            }
+          ]
+        }
+      ],
+      "storageBuffers": [],
+      "sampledImages": [
+        {
+          "name": "ScatteringSampler",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "array": false,
+          "dimension": 1,
+          "imageStorageFormat": 0,
+          "nonWritable": false,
+          "nonReadable": false
+        }
+      ],
+      "storageImages": [
+        {
+          "name": "IntegratedOutput",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "array": false,
+          "dimension": 1,
+          "imageStorageFormat": 2,
+          "imageFormat": "rgba16f",
+          "nonWritable": false,
+          "nonReadable": true,
+          "access": "WRITE_ONLY"
+        }
+      ],
+      "separateSamplers": [],
+      "stageInputs": [],
+      "stageOutputs": []
+    }
+  },
+  "contract": {
+    "workgroup": {
+      "x": 8,
+      "y": 8,
+      "z": 1
+    },
+    "uniformBufferBytes": 400,
+    "descriptorCount": 3,
+    "inputFormat": "RGBA16_FLOAT",
+    "outputFormat": "RGBA16_FLOAT",
+    "outputAccess": "WRITE_ONLY",
+    "vulkanVersion": "1.0",
+    "openglVersion": "4.5"
+  },
+  "sourceProvenance": {
+    "base": "shader-root",
+    "entry": "fog/integrate.comp",
+    "imports": [
+      "include/fog_volume_uniforms.glsl",
+      "include/volumetric_common.glsl"
+    ],
+    "importNamespace": "lumenfx",
+    "engineSources": false,
+    "expandedSha256": "3f9d6a4c67ea6554326b5c3ea5568a66673864667e9c6ab4589469abb3f6f077"
+  }
+}

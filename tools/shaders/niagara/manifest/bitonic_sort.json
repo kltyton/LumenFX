@@ -1,0 +1,58 @@
+{
+  "schema": "lumenfx.niagara.bitonic_sort.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2",
+    "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPILER_DXC": 1, "COMPILER_HLSL": 1, "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0, "COMPILER_GLSL_ES3_1": 0, "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0, "SM5_PROFILE": 1, "FEATURE_LEVEL": 5,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0, "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1, "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0,
+      "COMPILER_SUPPORTS_HLSL2021": 1, "SUPPORTS_INDEPENDENT_SAMPLERS": 1, "UE_BINDLESS_ENABLED": 0,
+      "BITONIC_THREAD_COUNT": 512, "BITONIC_ELEMENTS_PER_THREAD": 2,
+      "BITONIC_GLOBAL_MERGE_EPT": 1, "BITONIC_USE_WAVE_OPS": 0
+    },
+    "include_overrides": [
+      {"from": "Engine/Shaders/Private/Common.ush", "to": "tools/shaders/shared/compat/Common.ush"},
+      {"from": "Engine/Shaders/Public/Platform.ush", "to": "tools/shaders/shared/compat/Platform.ush"},
+      {"from": "/Engine/Generated/UniformBuffers/BitonicSortUB.ush", "to": "tools/shaders/niagara/compat/BitonicSortUB.ush"}
+    ]
+  },
+  "passes": [
+    {
+      "name": "local_sort", "source": "Engine/Shaders/Private/BitonicSort.usf", "stage": "compute",
+      "entrypoint": "BitonicSort_LocalSort", "generated_preincludes": ["/Engine/Generated/UniformBuffers/BitonicSortUB.ush"],
+      "defines": {"BITONIC_LOCAL_SORT": 1, "BITONIC_LOCAL_MERGE": 0, "BITONIC_GLOBAL_MERGE": 0},
+      "resources": [
+        {"name": "InKeys", "kind": "ue_bitonic_sort_buffer", "original_hlsl_type": "Buffer<uint>", "hlsl_type": "StructuredBuffer<uint>", "stride_bytes": 4},
+        {"name": "InValues", "kind": "ue_bitonic_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true},
+        {"name": "OutKeys", "kind": "ue_bitonic_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true},
+        {"name": "OutValues", "kind": "ue_bitonic_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "global_merge", "source": "Engine/Shaders/Private/BitonicSort.usf", "stage": "compute",
+      "entrypoint": "BitonicSort_GlobalMerge", "generated_preincludes": ["/Engine/Generated/UniformBuffers/BitonicSortUB.ush"],
+      "defines": {"BITONIC_LOCAL_SORT": 0, "BITONIC_LOCAL_MERGE": 0, "BITONIC_GLOBAL_MERGE": 1},
+      "resources": [
+        {"name": "InOutKeys", "kind": "ue_bitonic_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true},
+        {"name": "InOutValues", "kind": "ue_bitonic_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "local_merge", "source": "Engine/Shaders/Private/BitonicSort.usf", "stage": "compute",
+      "entrypoint": "BitonicSort_LocalMerge", "generated_preincludes": ["/Engine/Generated/UniformBuffers/BitonicSortUB.ush"],
+      "defines": {"BITONIC_LOCAL_SORT": 0, "BITONIC_LOCAL_MERGE": 1, "BITONIC_GLOBAL_MERGE": 0},
+      "resources": [
+        {"name": "InKeys", "kind": "ue_bitonic_sort_buffer", "original_hlsl_type": "Buffer<uint>", "hlsl_type": "StructuredBuffer<uint>", "stride_bytes": 4},
+        {"name": "InValues", "kind": "ue_bitonic_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true},
+        {"name": "OutKeys", "kind": "ue_bitonic_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true},
+        {"name": "OutValues", "kind": "ue_bitonic_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true}
+      ]
+    }
+  ]
+}

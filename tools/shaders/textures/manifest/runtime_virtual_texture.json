@@ -1,0 +1,104 @@
+{
+  "schema": "lumenfx.texture.runtime_virtual_texture.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2", "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPUTESHADER": 1, "COMPILER_DXC": 1, "COMPILER_HLSL": 1, "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0, "COMPILER_GLSL_ES3_1": 0, "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0, "SM5_PROFILE": 1, "FEATURE_LEVEL": 5,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0, "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1, "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0,
+      "COMPILER_SUPPORTS_HLSL2021": 1, "SUPPORTS_INDEPENDENT_SAMPLERS": 1, "UE_BINDLESS_ENABLED": 0,
+      "ASTC_PROFILE": 0, "ETC_PROFILE": 0, "USE_SRC_TEXTURE_ARRAY": 0, "USE_DST_TEXTURE_ARRAY": 0,
+      "PACK_RG32_RGBA16": 0, "MAX_BATCH_SIZE": 1, "MAX_DST_LAYERS": 3
+    },
+    "include_overrides": [
+      {"from": "Engine/Shaders/Private/Common.ush", "to": "tools/shaders/textures/compat/RuntimeVirtualTextureCommon.ush"},
+      {"from": "Engine/Shaders/Private/ASTCCompressionCommon.ush", "to": "tools/shaders/textures/compat/UnusedMobileCompression.ush"},
+      {"from": "Engine/Shaders/Private/ETCCompressionCommon.ush", "to": "tools/shaders/textures/compat/UnusedMobileCompression.ush"},
+      {"from": "Engine/Shaders/Public/Platform.ush", "to": "tools/shaders/shared/compat/Platform.ush"}
+    ]
+  },
+  "passes": [
+    {
+      "name": "base_color", "stage": "compute", "entrypoint": "CompressBaseColorCS",
+      "source": "Engine/Shaders/Private/VirtualTextureCompress.usf",
+      "variants": [{"id": "windows_sm5"}],
+      "resources": [
+        {"name":"RenderTexture0","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"OutCompressTexture0_64bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint2>","gpuFormat":"RG32_UINT","dxcImageFormat":"rg32ui","uav":true}
+      ]
+    },
+    {
+      "name": "base_color_normal_roughness", "stage": "compute", "entrypoint": "CompressBaseColorNormalRoughnessCS",
+      "source": "Engine/Shaders/Private/VirtualTextureCompress.usf",
+      "variants": [{"id": "windows_sm5"}],
+      "resources": [
+        {"name":"RenderTexture0","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"RenderTexture1","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"OutCompressTexture0_64bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint2>","gpuFormat":"RG32_UINT","dxcImageFormat":"rg32ui","uav":true},
+        {"name":"OutCompressTexture1_128bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint4>","gpuFormat":"RGBA32_UINT","dxcImageFormat":"rgba32ui","uav":true}
+      ]
+    },
+    {
+      "name": "base_color_normal_specular", "stage": "compute", "entrypoint": "CompressBaseColorNormalSpecularCS",
+      "source": "Engine/Shaders/Private/VirtualTextureCompress.usf",
+      "variants": [{"id": "windows_sm5"}],
+      "resources": [
+        {"name":"RenderTexture0","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"RenderTexture1","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"RenderTexture2","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"OutCompressTexture0_128bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint4>","gpuFormat":"RGBA32_UINT","dxcImageFormat":"rgba32ui","uav":true},
+        {"name":"OutCompressTexture1_128bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint4>","gpuFormat":"RGBA32_UINT","dxcImageFormat":"rgba32ui","uav":true}
+      ]
+    },
+    {
+      "name": "base_color_normal_specular_ycocg", "stage": "compute", "entrypoint": "CompressBaseColorNormalSpecularYCoCgCS",
+      "source": "Engine/Shaders/Private/VirtualTextureCompress.usf",
+      "variants": [{"id": "windows_sm5"}],
+      "resources": [
+        {"name":"RenderTexture0","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"RenderTexture1","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"RenderTexture2","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"OutCompressTexture0_128bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint4>","gpuFormat":"RGBA32_UINT","dxcImageFormat":"rgba32ui","uav":true},
+        {"name":"OutCompressTexture1_128bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint4>","gpuFormat":"RGBA32_UINT","dxcImageFormat":"rgba32ui","uav":true},
+        {"name":"OutCompressTexture2_64bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint2>","gpuFormat":"RG32_UINT","dxcImageFormat":"rg32ui","uav":true}
+      ]
+    },
+    {
+      "name": "base_color_normal_specular_mask_ycocg", "stage": "compute", "entrypoint": "CompressBaseColorNormalSpecularMaskYCoCgCS",
+      "source": "Engine/Shaders/Private/VirtualTextureCompress.usf",
+      "variants": [{"id": "windows_sm5"}],
+      "resources": [
+        {"name":"RenderTexture0","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"RenderTexture1","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"RenderTexture2","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"OutCompressTexture0_128bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint4>","gpuFormat":"RGBA32_UINT","dxcImageFormat":"rgba32ui","uav":true},
+        {"name":"OutCompressTexture1_128bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint4>","gpuFormat":"RGBA32_UINT","dxcImageFormat":"rgba32ui","uav":true},
+        {"name":"OutCompressTexture2_128bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint4>","gpuFormat":"RGBA32_UINT","dxcImageFormat":"rgba32ui","uav":true}
+      ]
+    },
+    {
+      "name": "mask4", "stage": "compute", "entrypoint": "CompressMask4CS",
+      "source": "Engine/Shaders/Private/VirtualTextureCompress.usf",
+      "variants": [{"id": "windows_sm5"}],
+      "resources": [
+        {"name":"RenderTexture0","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"RenderTexture1","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"RGBA8_UNORM"},
+        {"name":"OutCompressTexture0_128bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint4>","gpuFormat":"RGBA32_UINT","dxcImageFormat":"rgba32ui","uav":true}
+      ]
+    },
+    {
+      "name": "displacement", "stage": "compute", "entrypoint": "CompressDisplacementCS",
+      "source": "Engine/Shaders/Private/VirtualTextureCompress.usf",
+      "variants": [{"id": "windows_sm5"}],
+      "resources": [
+        {"name":"RenderTexture0","kind":"rvt_material_page","hlsl_type":"Texture2D<float4>","gpuFormat":"R16_UNORM"},
+        {"name":"OutCompressTexture0_64bit","kind":"rvt_packed_blocks","hlsl_type":"RWTexture2D<uint2>","gpuFormat":"RG32_UINT","dxcImageFormat":"rg32ui","uav":true}
+      ]
+    }
+  ]
+}

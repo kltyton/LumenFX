@@ -1,0 +1,296 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_bitonic_sort",
+  "name": "global_merge",
+  "pass": "global_merge",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "default",
+    "defines": {},
+    "selectionKeys": [],
+    "selector": {}
+  },
+  "stageClass": "compute",
+  "abiLowering": [
+    {
+      "resource": "InOutKeys",
+      "from": "RWBuffer<uint>",
+      "to": "RWStructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "InOutValues",
+      "from": "RWBuffer<uint>",
+      "to": "RWStructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    }
+  ],
+  "sourceResources": [
+    {
+      "name": "InOutKeys",
+      "kind": "ue_bitonic_sort_buffer",
+      "original_hlsl_type": "RWBuffer<uint>",
+      "hlsl_type": "RWStructuredBuffer<uint>",
+      "stride_bytes": 4,
+      "uav": true
+    },
+    {
+      "name": "InOutValues",
+      "kind": "ue_bitonic_sort_buffer",
+      "original_hlsl_type": "RWBuffer<uint>",
+      "hlsl_type": "RWStructuredBuffer<uint>",
+      "stride_bytes": 4,
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "BitonicSort_GlobalMerge",
+      "source": "Engine/Shaders/Private/BitonicSort.usf",
+      "workgroup": {
+        "x": 512,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "BitonicSortUniformBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "InOutKeys",
+          "descriptorSet": 0,
+          "descriptorBinding": 6,
+          "access": "READ_WRITE",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "InOutValues",
+          "descriptorSet": 0,
+          "descriptorBinding": 7,
+          "access": "READ_WRITE",
+          "glBinding": 1,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 1936,
+          "sha256": "b619716294115b1cc099c19a60e9a727646393089a22a5624a3ef05150f9d714"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 2964,
+          "sha256": "50868aa462d5397660c7a902fb65f85b2406aaeb6e721c8204221de22aae5fea"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          512,
+          1,
+          1
+        ],
+        "capabilities": [
+          1,
+          46,
+          47
+        ],
+        "uniformBuffers": [
+          {
+            "name": "BitonicSortUniformBuffer",
+            "sourceName": "BitonicSortUniformBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "size": 16,
+            "members": [
+              {
+                "name": "BitonicSort_Count",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "BitonicSort_PaddedCount",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 4,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "BitonicSort_StageBlockSize",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 8,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "BitonicSort_StepBlockSize",
+                "type": "uint",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 12,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [
+          {
+            "name": "InOutKeys",
+            "sourceName": "InOutKeys",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "InOutValues",
+            "sourceName": "InOutValues",
+            "descriptorSet": 0,
+            "descriptorBinding": 7,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "default",
+      "pipelinePass": "global_merge",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "BitonicSort_GlobalMerge",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "BitonicSortUniformBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 1,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "InOutKeys",
+      "descriptorSet": 0,
+      "descriptorBinding": 6,
+      "access": "READ_WRITE",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "InOutValues",
+      "descriptorSet": 0,
+      "descriptorBinding": 7,
+      "access": "READ_WRITE",
+      "glBinding": 1,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 1936,
+        "sha256": "b619716294115b1cc099c19a60e9a727646393089a22a5624a3ef05150f9d714"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 2964,
+        "sha256": "50868aa462d5397660c7a902fb65f85b2406aaeb6e721c8204221de22aae5fea"
+      }
+    }
+  }
+}

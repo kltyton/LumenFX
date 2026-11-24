@@ -1,0 +1,857 @@
+{
+  "schema": "lumenfx.niagara.nanite_scene.source.v2",
+  "engine": {
+    "version": "5.9.0-preview-2",
+    "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPILER_DXC": 1,
+      "COMPILER_HLSL": 1,
+      "SM6_PROFILE": 0,
+      "SM5_PROFILE": 1,
+      "FEATURE_LEVEL": 5,
+      "COMPILER_SUPPORTS_HLSL2021": 1
+    },
+    "include_overrides": [
+      {
+        "from": "LumenFX/Nanite/NaniteInstanceScene.usf",
+        "to": "tools/shaders/niagara/compat/nanite/NaniteInstanceScene.usf"
+      },
+      {
+        "from": "LumenFX/Nanite/NaniteHierarchyCull.usf",
+        "to": "tools/shaders/niagara/compat/nanite/NaniteHierarchyCull.usf"
+      },
+      {
+        "from": "LumenFX/Nanite/NaniteRasterBins.usf",
+        "to": "tools/shaders/niagara/compat/nanite/NaniteRasterBins.usf"
+      },
+      {
+        "from": "LumenFX/Nanite/NanitePageAddress.ush",
+        "to": "tools/shaders/niagara/compat/nanite/NanitePageAddress.ush"
+      },
+      {
+        "from": "LumenFX/Nanite/NaniteTriangleDecode.ush",
+        "to": "tools/shaders/niagara/compat/nanite/NaniteTriangleDecode.ush"
+      },
+      {
+        "from": "LumenFX/Nanite/NaniteRasterCoverage.ush",
+        "to": "tools/shaders/niagara/compat/nanite/NaniteRasterCoverage.ush"
+      },
+      {
+        "from": "LumenFX/Nanite/TriangleCoverage.glsl",
+        "to": "common/src/main/resources/assets/lumenfx/shaders/include/nanite/triangle_coverage.glsl"
+      },
+      {
+        "from": "LumenFX/Nanite/NaniteTriangleRaster.usf",
+        "to": "tools/shaders/niagara/compat/nanite/NaniteTriangleRaster.usf"
+      },
+      {
+        "from": "LumenFX/Nanite/NaniteShadingGeometry.usf",
+        "to": "tools/shaders/niagara/compat/nanite/NaniteShadingGeometry.usf"
+      },
+      {
+        "from": "LumenFX/Nanite/NaniteSceneTransforms.ush",
+        "to": "tools/shaders/niagara/compat/nanite/NaniteSceneTransforms.ush"
+      },
+      {
+        "from": "LumenFX/Nanite/NaniteVertexPassthrough.usf",
+        "to": "tools/shaders/niagara/compat/nanite/NaniteVertexPassthrough.usf"
+      }
+    ]
+  },
+  "passes": [
+    {
+      "name": "instance_scene",
+      "source": "LumenFX/Nanite/NaniteInstanceScene.usf",
+      "stage": "compute",
+      "entrypoint": "PrepareNaniteInstanceScene",
+      "variants": [
+        {
+          "id": "default",
+          "defines": {}
+        }
+      ],
+      "resources": [
+        {
+          "name": "NaniteParticleFloats",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float>",
+          "hlsl_type": "StructuredBuffer<float>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteParticleHalves",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteParticleIntegers",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<int>",
+          "hlsl_type": "StructuredBuffer<int>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteParticleCounts",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteCustomFloatBindings",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint2>",
+          "hlsl_type": "StructuredBuffer<uint2>",
+          "stride_bytes": 8
+        },
+        {
+          "name": "NaniteInstanceTransforms",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<float4>",
+          "hlsl_type": "RWStructuredBuffer<float4>",
+          "stride_bytes": 16,
+          "uav": true
+        },
+        {
+          "name": "NaniteInstanceCustomFloats",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<float>",
+          "hlsl_type": "RWStructuredBuffer<float>",
+          "stride_bytes": 4,
+          "uav": true
+        }
+      ]
+    },
+    {
+      "name": "hierarchy_cull",
+      "source": "LumenFX/Nanite/NaniteHierarchyCull.usf",
+      "stage": "compute",
+      "entrypoint": "CullNaniteHierarchy",
+      "variants": [
+        {
+          "id": "default",
+          "defines": {
+            "NANITE_OCCLUSION_PASS": 0
+          }
+        }
+      ],
+      "resources": [
+        {
+          "name": "NaniteHierarchy",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteRootNodes",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteClusterPages",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteAssemblyRows",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "MeshSceneTransforms",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteInstanceIds",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteInstanceCount",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteVisibleClusters",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint4>",
+          "hlsl_type": "RWStructuredBuffer<uint4>",
+          "stride_bytes": 16,
+          "uav": true
+        },
+        {
+          "name": "NaniteStreamingRequests",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteCullCounts",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        }
+      ]
+    },
+    {
+      "name": "hierarchy_main",
+      "source": "LumenFX/Nanite/NaniteHierarchyCull.usf",
+      "stage": "compute",
+      "entrypoint": "CullNaniteHierarchy",
+      "variants": [
+        {
+          "id": "default",
+          "defines": {
+            "NANITE_OCCLUSION_PASS": 1
+          }
+        }
+      ],
+      "resources": [
+        {
+          "name": "NaniteHierarchy",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteRootNodes",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteClusterPages",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteAssemblyRows",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "MeshSceneTransforms",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteInstanceIds",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteInstanceCount",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteVisibleClusters",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint4>",
+          "hlsl_type": "RWStructuredBuffer<uint4>",
+          "stride_bytes": 16,
+          "uav": true
+        },
+        {
+          "name": "NaniteStreamingRequests",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteCullCounts",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteFurthestDepth",
+          "kind": "nanite_scene_depth",
+          "original_hlsl_type": "Texture2D<float>",
+          "hlsl_type": "Texture2D<float>",
+          "format": "PF_R16F"
+        },
+        {
+          "name": "NaniteDeferred",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint4>",
+          "hlsl_type": "RWStructuredBuffer<uint4>",
+          "stride_bytes": 16,
+          "uav": true
+        }
+      ]
+    },
+    {
+      "name": "hierarchy_post",
+      "source": "LumenFX/Nanite/NaniteHierarchyCull.usf",
+      "stage": "compute",
+      "entrypoint": "CullNaniteHierarchy",
+      "variants": [
+        {
+          "id": "default",
+          "defines": {
+            "NANITE_OCCLUSION_PASS": 2
+          }
+        }
+      ],
+      "resources": [
+        {
+          "name": "NaniteHierarchy",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteClusterPages",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteAssemblyRows",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "MeshSceneTransforms",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteVisibleClusters",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint4>",
+          "hlsl_type": "RWStructuredBuffer<uint4>",
+          "stride_bytes": 16,
+          "uav": true
+        },
+        {
+          "name": "NaniteStreamingRequests",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteCullCounts",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteFurthestDepth",
+          "kind": "nanite_scene_depth",
+          "original_hlsl_type": "Texture2D<float>",
+          "hlsl_type": "Texture2D<float>",
+          "format": "PF_R16F"
+        },
+        {
+          "name": "NaniteDeferred",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint4>",
+          "hlsl_type": "StructuredBuffer<uint4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteMainCounts",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        }
+      ]
+    },
+    {
+      "name": "raster_count",
+      "source": "LumenFX/Nanite/NaniteRasterBins.usf",
+      "stage": "compute",
+      "entrypoint": "CountNaniteRasterTriangles",
+      "variants": [
+        {
+          "id": "default",
+          "defines": {}
+        }
+      ],
+      "resources": [
+        {
+          "name": "NaniteClusterPages",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteVisibleClusters",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint4>",
+          "hlsl_type": "StructuredBuffer<uint4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteCullCounts",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteBinCounts",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteRasterOverflow",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        }
+      ]
+    },
+    {
+      "name": "raster_allocate",
+      "source": "LumenFX/Nanite/NaniteRasterBins.usf",
+      "stage": "compute",
+      "entrypoint": "AllocateNaniteRasterBins",
+      "variants": [
+        {
+          "id": "default",
+          "defines": {}
+        }
+      ],
+      "resources": [
+        {
+          "name": "NaniteBinCounts",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteBinOffsets",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteBinCursors",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteRasterCommands",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint4>",
+          "hlsl_type": "RWStructuredBuffer<uint4>",
+          "stride_bytes": 16,
+          "uav": true
+        },
+        {
+          "name": "NaniteRasterOverflow",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        }
+      ]
+    },
+    {
+      "name": "raster_scatter",
+      "source": "LumenFX/Nanite/NaniteRasterBins.usf",
+      "stage": "compute",
+      "entrypoint": "ScatterNaniteRasterTriangles",
+      "variants": [
+        {
+          "id": "default",
+          "defines": {}
+        }
+      ],
+      "resources": [
+        {
+          "name": "NaniteClusterPages",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteVisibleClusters",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint4>",
+          "hlsl_type": "StructuredBuffer<uint4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteCullCounts",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteBinOffsets",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteBinCursors",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteBinTriangles",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint2>",
+          "hlsl_type": "RWStructuredBuffer<uint2>",
+          "stride_bytes": 8,
+          "uav": true
+        }
+      ]
+    },
+    {
+      "name": "hardware_prepare",
+      "source": "LumenFX/Nanite/NaniteTriangleRaster.usf",
+      "stage": "compute",
+      "entrypoint": "PrepareNaniteHardware",
+      "variants": [
+        {
+          "id": "default",
+          "defines": {}
+        }
+      ],
+      "resources": [
+        {
+          "name": "NaniteBinTriangles",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint2>",
+          "hlsl_type": "StructuredBuffer<uint2>",
+          "stride_bytes": 8
+        },
+        {
+          "name": "NaniteRasterCommands",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint4>",
+          "hlsl_type": "StructuredBuffer<uint4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteShadingPrimitives",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint4>",
+          "hlsl_type": "StructuredBuffer<uint4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteShadingVertices",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteMaterialRasterFlags",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteHardwarePositions",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<float4>",
+          "hlsl_type": "RWStructuredBuffer<float4>",
+          "stride_bytes": 16,
+          "uav": true
+        },
+        {
+          "name": "NaniteHardwarePrimitives",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint2>",
+          "hlsl_type": "RWStructuredBuffer<uint2>",
+          "stride_bytes": 8,
+          "uav": true
+        }
+      ]
+    },
+    {
+      "name": "software_depth",
+      "source": "LumenFX/Nanite/NaniteTriangleRaster.usf",
+      "stage": "compute",
+      "entrypoint": "RasterizeNaniteSoftwareDepth",
+      "variants": [
+        {
+          "id": "default",
+          "defines": {}
+        }
+      ],
+      "resources": [
+        {
+          "name": "NaniteBinTriangles",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint2>",
+          "hlsl_type": "StructuredBuffer<uint2>",
+          "stride_bytes": 8
+        },
+        {
+          "name": "NaniteRasterCommands",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint4>",
+          "hlsl_type": "StructuredBuffer<uint4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteShadingPrimitives",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint4>",
+          "hlsl_type": "StructuredBuffer<uint4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteShadingVertices",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteMaterialRasterFlags",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteSoftwareDepth",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        }
+      ]
+    },
+    {
+      "name": "software_primitives",
+      "source": "LumenFX/Nanite/NaniteTriangleRaster.usf",
+      "stage": "compute",
+      "entrypoint": "RasterizeNaniteSoftwarePrimitives",
+      "variants": [
+        {
+          "id": "default",
+          "defines": {}
+        }
+      ],
+      "resources": [
+        {
+          "name": "NaniteBinTriangles",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint2>",
+          "hlsl_type": "StructuredBuffer<uint2>",
+          "stride_bytes": 8
+        },
+        {
+          "name": "NaniteRasterCommands",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint4>",
+          "hlsl_type": "StructuredBuffer<uint4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteShadingPrimitives",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint4>",
+          "hlsl_type": "StructuredBuffer<uint4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteShadingVertices",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteMaterialRasterFlags",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteSoftwareDepth",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteSoftwarePrimitives",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        }
+      ]
+    },
+    {
+      "name": "vertex_passthrough",
+      "source": "LumenFX/Nanite/NaniteVertexPassthrough.usf",
+      "stage": "compute",
+      "entrypoint": "PrepareNaniteVertexPassthrough",
+      "variants": [ { "id": "default", "defines": {} } ],
+      "resources": [
+        { "name": "NaniteVertexPrimitives", "kind": "nanite_scene_buffer", "original_hlsl_type": "StructuredBuffer<uint4>", "hlsl_type": "StructuredBuffer<uint4>", "stride_bytes": 16 },
+        { "name": "NaniteRasterCommands", "kind": "nanite_scene_buffer", "original_hlsl_type": "StructuredBuffer<uint4>", "hlsl_type": "StructuredBuffer<uint4>", "stride_bytes": 16 },
+        { "name": "NaniteVertexGeometry", "kind": "nanite_scene_buffer", "original_hlsl_type": "StructuredBuffer<float4>", "hlsl_type": "StructuredBuffer<float4>", "stride_bytes": 16 },
+        { "name": "NaniteVertexInterpolants", "kind": "nanite_scene_buffer", "original_hlsl_type": "RWStructuredBuffer<float4>", "hlsl_type": "RWStructuredBuffer<float4>", "stride_bytes": 16, "uav": true }
+      ]
+    },
+    {
+      "name": "shading_geometry",
+      "source": "LumenFX/Nanite/NaniteShadingGeometry.usf",
+      "stage": "compute",
+      "entrypoint": "PrepareNaniteShadingGeometry",
+      "variants": [
+        {
+          "id": "default",
+          "defines": {}
+        }
+      ],
+      "resources": [
+        {
+          "name": "NaniteClusterPages",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint>",
+          "hlsl_type": "StructuredBuffer<uint>",
+          "stride_bytes": 4
+        },
+        {
+          "name": "NaniteVisibleClusters",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint4>",
+          "hlsl_type": "StructuredBuffer<uint4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteBinTriangles",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint2>",
+          "hlsl_type": "StructuredBuffer<uint2>",
+          "stride_bytes": 8
+        },
+        {
+          "name": "NaniteRasterCommands",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<uint4>",
+          "hlsl_type": "StructuredBuffer<uint4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NaniteAssemblyRows",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "MeshSceneTransforms",
+          "kind": "nanite_scene_buffer",
+          "original_hlsl_type": "StructuredBuffer<float4>",
+          "hlsl_type": "StructuredBuffer<float4>",
+          "stride_bytes": 16
+        },
+        {
+          "name": "NanitePrimitiveLookup",
+          "kind": "nanite_scene_buffer",
+          "hlsl_type": "RWStructuredBuffer<uint>",
+          "original_hlsl_type": "RWStructuredBuffer<uint>",
+          "stride_bytes": 4,
+          "uav": true
+        },
+        {
+          "name": "NaniteShadingPrimitives",
+          "kind": "nanite_scene_buffer",
+          "hlsl_type": "RWStructuredBuffer<uint4>",
+          "original_hlsl_type": "RWStructuredBuffer<uint4>",
+          "stride_bytes": 16,
+          "uav": true
+        },
+        {
+          "name": "NaniteShadingVertices",
+          "kind": "nanite_scene_buffer",
+          "hlsl_type": "RWStructuredBuffer<float4>",
+          "original_hlsl_type": "RWStructuredBuffer<float4>",
+          "stride_bytes": 16,
+          "uav": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "schema": "lumenfx.niagara.physics_field.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2",
+    "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPILER_DXC": 1,
+      "COMPILER_HLSL": 1,
+      "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0,
+      "COMPILER_GLSL_ES3_1": 0,
+      "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0,
+      "SM5_PROFILE": 1,
+      "FEATURE_LEVEL": 5,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0,
+      "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1,
+      "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0,
+      "COMPILER_SUPPORTS_HLSL2021": 1,
+      "SUPPORTS_INDEPENDENT_SAMPLERS": 1,
+      "UE_BINDLESS_ENABLED": 0
+    },
+    "include_overrides": [
+      {"from": "Engine/Shaders/Private/Common.ush", "to": "tools/shaders/shared/compat/Common.ush"},
+      {"from": "Engine/Shaders/Public/Platform.ush", "to": "tools/shaders/shared/compat/Platform.ush"}
+    ]
+  },
+  "passes": [
+    {
+      "name": "build_clipmap",
+      "source": "Engine/Shaders/Private/PhysicsFieldBuilder.usf",
+      "stage": "compute",
+      "entrypoint": "BuildPhysicsFieldClipmapCS",
+      "defines": {"BUILD_FIELD_THREAD_GROUP_SIZE": 64, "MAX_PHYSICS_FIELD_TARGETS": 32},
+      "resources": [
+        {"name": "FieldClipmap", "kind": "niagara_physics_field_builder", "original_hlsl_type": "RWBuffer<float>", "hlsl_type": "RWStructuredBuffer<float>", "stride_bytes": 4, "uav": true},
+        {"name": "CellsOffsets", "kind": "niagara_physics_field_builder", "original_hlsl_type": "Buffer<int>", "hlsl_type": "StructuredBuffer<int>", "stride_bytes": 4},
+        {"name": "CellsMin", "kind": "niagara_physics_field_builder", "original_hlsl_type": "Buffer<uint4>", "hlsl_type": "StructuredBuffer<uint4>", "stride_bytes": 16},
+        {"name": "CellsMax", "kind": "niagara_physics_field_builder", "original_hlsl_type": "Buffer<uint4>", "hlsl_type": "StructuredBuffer<uint4>", "stride_bytes": 16},
+        {"name": "NodesParams", "kind": "niagara_physics_field_builder", "original_hlsl_type": "Buffer<float>", "hlsl_type": "StructuredBuffer<float>", "stride_bytes": 4},
+        {"name": "NodesOffsets", "kind": "niagara_physics_field_builder", "original_hlsl_type": "Buffer<int>", "hlsl_type": "StructuredBuffer<int>", "stride_bytes": 4},
+        {"name": "TargetsOffsets", "kind": "niagara_physics_field_builder", "original_hlsl_type": "Buffer<int>", "hlsl_type": "StructuredBuffer<int>", "stride_bytes": 4}
+      ]
+    }
+  ]
+}

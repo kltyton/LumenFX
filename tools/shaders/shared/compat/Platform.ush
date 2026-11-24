@@ -1,0 +1,432 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+// Platform attributes, vector operations and feature macros for offline shaders.
+
+#ifndef LUMENFX_SHADER_PLATFORM_COMPAT
+#define LUMENFX_SHADER_PLATFORM_COMPAT
+
+// Platform.ush scalar arrays pack four elements per vector in native Niagara spawn parameters.
+#ifndef CALC_SCALAR_ARRAY_SIZE
+#define CALC_SCALAR_ARRAY_SIZE(ElementCount) ((ElementCount+3)/4)
+#endif
+#ifndef DECLARE_SCALAR_ARRAY
+#define DECLARE_SCALAR_ARRAY(ScalarType, ScalarName, ElementCount) ScalarType##4 ScalarName[CALC_SCALAR_ARRAY_SIZE(ElementCount)]
+#endif
+#ifndef GET_SCALAR_ARRAY_ELEMENT
+#define GET_SCALAR_ARRAY_ELEMENT(PackedArray, ElementIndex) PackedArray[(uint)ElementIndex>>2u][(uint)ElementIndex&3u]
+#endif
+
+// Values of FEATURE_LEVEL (Platform.ush).
+#define FEATURE_LEVEL_ES2_REMOVED 1
+#define FEATURE_LEVEL_ES3_1 2
+#define FEATURE_LEVEL_SM3 3
+#define FEATURE_LEVEL_SM4 4
+#define FEATURE_LEVEL_SM5 5
+#define FEATURE_LEVEL_SM6 6
+#define FEATURE_LEVEL_MAX 7
+
+// Values of PLATFORM_GPU_ARCH (Platform.ush).
+#define PLATFORM_GPU_ARCH_UNKNOWN 0x0000
+#define PLATFORM_GPU_ARCH_AMD_RDNA_2 0x1120
+#define PLATFORM_GPU_ARCH_AMD_RDNA_3 0x1130
+#define PLATFORM_GPU_ARCH_AMD_LATTEST PLATFORM_GPU_ARCH_AMD_RDNA_3
+
+#ifndef COMPILER_DXC
+#define COMPILER_DXC 1
+#endif
+#ifndef COMPILER_HLSL
+#define COMPILER_HLSL 1
+#endif
+#ifndef COMPILER_HLSLCC
+#define COMPILER_HLSLCC 0
+#endif
+#ifndef COMPILER_VULKAN
+#define COMPILER_VULKAN 0
+#endif
+#ifndef COMPILER_GLSL
+#define COMPILER_GLSL 0
+#endif
+#ifndef COMPILER_GLSL_ES3_1
+#define COMPILER_GLSL_ES3_1 0
+#endif
+#ifndef COMPILER_METAL
+#define COMPILER_METAL 0
+#endif
+#ifndef SM6_PROFILE
+#define SM6_PROFILE 0
+#endif
+#ifndef SM5_PROFILE
+#define SM5_PROFILE 1
+#endif
+#ifndef FEATURE_LEVEL
+#define FEATURE_LEVEL FEATURE_LEVEL_SM5
+#endif
+// Capability input, not a global D3D FP16 denial.  The 0 default is the
+// resolved Vulkan-5.8 target value (UE-254365); native-capable targets must
+// override it from GetSupportsRealTypes(platform) and follow fp16_capability.
+#ifndef PLATFORM_SUPPORTS_REAL_TYPES
+#define PLATFORM_SUPPORTS_REAL_TYPES 0
+#endif
+#ifndef PLATFORM_SUPPORTS_RELAXED_PRECISION
+#define PLATFORM_SUPPORTS_RELAXED_PRECISION 0
+#endif
+#ifndef PLATFORM_USES_SPIRV_RESOURCE_TYPES
+#define PLATFORM_USES_SPIRV_RESOURCE_TYPES 1
+#endif
+#ifndef PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS
+#define PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS 0
+#endif
+#ifndef PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE
+#define PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE 0
+#endif
+#ifndef PLATFORM_NEEDS_SELECT_UINT
+#define PLATFORM_NEEDS_SELECT_UINT 0
+#endif
+#ifndef PLATFORM_GPU_ARCH
+#define PLATFORM_GPU_ARCH PLATFORM_GPU_ARCH_UNKNOWN
+#endif
+#ifndef COMPILER_SUPPORTS_HLSL2021
+#define COMPILER_SUPPORTS_HLSL2021 0
+#endif
+#ifndef COMPILER_SUPPORTS_MINMAX3
+#define COMPILER_SUPPORTS_MINMAX3 0
+#endif
+#ifndef COMPILER_SUPPORTS_MED3
+#define COMPILER_SUPPORTS_MED3 0
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_ONCE
+#define COMPILER_SUPPORTS_WAVE_ONCE 0
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_VOTE
+#define COMPILER_SUPPORTS_WAVE_VOTE 0
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_MINMAX
+#define COMPILER_SUPPORTS_WAVE_MINMAX 0
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_BIT_ORAND
+#define COMPILER_SUPPORTS_WAVE_BIT_ORAND 0
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_PERMUTE
+#define COMPILER_SUPPORTS_WAVE_PERMUTE 0
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_SWIZZLE_GCN
+#define COMPILER_SUPPORTS_WAVE_SWIZZLE_GCN 0
+#endif
+#ifndef SUPPORTS_INDEPENDENT_SAMPLERS
+#define SUPPORTS_INDEPENDENT_SAMPLERS 1
+#endif
+#ifndef UE_BINDLESS_ENABLED
+#define UE_BINDLESS_ENABLED 0
+#endif
+#ifndef FORCE_FLOATS
+#define FORCE_FLOATS 0
+#endif
+
+// Platform.ush: the default SM5 profile uses float for real types.
+#if FORCE_FLOATS || !PLATFORM_SUPPORTS_REAL_TYPES
+#define half float
+#define half1 float1
+#define half2 float2
+#define half3 float3
+#define half4 float4
+#define half2x2 float2x2
+#define half3x2 float3x2
+#define half4x2 float4x2
+#define half3x3 float3x3
+#define half3x4 float3x4
+#define half4x4 float4x4
+#define half4x3 float4x3
+#define fixed float
+#define fixed1 float1
+#define fixed2 float2
+#define fixed3 float3
+#define fixed4 float4
+#define fixed3x3 float3x3
+#define fixed4x4 float4x4
+#define fixed4x3 float4x3
+#endif
+
+// Platform/D3D/D3DCommon.ush: SM6 wave-size attribute.
+#if SM6_PROFILE
+	#define COMPILER_SUPPORTS_WAVE_SIZE 1
+	#define WAVESIZE(N) [WaveSize(N)]
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_SIZE
+	#define COMPILER_SUPPORTS_WAVE_SIZE 0
+	#define WAVESIZE(N)
+#endif
+
+// Platform.ush: compiler attributes.
+#if SM6_PROFILE || SM5_PROFILE || COMPILER_SUPPORTS_ATTRIBUTES
+#define UNROLL [unroll]
+#define UNROLL_N(N) [unroll(N)]
+#define LOOP [loop]
+#define BRANCH [branch]
+#define FLATTEN [flatten]
+#define ALLOW_UAV_CONDITION [allow_uav_condition]
+#endif
+
+#ifndef UNROLL
+#define UNROLL
+#endif
+#ifndef UNROLL_N
+#define UNROLL_N(N)
+#endif
+#ifndef LOOP
+#define LOOP
+#endif
+#ifndef BRANCH
+#define BRANCH
+#endif
+#ifndef FLATTEN
+#define FLATTEN
+#endif
+#ifndef ALLOW_UAV_CONDITION
+#define ALLOW_UAV_CONDITION
+#endif
+#ifndef ISOLATE
+#define ISOLATE
+#endif
+#ifndef CALL_SITE_DEBUGLOC
+#define CALL_SITE_DEBUGLOC
+#endif
+#ifndef checkSlow
+#define checkSlow(expr)
+#endif
+#ifndef INFINITE_FLOAT
+	#if COMPILER_HLSLCC
+		#define INFINITE_FLOAT 3.402823e+38
+	#else
+		#define INFINITE_FLOAT 3.402823466e+38f
+	#endif
+#endif
+
+// Platform.ush: invariant helpers.
+#ifndef INVARIANT
+precise float MakePrecise(in precise float v) { precise float pv = v; return pv; }
+precise float2 MakePrecise(in precise float2 v) { precise float2 pv = v; return pv; }
+precise float3 MakePrecise(in precise float3 v) { precise float3 pv = v; return pv; }
+precise float4 MakePrecise(in precise float4 v) { precise float4 pv = v; return pv; }
+#define INVARIANT(X) MakePrecise(X)
+#endif
+#ifndef INVARIANT_ADD
+#define INVARIANT_ADD(Lhs, Rhs) INVARIANT((Lhs) + (Rhs))
+#endif
+#ifndef INVARIANT_SUB
+#define INVARIANT_SUB(Lhs, Rhs) INVARIANT((Lhs) - (Rhs))
+#endif
+#ifndef INVARIANT_MUL
+#define INVARIANT_MUL(Lhs, Rhs) INVARIANT((Lhs) * (Rhs))
+#endif
+#ifndef INVARIANT_DIV
+#define INVARIANT_DIV(Lhs, Rhs) INVARIANT((Lhs) / (Rhs))
+#endif
+#ifndef INVARIANT_FMA
+#define INVARIANT_FMA(A, B, C) INVARIANT(FMA((A), (B), (C)))
+#endif
+#ifndef INVARIANT_OUTPUT
+#define INVARIANT_OUTPUT
+#endif
+#ifndef PLATFORM_SUPPORTS_FMA
+#define PLATFORM_SUPPORTS_FMA 1
+#define FMA(a, b, c) mad(a, b, c)
+#endif
+
+// Platform.ush: HLSL 2021 vector bool helpers.
+#define select(cond,a,b) select_internal(cond,a,b)
+#define DEFINE_SELECT(TYPE) \
+	TYPE    select_internal(bool    c, TYPE    a, TYPE    b) { return TYPE   (c   ? a.x : b.x); } \
+	\
+	TYPE##2 select_internal(bool    c, TYPE    a, TYPE##2 b) { return TYPE##2(c   ? a   : b.x, c   ? a   : b.y); } \
+	TYPE##2 select_internal(bool    c, TYPE##2 a, TYPE    b) { return TYPE##2(c   ? a.x : b  , c   ? a.y : b  ); } \
+	TYPE##2 select_internal(bool    c, TYPE##2 a, TYPE##2 b) { return TYPE##2(c   ? a.x : b.x, c   ? a.y : b.y); } \
+	TYPE##2 select_internal(bool2   c, TYPE    a, TYPE    b) { return TYPE##2(c.x ? a   : b  , c.y ? a   : b  ); } \
+	TYPE##2 select_internal(bool2   c, TYPE    a, TYPE##2 b) { return TYPE##2(c.x ? a   : b.x, c.y ? a   : b.y); } \
+	TYPE##2 select_internal(bool2   c, TYPE##2 a, TYPE    b) { return TYPE##2(c.x ? a.x : b  , c.y ? a.y : b  ); } \
+	TYPE##2 select_internal(bool2   c, TYPE##2 a, TYPE##2 b) { return TYPE##2(c.x ? a.x : b.x, c.y ? a.y : b.y); } \
+	\
+	TYPE##3 select_internal(bool    c, TYPE    a, TYPE##3 b) { return TYPE##3(c   ? a   : b.x, c   ? a   : b.y, c   ? a   : b.z); } \
+	TYPE##3 select_internal(bool    c, TYPE##3 a, TYPE    b) { return TYPE##3(c   ? a.x : b  , c   ? a.y : b  , c   ? a.z : b  ); } \
+	TYPE##3 select_internal(bool    c, TYPE##3 a, TYPE##3 b) { return TYPE##3(c   ? a.x : b.x, c   ? a.y : b.y, c   ? a.z : b.z); } \
+	TYPE##3 select_internal(bool3   c, TYPE    a, TYPE    b) { return TYPE##3(c.x ? a   : b  , c.y ? a   : b  , c.z ? a   : b  ); } \
+	TYPE##3 select_internal(bool3   c, TYPE    a, TYPE##3 b) { return TYPE##3(c.x ? a   : b.x, c.y ? a   : b.y, c.z ? a   : b.z); } \
+	TYPE##3 select_internal(bool3   c, TYPE##3 a, TYPE    b) { return TYPE##3(c.x ? a.x : b  , c.y ? a.y : b  , c.z ? a.z : b  ); } \
+	TYPE##3 select_internal(bool3   c, TYPE##3 a, TYPE##3 b) { return TYPE##3(c.x ? a.x : b.x, c.y ? a.y : b.y, c.z ? a.z : b.z); } \
+	\
+	TYPE##4 select_internal(bool    c, TYPE    a, TYPE##4 b) { return TYPE##4(c   ? a   : b.x, c   ? a   : b.y, c   ? a   : b.z, c   ? a   : b.w); } \
+	TYPE##4 select_internal(bool    c, TYPE##4 a, TYPE    b) { return TYPE##4(c   ? a.x : b  , c   ? a.y : b  , c   ? a.z : b  , c   ? a.w : b  ); } \
+	TYPE##4 select_internal(bool    c, TYPE##4 a, TYPE##4 b) { return TYPE##4(c   ? a.x : b.x, c   ? a.y : b.y, c   ? a.z : b.z, c   ? a.w : b.w); } \
+	TYPE##4 select_internal(bool4   c, TYPE    a, TYPE    b) { return TYPE##4(c.x ? a   : b  , c.y ? a   : b  , c.z ? a   : b  , c.w ? a   : b  ); } \
+	TYPE##4 select_internal(bool4   c, TYPE    a, TYPE##4 b) { return TYPE##4(c.x ? a   : b.x, c.y ? a   : b.y, c.z ? a   : b.z, c.w ? a   : b.w); } \
+	TYPE##4 select_internal(bool4   c, TYPE##4 a, TYPE    b) { return TYPE##4(c.x ? a.x : b  , c.y ? a.y : b  , c.z ? a.z : b  , c.w ? a.w : b  ); } \
+	TYPE##4 select_internal(bool4   c, TYPE##4 a, TYPE##4 b) { return TYPE##4(c.x ? a.x : b.x, c.y ? a.y : b.y, c.z ? a.z : b.z, c.w ? a.w : b.w); }
+
+DEFINE_SELECT(bool)
+#if !(COMPILER_HLSL || COMPILER_DXC || COMPILER_HLSLCC) || PLATFORM_NEEDS_SELECT_UINT
+DEFINE_SELECT(uint)
+#endif
+DEFINE_SELECT(int)
+DEFINE_SELECT(float)
+#if PLATFORM_SUPPORTS_REAL_TYPES
+DEFINE_SELECT(half)
+#if !(COMPILER_HLSL || COMPILER_DXC || COMPILER_HLSLCC)
+DEFINE_SELECT(uint16_t)
+#endif
+DEFINE_SELECT(int16_t)
+#endif
+#undef DEFINE_SELECT
+
+bool  and_internal(bool  a, bool  b) { return bool(a && b); }
+bool2 and_internal(bool2 a, bool2 b) { return bool2(a.x && b.x, a.y && b.y); }
+bool3 and_internal(bool3 a, bool3 b) { return bool3(a.x && b.x, a.y && b.y, a.z && b.z); }
+bool4 and_internal(bool4 a, bool4 b) { return bool4(a.x && b.x, a.y && b.y, a.z && b.z, a.w && b.w); }
+
+bool  or_internal(bool  a, bool  b) { return bool(a || b); }
+bool2 or_internal(bool2 a, bool2 b) { return bool2(a.x || b.x, a.y || b.y); }
+bool3 or_internal(bool3 a, bool3 b) { return bool3(a.x || b.x, a.y || b.y, a.z || b.z); }
+bool4 or_internal(bool4 a, bool4 b) { return bool4(a.x || b.x, a.y || b.y, a.z || b.z, a.w || b.w); }
+
+#define and(a, b) and_internal(a, b)
+#define or(a, b) or_internal(a, b)
+
+// Platform.ush: scalar min3/max3 fallback (COMPILER_SUPPORTS_MINMAX3 == 0).
+#if !COMPILER_SUPPORTS_MINMAX3
+float min3(float a, float b, float c) { return min(a, min(b, c)); }
+int min3(int a, int b, int c) { return min(a, min(b, c)); }
+uint min3(uint a, uint b, uint c) { return min(a, min(b, c)); }
+float max3(float a, float b, float c) { return max(a, max(b, c)); }
+int max3(int a, int b, int c) { return max(a, max(b, c)); }
+uint max3(uint a, uint b, uint c) { return max(a, max(b, c)); }
+#define LUMENFX_VECTOR_OVERLOAD_3(FunctionName, Type) \
+    Type##2 FunctionName(Type##2 a, Type##2 b, Type##2 c) { return Type##2(FunctionName(a.x, b.x, c.x), FunctionName(a.y, b.y, c.y)); } \
+    Type##3 FunctionName(Type##3 a, Type##3 b, Type##3 c) { return Type##3(FunctionName(a.xy, b.xy, c.xy), FunctionName(a.z, b.z, c.z)); } \
+    Type##4 FunctionName(Type##4 a, Type##4 b, Type##4 c) { return Type##4(FunctionName(a.xy, b.xy, c.xy), FunctionName(a.zw, b.zw, c.zw)); }
+LUMENFX_VECTOR_OVERLOAD_3(min3, float)
+LUMENFX_VECTOR_OVERLOAD_3(min3, int)
+LUMENFX_VECTOR_OVERLOAD_3(min3, uint)
+LUMENFX_VECTOR_OVERLOAD_3(max3, float)
+LUMENFX_VECTOR_OVERLOAD_3(max3, int)
+LUMENFX_VECTOR_OVERLOAD_3(max3, uint)
+#undef LUMENFX_VECTOR_OVERLOAD_3
+#endif
+
+// Platform.ush: coherent structured-buffer declarations.
+#ifndef RWCoherentBuffer
+#define RWCoherentBuffer(TYPE) globallycoherent RWBuffer<TYPE>
+#endif
+
+#if !defined(ToScalarMemory) && !defined(COMPILER_SUPPORTS_TO_SCALAR_MEMORY)
+#define ToScalarMemory(x) (x)
+#endif
+
+#ifndef RWCoherentStructuredBuffer
+#define RWCoherentStructuredBuffer(TYPE) globallycoherent RWStructuredBuffer<TYPE>
+#endif
+
+#ifndef RWCoherentStructuredBufferRef
+#define RWCoherentStructuredBufferRef(TYPE) RWStructuredBuffer<TYPE>
+#endif
+
+#ifndef RWCoherentByteAddressBuffer
+#define RWCoherentByteAddressBuffer globallycoherent RWByteAddressBuffer
+#endif
+
+// Platform.ush: indirect dispatch parameter layout.
+#define DISPATCH_INDIRECT_NO_PADDING_UINT_COUNT 3
+
+#ifndef DISPATCH_INDIRECT_UINT_COUNT
+#define DISPATCH_INDIRECT_UINT_COUNT DISPATCH_INDIRECT_NO_PADDING_UINT_COUNT
+#endif
+
+void WriteDispatchIndirectArgs(RWBuffer<uint> RWIndirectDispatchArgsBuffer, in uint InIndex, in uint InIndirectArgX, in uint InIndirectArgY, in uint InIndirectArgZ)
+{
+	RWIndirectDispatchArgsBuffer[DISPATCH_INDIRECT_UINT_COUNT * InIndex + 0] = InIndirectArgX;
+	RWIndirectDispatchArgsBuffer[DISPATCH_INDIRECT_UINT_COUNT * InIndex + 1] = InIndirectArgY;
+	RWIndirectDispatchArgsBuffer[DISPATCH_INDIRECT_UINT_COUNT * InIndex + 2] = InIndirectArgZ;
+}
+void WriteDispatchIndirectArgs(RWBuffer<uint> RWIndirectDispatchArgsBuffer, in uint InIndex, in uint3 InIndirectArg)
+{
+	WriteDispatchIndirectArgs(RWIndirectDispatchArgsBuffer, InIndex, InIndirectArg.x, InIndirectArg.y, InIndirectArg.z);
+}
+
+// Structured-buffer variant for host indirect arguments stored as uint words.
+void WriteDispatchIndirectArgs(RWStructuredBuffer<uint> RWIndirectDispatchArgsBuffer, in uint InIndex, in uint InIndirectArgX, in uint InIndirectArgY, in uint InIndirectArgZ)
+{
+	RWIndirectDispatchArgsBuffer[DISPATCH_INDIRECT_UINT_COUNT * InIndex + 0] = InIndirectArgX;
+	RWIndirectDispatchArgsBuffer[DISPATCH_INDIRECT_UINT_COUNT * InIndex + 1] = InIndirectArgY;
+	RWIndirectDispatchArgsBuffer[DISPATCH_INDIRECT_UINT_COUNT * InIndex + 2] = InIndirectArgZ;
+}
+
+void WriteDispatchIndirectArgs(RWStructuredBuffer<uint> RWIndirectDispatchArgsBuffer, in uint InIndex, in uint3 InIndirectArg)
+{
+	WriteDispatchIndirectArgs(RWIndirectDispatchArgsBuffer, InIndex, InIndirectArg.x, InIndirectArg.y, InIndirectArg.z);
+}
+
+#ifndef DRAW_INDIRECT_UINT_COUNT
+#define DRAW_INDIRECT_UINT_COUNT 4
+void WriteIndirectDrawArgs(RWBuffer<uint> OutIndirectArgsBuffer, in uint InIndex, in uint InVertexCount, in uint InInstanceCount, in uint StartVertexLocation = 0, in uint StartInstanceLocation = 0)
+{
+	OutIndirectArgsBuffer[DRAW_INDIRECT_UINT_COUNT * InIndex + 0] = InVertexCount;
+	OutIndirectArgsBuffer[DRAW_INDIRECT_UINT_COUNT * InIndex + 1] = InInstanceCount;
+	OutIndirectArgsBuffer[DRAW_INDIRECT_UINT_COUNT * InIndex + 2] = StartVertexLocation;
+	OutIndirectArgsBuffer[DRAW_INDIRECT_UINT_COUNT * InIndex + 3] = StartInstanceLocation;
+}
+void WriteIndirectDrawArgs(RWStructuredBuffer<uint> OutIndirectArgsBuffer, in uint InIndex, in uint InVertexCount, in uint InInstanceCount, in uint StartVertexLocation = 0, in uint StartInstanceLocation = 0)
+{
+	OutIndirectArgsBuffer[DRAW_INDIRECT_UINT_COUNT * InIndex + 0] = InVertexCount;
+	OutIndirectArgsBuffer[DRAW_INDIRECT_UINT_COUNT * InIndex + 1] = InInstanceCount;
+	OutIndirectArgsBuffer[DRAW_INDIRECT_UINT_COUNT * InIndex + 2] = StartVertexLocation;
+	OutIndirectArgsBuffer[DRAW_INDIRECT_UINT_COUNT * InIndex + 3] = StartInstanceLocation;
+}
+#endif
+
+#ifndef BitFieldInsertU32
+uint BitFieldInsertU32(uint Mask, uint Preserve, uint Enable)
+{
+	return (Preserve & Mask) | (Enable & ~Mask);
+}
+#endif
+
+#ifndef BitFieldExtractU32
+uint BitFieldExtractU32(uint Data, uint Size, uint Offset)
+{
+	Size &= 31;
+	Offset &= 31;
+	return (Data >> Offset) & ((1u << Size) - 1u);
+}
+#endif
+
+#ifndef BitFieldExtractI32
+int BitFieldExtractI32(int Data, uint Size, uint Offset)
+{
+	Size &= 31u;
+	Offset &= 31u;
+	const uint Shift = (32u - Size) & 31u;
+	const int Value = (Data >> Offset) & int((1u << Size) - 1u);
+	return (Value << Shift) >> Shift;
+}
+#endif
+
+#ifndef BitFieldMaskU32
+uint BitFieldMaskU32(uint MaskWidth, uint MaskLocation)
+{
+	MaskWidth &= 31u;
+	MaskLocation &= 31u;
+	return ((1u << MaskWidth) - 1u) << MaskLocation;
+}
+#endif
+
+#ifndef BitFieldSetU32
+void BitFieldSetU32(inout uint Packed, uint V, uint Size, uint Offset)
+{
+	Packed |= (V & BitFieldMaskU32(Size, 0)) << Offset;
+}
+#endif
+
+#ifndef BitFieldExtractFloat
+float BitFieldExtractFloat(uint Bits, uint Count, uint Offset)
+{
+	return BitFieldExtractU32(Bits, Count, Offset) / (float)BitFieldMaskU32(Count, 0u);
+}
+#endif
+
+#endif // LUMENFX_SHADER_PLATFORM_COMPAT

@@ -1,0 +1,91 @@
+/* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
+package com.lowdragmc.photon.client.gameobject.emitter.data.model;
+
+import com.lowdragmc.photon.client.gameobject.emitter.data.model.skin.SkinnedModel;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+
+/** Shares parsed geometry and animation assets for the current resource generation. */
+public final class PhotonMeshCache implements ResourceManagerReloadListener {
+    public static final PhotonMeshCache INSTANCE = new PhotonMeshCache();
+
+    /** JSON model geometry, keyed by the model id. */
+    public record JsonKey(Identifier model) {
+    }
+
+    /** Runtime-parsed OBJ geometry; parser options are part of the key. */
+    public record ObjKey(Identifier location, boolean flipV) {
+    }
+
+    /** Runtime-parsed glTF ({@code .glb}/{@code .gltf}) geometry; parser options are part of the key. */
+    public record GltfKey(Identifier location, boolean flipV) {
+    }
+
+    private final ConcurrentHashMap<Object, PhotonMesh> cache = new ConcurrentHashMap<>();
+    /**
+     * Parsed models with their skins and animations, for the sources that need more than geometry.
+     * Separate from {@link #cache} rather than replacing it because most sources produce no skeleton at
+     * all and should not be made to carry a wrapper for one — but invalidation is shared, so a reload or
+     * an edit drops both under the same key.
+     */
+    private final ConcurrentHashMap<Object, SkinnedModel> models = new ConcurrentHashMap<>();
+    /** Entries built from other entries (a model combined with its animation files), by what they were built from. */
+    private final ConcurrentHashMap<Object, Set<Object>> dependents = new ConcurrentHashMap<>();
+
+    private PhotonMeshCache() {
+    }
+
+    /**
+     * Cached lookup. A {@code null} from the loader means "cannot load right now" (e.g. during the
+     * loading overlay): {@link PhotonMesh#EMPTY} is returned but nothing is cached, so the next
+     * call retries.
+     */
+    public PhotonMesh get(Object key, Function<Object, @Nullable PhotonMesh> loader) {
+        var mesh = cache.computeIfAbsent(key, loader);
+        return mesh == null ? PhotonMesh.EMPTY : mesh;
+    }
+
+    /**
+     * Cached lookup of a parsed model, with the same {@code null} = "cannot load right now, retry"
+     * contract as {@link #get}.
+     */
+    public SkinnedModel getModel(Object key, Function<Object, @Nullable SkinnedModel> loader) {
+        var model = models.computeIfAbsent(key, loader);
+        return model == null ? SkinnedModel.EMPTY : model;
+    }
+
+    /** {@code key} was built from {@code dependency}, so dropping the dependency drops it too. */
+    public void dependOn(Object key, Object dependency) {
+        dependents.computeIfAbsent(dependency, k -> ConcurrentHashMap.newKeySet()).add(key);
+    }
+
+    public void invalidate(Object key) {
+        cache.remove(key);
+        models.remove(key);
+        var built = dependents.remove(key);
+        if (built != null) built.forEach(this::invalidate);
+        // Poses are keyed by the model instance they were deformed from, so dropping a model would
+        // otherwise leave its poses holding the only reference to it. They cost one frame to rebuild, so
+        // clearing all of them is cheaper than tracking which belong to this key.
+        AnimatedPose.clear();
+    }
+
+    public void clear() {
+        cache.clear();
+        models.clear();
+        dependents.clear();
+        AnimatedPose.clear();
+    }
+
+    @Override
+    public void onResourceManagerReload(@NotNull ResourceManager resourceManager) {
+        clear();
+    }
+}

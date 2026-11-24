@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{7CC942C2-3404-460D-B044-23D26AF0ECC4}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <VCToolsVersion>14.44.35207</VCToolsVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset Condition="'$(VisualStudioVersion)' == '18.0'">v145</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioVersion)' != '18.0'">v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <TargetName>lumenfx_mesh_source</TargetName>
+    <OutDir>$(LumenFxMeshOutput)\</OutDir>
+    <IntDir>$(LumenFxMeshWork)\objects\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <FloatingPointModel>Precise</FloatingPointModel>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(LumenFxMikkRoot)\inc;$(LumenFxForsythRoot)\Src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link><GenerateDebugInformation>false</GenerateDebugInformation></Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="mesh_tangents.cpp" />
+    <ClCompile Include="mesh_index_order.cpp" />
+    <ClCompile Include="$(LumenFxForsythRoot)\Src\forsythtriangleorderoptimizer.cpp" />
+    <ClCompile Include="$(LumenFxMikkRoot)\src\mikktspace.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+  </ItemGroup>
+  <Target Name="RequireMeshSourcePaths" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(LumenFxMeshOutput)' == '' Or '$(LumenFxMeshWork)' == ''" Text="Explicit mesh tool output and work directories are required." />
+    <Error Condition="!Exists('$(LumenFxMikkRoot)\inc\mikktspace.h') Or !Exists('$(LumenFxMikkRoot)\src\mikktspace.c')" Text="The matching standalone MikkTSpace sources are required." />
+    <Error Condition="!Exists('$(LumenFxForsythRoot)\Src\forsythtriangleorderoptimizer.h') Or !Exists('$(LumenFxForsythRoot)\Src\forsythtriangleorderoptimizer.cpp')" Text="The matching standalone Forsyth index optimizer sources are required." />
+  </Target>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

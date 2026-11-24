@@ -1,0 +1,10 @@
+#ifndef LUMENFX_NANITE_PAGE_ADDRESS
+#define LUMENFX_NANITE_PAGE_ADDRESS
+
+uint NanitePageWord(uint page, uint streamingSlots)
+{
+    // High page IDs identify persistent roots independently of the size of the streaming prefix.
+    return page < streamingSlots ? page << 15u : (streamingSlots << 15u) + ((32767u - page) << 13u);
+}
+
+#endif

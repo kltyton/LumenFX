@@ -1,0 +1,53 @@
+{
+  "schema": "lumenfx.shaders.index.v1",
+  "pipeline": "texture_target_mips",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "programs": [
+    {
+      "pass": "generate",
+      "variant": "linear",
+      "selectionKeys": [],
+      "path": "texture_target_mips/generate/linear/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 1688,
+            "sha256": "300ba7ce4123c1fc996c4e856ac5aeb464fe59c3d147f1f27aca044d6af63585"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 1788,
+            "sha256": "c6448321b4e24a413553e60ccaaebc6298f47c7d281bd6df9af0eef49aaa511e"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "generate",
+      "variant": "srgb",
+      "selectionKeys": [],
+      "path": "texture_target_mips/generate/srgb/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 2608,
+            "sha256": "54487d66bebd1a40e10b9d0b979ef6cb2db78aaabca193a3ce88b45d604c838b"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 3348,
+            "sha256": "e9ed40bcf582d679c38407703cafcf282ca1c70e44650ce5982c03c3c5774d8a"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    }
+  ]
+}

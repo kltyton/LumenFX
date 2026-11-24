@@ -1,0 +1,21 @@
+#pragma once
+
+StructuredBuffer<float> NiagaraParticleDataFloat;
+StructuredBuffer<uint> NiagaraParticleDataHalf;
+StructuredBuffer<int> NiagaraParticleDataInt;
+uint NiagaraFloatDataStride;
+uint NiagaraIntDataStride;
+
+#define NiagaraGetFloatBuffer() NiagaraParticleDataFloat
+#define NiagaraGetHalfBuffer() NiagaraParticleDataHalf
+#define NiagaraGetIntBuffer() NiagaraParticleDataInt
+
+uint NiagaraGetFloatDataStride()
+{
+	return NiagaraFloatDataStride;
+}
+
+uint NiagaraGetIntDataStride()
+{
+	return NiagaraIntDataStride;
+}

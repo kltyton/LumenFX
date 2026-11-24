@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.kltyton.lumenfx.client.audio.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["OpenAlNiagaraWaveMixin", "OpenAlNiagaraCallbackMixin"],
+  "injectors": {"defaultRequire": 1}
+}

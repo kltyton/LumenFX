@@ -1,0 +1,122 @@
+{
+  "schema": "lumenfx.shaders.index.v1",
+  "pipeline": "niagara_mesh_scene",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "programs": [
+    {
+      "pass": "prepare",
+      "variant": "cpu",
+      "selectionKeys": [],
+      "path": "niagara_mesh_scene/prepare/cpu/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 47920,
+            "sha256": "1b4119a1b47f98a9584ba966f44c765bce5ba129911841f9427b4024524cfbd1"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 108848,
+            "sha256": "124e96c740ea3581ff021a23f47c4a24adfcd066547ca05760ffa4aad6b74236"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "prepare",
+      "variant": "gpu",
+      "selectionKeys": [],
+      "path": "niagara_mesh_scene/prepare/gpu/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 70720,
+            "sha256": "44a938aa4acad821d22d39eb999263ab6e0d0fe6c9664a6264c752ed768764af"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 137304,
+            "sha256": "6906121ef276682553a3c6cee258969b8ab04779348d405e59caf1349d62b75c"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "compaction_offsets",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_mesh_scene/compaction_offsets/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 4096,
+            "sha256": "9073923c5a8d6751cb39670f6ac3b90b4490439b5107c78e20fa9e7c6ec9adb1"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 6668,
+            "sha256": "85390cc3ae6669d2e21cb3bde51fbe41e65ab7ee8db51ce7a817c9a62d2e005b"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "compaction_scatter",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_mesh_scene/compaction_scatter/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 4244,
+            "sha256": "2e1c010e87b78581af8d7899be6db8a7cee5176117a6b460547823ff4d7dc0b1"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 7312,
+            "sha256": "a4d6677a72a04d1c2123fc99abf341af28ed08bf1a43858b32098a1297fb906b"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "cull",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_mesh_scene/cull/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 15064,
+            "sha256": "2b4eab5a6be4c484145458d9dfa378c7eb3e6dbf5e3fa927c899ba75ebf58302"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 46732,
+            "sha256": "36ca1350d6aa9505e037dc874d9411d25b4b98987d10497ea3aefdd8702e314c"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    }
+  ]
+}

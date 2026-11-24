@@ -1,0 +1,30 @@
+cbuffer RadixSortUniformBuffer
+{
+    uint RadixShift;
+    uint TilesPerGroup;
+    uint ExtraTileCount;
+    uint ExtraKeyCount;
+    uint GroupCount;
+};
+
+struct _LfxRadixSortParameters
+{
+    uint RadixShift;
+    uint TilesPerGroup;
+    uint ExtraTileCount;
+    uint ExtraKeyCount;
+    uint GroupCount;
+};
+
+_LfxRadixSortParameters _LfxGetRadixSortUB()
+{
+    _LfxRadixSortParameters Parameters;
+    Parameters.RadixShift = RadixShift;
+    Parameters.TilesPerGroup = TilesPerGroup;
+    Parameters.ExtraTileCount = ExtraTileCount;
+    Parameters.ExtraKeyCount = ExtraKeyCount;
+    Parameters.GroupCount = GroupCount;
+    return Parameters;
+}
+
+#define RadixSortUB (_LfxGetRadixSortUB())

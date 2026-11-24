@@ -1,0 +1,61 @@
+#include "LumenFX/Nanite/NaniteTriangleDecode.ush"
+#include "LumenFX/Nanite/NaniteSceneTransforms.ush"
+
+StructuredBuffer<uint4> NaniteVisibleClusters;
+StructuredBuffer<uint2> NaniteBinTriangles;
+StructuredBuffer<uint4> NaniteRasterCommands;
+RWStructuredBuffer<uint> NanitePrimitiveLookup;
+RWStructuredBuffer<uint4> NaniteShadingPrimitives;
+RWStructuredBuffer<float4> NaniteShadingVertices;
+
+cbuffer NaniteShadingGeometryLayout
+{
+    uint NaniteShadingStreamingSlots;
+    uint NaniteShadingDispatchWidth;
+    uint NaniteShadingReverseWinding;
+};
+
+static const uint CLUSTER_TRIANGLES = 128u;
+static const uint VERTEX_WORDS = 9u;
+
+float3x3 RotationOnly(float4x4 transform)
+{
+    return float3x3(normalize(transform[0].xyz), normalize(transform[1].xyz), normalize(transform[2].xyz));
+}
+
+[numthreads(64, 1, 1)]
+void PrepareNaniteShadingGeometry(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x + id.y * NaniteShadingDispatchWidth;
+    uint4 lastBin = NaniteRasterCommands[127u];
+    if (index >= (lastBin.x + lastBin.z) / 3u) return;
+    uint2 primitive = NaniteBinTriangles[index];
+    uint4 visible = NaniteVisibleClusters[primitive.x];
+    NaniteTriangleCluster cluster = NaniteLoadTriangleCluster(visible.y, visible.z, NaniteShadingStreamingSlots);
+    NaniteTriangleVertex vertices[3];
+    NaniteDecodeTriangle(cluster, primitive.y, vertices);
+
+    uint assembly = visible.w & 0xffffu;
+    float4x4 current = NanitePartMatrix(visible.x, assembly, false);
+    float4x4 previous = NanitePartMatrix(visible.x, assembly, true);
+    float3x3 rotation = RotationOnly(current);
+    NanitePrimitiveLookup[primitive.x * CLUSTER_TRIANGLES + primitive.y] = index;
+    NaniteShadingPrimitives[index] = uint4(visible.x, NaniteTriangleMaterial(cluster, primitive.y), assembly,
+        (determinant(rotation) < 0.0f ? 1u : 0u) | (NaniteShadingReverseWinding << 1u));
+    [unroll]
+    for (uint corner = 0u; corner < 3u; ++corner)
+    {
+        NaniteTriangleVertex source = vertices[corner];
+        uint output = (index * 3u + corner) * VERTEX_WORDS;
+        float4 local = float4(source.position, 1.0f);
+        NaniteShadingVertices[output] = mul(local, current);
+        NaniteShadingVertices[output + 1u] = mul(local, previous);
+        NaniteShadingVertices[output + 2u] = float4(mul(source.normal, rotation), source.tangent.w);
+        NaniteShadingVertices[output + 3u] = float4(mul(source.tangent.xyz, rotation), 0.0f);
+        NaniteShadingVertices[output + 4u] = source.color;
+        NaniteShadingVertices[output + 5u] = float4(source.uv[0], source.uv[1]);
+        NaniteShadingVertices[output + 6u] = float4(source.uv[2], source.uv[3]);
+        NaniteShadingVertices[output + 7u] = local;
+        NaniteShadingVertices[output + 8u] = float4(source.normal, 0.0f);
+    }
+}

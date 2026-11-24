@@ -1,0 +1,53 @@
+{
+  "schema": "lumenfx.shaders.index.v1",
+  "pipeline": "niagara_draw_indirect",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "programs": [
+    {
+      "pass": "generate",
+      "variant": "separate_reset",
+      "selectionKeys": [],
+      "path": "niagara_draw_indirect/generate/separate_reset/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 2372,
+            "sha256": "d674d6b6906e615755e4eba1bc984ecc8564a7457f82cad3a6bbf4ba55fcc272"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 3460,
+            "sha256": "49d28b9e2ef7a21a2cf444416a02aac6437f01c9b2f8c9521064bbc00305ec60"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "generate",
+      "variant": "combined_reset",
+      "selectionKeys": [],
+      "path": "niagara_draw_indirect/generate/combined_reset/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 2768,
+            "sha256": "8debfd767e53763a762e75ac25e6c92cac938fc7c7ef551f4c81d5cd816095aa"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 4180,
+            "sha256": "095a50aca7bbc43b4f34c91d78c8fd3c2d124acbcafb76132ffff1830507ffb3"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    }
+  ]
+}

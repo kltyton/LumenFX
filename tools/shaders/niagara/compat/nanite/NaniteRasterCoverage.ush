@@ -1,0 +1,2 @@
+#define LFX_NANITE_COVERAGE_HLSL 1
+#include "LumenFX/Nanite/TriangleCoverage.glsl"

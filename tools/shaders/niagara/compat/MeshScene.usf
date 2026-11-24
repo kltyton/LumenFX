@@ -1,0 +1,331 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/LargeWorldCoordinates.ush"
+#include "/Engine/Generated/LumenMeshParticleUniforms.ush"
+#include "/Engine/Generated/LumenMeshRendererUniforms.ush"
+
+StructuredBuffer<float> NiagaraParticleDataFloat;
+StructuredBuffer<uint> NiagaraParticleDataHalf;
+StructuredBuffer<float> CpuMeshInstances;
+StructuredBuffer<float> CpuMeshExtra;
+StructuredBuffer<uint> SceneParticleCounts;
+StructuredBuffer<float4> CpuEmitterSceneData;
+RWStructuredBuffer<float4> OutMeshSceneTransforms;
+RWStructuredBuffer<float4> OutMeshSceneMetrics;
+
+cbuffer LumenMeshSceneView
+{
+    uint4 MeshSceneDispatch; // First instance, count, GPU count offset, flags: emitter/compressed/previous/CPU-upload.
+    uint4 MeshSceneInput; // CPU vertex base, extra base, extra row stride, dispatch row width.
+    float4 MeshSceneCameraForward;
+    float4 MeshSceneCameraUp;
+    float4 MeshScenePreviousCameraForward;
+    float4 MeshScenePreviousCameraUp;
+    float4 MeshSceneCameraDeltaTime;
+    float4 MeshSceneDistanceCenter;
+    float4 MeshSceneCameraHigh;
+    float4 MeshSceneCameraLow;
+    float4 MeshScenePreviousCameraHigh;
+    float4 MeshScenePreviousCameraLow;
+};
+
+#define USE_GLOBAL_NIAGARA_DATA_BUFFERS 0
+#define ENABLE_NIAGARA_INT_DATA_ACCESS 0
+#define NiagaraGetFloatBuffer() NiagaraParticleDataFloat
+#define NiagaraGetHalfBuffer() NiagaraParticleDataHalf
+uint NiagaraGetFloatDataStride() { return Attribute2.w; }
+#include "/Plugin/FX/Niagara/Private/NiagaraMeshParticleUtils.ush"
+#include "/Engine/Generated/LumenMeshSceneTransforms.ush"
+
+struct LumenMeshParticle
+{
+    float3 Position;
+    float4 Orientation;
+    float3 Scale;
+    float4 Velocity;
+    float CameraOffset;
+    float4 OwnerPositionScale;
+    float4 OwnerRotation;
+    float3 OwnerAxisScale;
+    float3 PreviousPosition;
+    float4 PreviousOrientation;
+    float3 PreviousScale;
+    float4 PreviousVelocity;
+    float PreviousCameraOffset;
+    float4 PreviousOwnerPositionScale;
+    float4 PreviousOwnerRotation;
+    float3 PreviousOwnerAxisScale;
+};
+
+float3 LumenCpu3(uint index)
+{
+    return float3(CpuMeshInstances[index], CpuMeshInstances[index + 1], CpuMeshInstances[index + 2]);
+}
+
+float4 LumenCpu4(uint index)
+{
+    return float4(LumenCpu3(index), CpuMeshInstances[index + 3]);
+}
+
+float3 LumenExtra3(uint index)
+{
+    return float3(CpuMeshExtra[index], CpuMeshExtra[index + 1], CpuMeshExtra[index + 2]);
+}
+
+float4 LumenExtra4(uint index)
+{
+    return float4(LumenExtra3(index), CpuMeshExtra[index + 3]);
+}
+
+FLWCVector3 LumenWorldCamera(bool previous)
+{
+    if (previous) return DFToTileOffset(MakeDFVector3(MeshScenePreviousCameraHigh.xyz, MeshScenePreviousCameraLow.xyz));
+    return DFToTileOffset(MakeDFVector3(MeshSceneCameraHigh.xyz, MeshSceneCameraLow.xyz));
+}
+
+float4x4 LumenTranslatedWorld(float4x4 relativeTransform, float3 positionHigh)
+{
+    return DFMultiplyAffineTranslationDemote(MakeDFMatrix(positionHigh, relativeTransform),
+        DFNegate(MakeDFVector3(MeshSceneCameraHigh.xyz, MeshSceneCameraLow.xyz)));
+}
+
+#if LFX_SCENE_GPU
+FLWCMatrix LumenPrimitiveLocalToWorld(bool previous)
+{
+    float4x4 relativeTransform = previous
+        ? float4x4(PreviousOwnerRelative0, PreviousOwnerRelative1, PreviousOwnerRelative2, PreviousOwnerRelative3)
+        : float4x4(OwnerRelative0, OwnerRelative1, OwnerRelative2, OwnerRelative3);
+    return DFToTileOffset(MakeDFMatrix(OwnerPositionHigh.xyz, relativeTransform));
+}
+#endif
+
+LumenMeshParticle LumenLoadMeshParticle(uint instance)
+{
+    LumenMeshParticle particle;
+#if LFX_SCENE_GPU
+    particle.OwnerPositionScale = float4(OwnerOffset.xzy * 100.0f, ClockScale.y);
+    particle.OwnerRotation = float4(-OwnerRotation.x, -OwnerRotation.z, -OwnerRotation.y, OwnerRotation.w);
+    particle.OwnerAxisScale = OwnerScale.xzy;
+    particle.Position = NiagaraSafeGetVec3((int)Attribute0.x, instance, HostPosition.xyz);
+    particle.Orientation = NiagaraSafeGetVec4((int)MeshAttributes.y, instance, HostMeshOrientation);
+    particle.Scale = NiagaraSafeGetVec3((int)MeshAttributes.x, instance, HostMeshScale.xyz);
+    particle.Velocity = NiagaraGetVelocityDirMag((int)AxisAttributes.x, HostVelocity.xyz, instance);
+    particle.CameraOffset = NiagaraSafeGetFloat((int)AxisAttributes.w, instance, HostOffsetPivot.x);
+    particle.PreviousPosition = NiagaraSafeGetVec3((int)MeshPreviousAttributes.x, instance, HostPreviousPosition.xyz);
+    particle.PreviousOrientation = NiagaraSafeGetVec4((int)MeshPreviousAttributes.z, instance, HostPreviousOrientation);
+    particle.PreviousScale = NiagaraSafeGetVec3((int)MeshPreviousAttributes.y, instance, HostPreviousScaleOffset.xyz);
+    particle.PreviousVelocity = NiagaraGetVelocityDirMag((int)MeshPreviousAttributes.w, HostPreviousVelocity.xyz, instance);
+    particle.PreviousCameraOffset = NiagaraSafeGetFloat((int)MeshPreviousAxis.x, instance, HostPreviousScaleOffset.w);
+    particle.PreviousOwnerPositionScale = MeshPreviousOwnerPositionScale;
+    particle.PreviousOwnerRotation = MeshPreviousOwnerRotation;
+    particle.PreviousOwnerAxisScale = PreviousOwnerScale.xzy;
+#else
+    uint data = MeshSceneInput.x + (instance - MeshSceneDispatch.x) * 35u;
+    uint extra = MeshSceneInput.y + (instance - MeshSceneDispatch.x) * MeshSceneInput.z;
+    particle.Position = LumenCpu3(data);
+    particle.Orientation = LumenCpu4(data + 3u);
+    particle.Scale = LumenCpu3(data + 7u);
+    particle.CameraOffset = CpuMeshInstances[data + 10u];
+    particle.Velocity = NiagaraGetVelocityDirMag(-1, LumenCpu3(data + 11u), instance);
+    particle.OwnerPositionScale = LumenCpu4(data + 27u);
+    particle.OwnerRotation = LumenCpu4(data + 31u);
+    particle.OwnerAxisScale = float3(particle.OwnerPositionScale.w, CpuMeshExtra[extra + 36u], CpuMeshExtra[extra + 37u]);
+    particle.PreviousPosition = LumenExtra3(extra + 12u);
+    particle.PreviousOrientation = LumenExtra4(extra + 16u);
+    particle.PreviousScale = LumenExtra3(extra + 20u);
+    particle.PreviousCameraOffset = CpuMeshExtra[extra + 23u];
+    particle.PreviousVelocity = NiagaraGetVelocityDirMag(-1, LumenExtra3(extra + 24u), instance);
+    particle.PreviousOwnerPositionScale = LumenExtra4(extra + 28u);
+    particle.PreviousOwnerRotation = LumenExtra4(extra + 32u);
+    particle.PreviousOwnerAxisScale = float3(particle.PreviousOwnerPositionScale.w, CpuMeshExtra[extra + 38u], CpuMeshExtra[extra + 39u]);
+#endif
+    return particle;
+}
+
+NiagaraMeshParticleTransformsParams LumenMeshParameters(uint instance, LumenMeshParticle particle)
+{
+    NiagaraMeshParticleTransformsParams parameters;
+    bool previous = (MeshSceneDispatch.w & 4u) != 0u;
+    parameters.ParticleIndex = instance;
+#if LFX_SCENE_GPU
+    parameters.SystemLWCTile = SimulationTile.xyz;
+#else
+    // The legacy CPU instance stream is already relative to the current draw camera.
+    parameters.SystemLWCTile = 0.0f;
+#endif
+    parameters.bLocalSpace = MeshPivotLocalSpace.w > 0.5f;
+    parameters.bPreciseMotionVectors = previous && (uint)MeshFacingAxis.w == 1u;
+    parameters.FacingMode = (uint)MeshFacingAxis.x;
+    parameters.DeltaSeconds = previous ? MeshSceneCameraDeltaTime.w : 0.0f;
+    parameters.MeshScale = MeshScalePivotSpace.xyz;
+    parameters.MeshRotation = MeshRotation;
+    parameters.MeshOffset = MeshPivotLocalSpace.xyz;
+    uint pivotSpace = (uint)MeshScalePivotSpace.w;
+    parameters.bMeshOffsetIsWorldSpace = pivotSpace != 0u;
+    parameters.bLockedAxisEnable = MeshFacingAxis.y > 0.5f;
+    parameters.LockedAxis = MeshLockedAxisBlend.xyz;
+    parameters.LockedAxisSpace = (uint)MeshFacingAxis.z;
+    parameters.ScaleDataOffset = -1;
+    parameters.RotationDataOffset = -1;
+    parameters.PositionDataOffset = -1;
+    parameters.CameraOffsetDataOffset = -1;
+    parameters.PrevScaleDataOffset = -1;
+    parameters.PrevRotationDataOffset = -1;
+    parameters.PrevPositionDataOffset = -1;
+    parameters.PrevCameraOffsetDataOffset = -1;
+    parameters.DefaultScale = particle.Scale;
+    parameters.DefaultRotation = particle.Orientation;
+    parameters.DefaultPosition = particle.Position;
+    parameters.DefaultCameraOffset = particle.CameraOffset;
+    parameters.DefaultPrevScale = particle.PreviousScale;
+    parameters.DefaultPrevRotation = particle.PreviousOrientation;
+    parameters.DefaultPrevPosition = particle.PreviousPosition;
+    parameters.DefaultPrevCameraOffset = particle.PreviousCameraOffset;
+    parameters.VelocityDirMag = particle.Velocity;
+    parameters.PrevVelocityDirMag = particle.PreviousVelocity;
+#if LFX_SCENE_GPU
+    parameters.CameraOrigin = LumenWorldCamera(false);
+    parameters.PrevCameraOrigin = LumenWorldCamera(true);
+#else
+    parameters.CameraOrigin = MakeLWCVector3(0.0f, 0.0f);
+    parameters.PrevCameraOrigin = MakeLWCVector3(0.0f, -MeshSceneCameraDeltaTime.xyz);
+#endif
+    parameters.CameraForwardDir = MeshSceneCameraForward.xyz;
+    parameters.CameraUpDir = MeshSceneCameraUp.xyz;
+    parameters.PrevCameraForwardDir = MeshScenePreviousCameraForward.xyz;
+    parameters.PrevCameraUpDir = MeshScenePreviousCameraUp.xyz;
+    float3 scale = particle.OwnerAxisScale;
+    float3x3 rotation = NiagaraQuatTo3x3(particle.OwnerRotation);
+    FLWCVector3 position = MakeLWCVector3(0.0f, particle.OwnerPositionScale.xyz);
+#if LFX_SCENE_GPU
+    parameters.PrimitiveLocalToWorld = LumenPrimitiveLocalToWorld(false);
+    parameters.PrimitiveWorldToLocal = DFToTileOffset(MakeDFInverseMatrix(OwnerPositionHigh.xyz,
+        float4x4(OwnerInverseRelative0, OwnerInverseRelative1, OwnerInverseRelative2, OwnerInverseRelative3)));
+#else
+    parameters.PrimitiveLocalToWorld = NiagaraComposeTransformMatrix(scale, rotation, position);
+    parameters.PrimitiveWorldToLocal = NiagaraComposeInvTransformMatrix(scale, rotation, position);
+    float3 primitiveScale = float3(length(parameters.PrimitiveLocalToWorld.M[0].xyz),
+        length(parameters.PrimitiveLocalToWorld.M[1].xyz), length(parameters.PrimitiveLocalToWorld.M[2].xyz));
+    parameters.PrimitiveInvNonUniformScale = float3(primitiveScale.x > 1.0e-4f ? rcp(primitiveScale.x) : 0.0f,
+        primitiveScale.y > 1.0e-4f ? rcp(primitiveScale.y) : 0.0f,
+        primitiveScale.z > 1.0e-4f ? rcp(primitiveScale.z) : 0.0f);
+#endif
+#if LFX_SCENE_GPU
+    parameters.PrimitiveInvNonUniformScale = OwnerInverseScale.xyz;
+#endif
+    float4 oldOwner = previous ? particle.PreviousOwnerPositionScale : particle.OwnerPositionScale;
+    float4 oldRotation = previous ? particle.PreviousOwnerRotation : particle.OwnerRotation;
+    float3 oldScale = previous ? particle.PreviousOwnerAxisScale : particle.OwnerAxisScale;
+#if LFX_SCENE_GPU
+    parameters.PrimitivePrevLocalToWorld = parameters.PrimitiveLocalToWorld;
+    if (previous) parameters.PrimitivePrevLocalToWorld = LumenPrimitiveLocalToWorld(true);
+#else
+    parameters.PrimitivePrevLocalToWorld = NiagaraComposeTransformMatrix(oldScale, NiagaraQuatTo3x3(oldRotation),
+        MakeLWCVector3(0.0f, oldOwner.xyz));
+#endif
+    if (pivotSpace == 3u || (pivotSpace == 1u && parameters.bLocalSpace))
+        parameters.MeshOffset = mul(float4(parameters.MeshOffset, 0.0f), parameters.PrimitiveLocalToWorld.M).xyz;
+    return parameters;
+}
+
+float4x4 LumenSceneRoundTrip(float4x4 transformValue, out float3 inverseScale)
+{
+    if ((MeshSceneDispatch.w & 2u) != 0u)
+    {
+        uint4 packed;
+        float3 translation;
+        float3 scale;
+        EncodeTransform(transformValue, packed, translation);
+        transformValue = DecodeTransform(packed, translation, scale);
+        inverseScale = rcp(abs(scale));
+    }
+    else
+    {
+        inverseScale = rsqrt(float3(dot(transformValue[0].xyz, transformValue[0].xyz),
+            dot(transformValue[1].xyz, transformValue[1].xyz), dot(transformValue[2].xyz, transformValue[2].xyz)));
+    }
+    return transformValue;
+}
+
+[numthreads(64, 1, 1)]
+void MainCS(uint3 thread : SV_DispatchThreadID)
+{
+    uint count = MeshSceneDispatch.y;
+#if LFX_SCENE_GPU
+    count = (MeshSceneDispatch.w & 1u) != 0u ? 1u : SceneParticleCounts[MeshSceneDispatch.z];
+#endif
+    uint index = thread.x + thread.y * MeshSceneInput.w;
+    if (index >= count) return;
+    uint instance = MeshSceneDispatch.x + index;
+    bool previousEnabled = (MeshSceneDispatch.w & 4u) != 0u;
+    float4x4 current, previous;
+    float determinantSign;
+    float3 inverseScale, previousInverseScale;
+    if ((MeshSceneDispatch.w & 8u) != 0u)
+    {
+        current = float4x4(CpuEmitterSceneData[0], CpuEmitterSceneData[1], CpuEmitterSceneData[2], CpuEmitterSceneData[3]);
+        previous = previousEnabled
+            ? float4x4(CpuEmitterSceneData[4], CpuEmitterSceneData[5], CpuEmitterSceneData[6], CpuEmitterSceneData[7]) : current;
+        float4 state = CpuEmitterSceneData[10];
+        OutMeshSceneMetrics[index] = 0.0f;
+        determinantSign = state.y != 0.0f ? 0.0f : state.x;
+        if ((MeshSceneDispatch.w & 2u) != 0u)
+        {
+            current = DecodeTransform(asuint(CpuEmitterSceneData[8]), current[3].xyz, inverseScale);
+            if (previousEnabled) previous = DecodeTransform(asuint(CpuEmitterSceneData[9]), previous[3].xyz, previousInverseScale);
+            inverseScale = rcp(abs(inverseScale));
+        }
+        else
+        {
+            inverseScale = rsqrt(float3(dot(current[0].xyz, current[0].xyz), dot(current[1].xyz, current[1].xyz), dot(current[2].xyz, current[2].xyz)));
+        }
+        if (!previousEnabled)
+            previous = mul(current, float4x4(CpuEmitterSceneData[12], CpuEmitterSceneData[13], CpuEmitterSceneData[14], CpuEmitterSceneData[15]));
+        current = LumenTranslatedWorld(current, CpuEmitterSceneData[11].xyz);
+        previous = LumenTranslatedWorld(previous, CpuEmitterSceneData[11].xyz);
+    }
+    else
+    {
+        LumenMeshParticle particle = LumenLoadMeshParticle(instance);
+        NiagaraMeshParticleTransformsParams parameters = LumenMeshParameters(instance, particle);
+        NiagaraMeshParticleTransforms transforms = NiagaraCalculateMeshParticleTransforms(parameters);
+        float3 cameraVector = LWCToFloat(LWCSubtract(LWCMultiply(MeshSceneDistanceCenter.xyz, transforms.LocalToWorld), parameters.CameraOrigin));
+        float distanceSquared = dot(cameraVector, cameraVector);
+        float3 primitiveScale = float3(length(parameters.PrimitiveLocalToWorld.M[0].xyz),
+            length(parameters.PrimitiveLocalToWorld.M[1].xyz), length(parameters.PrimitiveLocalToWorld.M[2].xyz));
+        float3 finalScale = particle.Scale * MeshScalePivotSpace.xyz * primitiveScale;
+        float maximumScale = max3(abs(finalScale.x), abs(finalScale.y), abs(finalScale.z));
+        float scaledDistanceSquared = maximumScale > 0.0f ? distanceSquared / (maximumScale * maximumScale) : distanceSquared;
+        OutMeshSceneMetrics[index] = float4(distanceSquared, scaledDistanceSquared, 0.0f, 0.0f);
+#if LFX_SCENE_GPU
+        current = DFMultiplyAffineTranslationDemote(DFFromTileOffset(transforms.LocalToWorld), -OwnerPositionHigh.xyz);
+#else
+        current = LWCToFloat(transforms.LocalToWorld);
+#endif
+        determinantSign = determinant((float3x3)current) < 0.0f ? -1.0f : 1.0f;
+#if LFX_SCENE_GPU
+        previous = previousEnabled
+            ? DFMultiplyAffineTranslationDemote(DFFromTileOffset(transforms.PrevLocalToWorld), -OwnerPositionHigh.xyz) : current;
+#else
+        previous = previousEnabled ? LWCToFloat(transforms.PrevLocalToWorld) : current;
+#endif
+        current = LumenSceneRoundTrip(current, inverseScale);
+#if LFX_SCENE_GPU
+        if (previousEnabled) previous = LumenSceneRoundTrip(previous, previousInverseScale);
+        else previous = mul(current, float4x4(OwnerWorldToPrevious0, OwnerWorldToPrevious1, OwnerWorldToPrevious2, OwnerWorldToPrevious3));
+        current = LumenTranslatedWorld(current, OwnerPositionHigh.xyz);
+        previous = LumenTranslatedWorld(previous, OwnerPositionHigh.xyz);
+#else
+        previous = LumenSceneRoundTrip(previous, previousInverseScale);
+#endif
+    }
+    uint output = index * 9u;
+    OutMeshSceneTransforms[output + 0u] = current[0];
+    OutMeshSceneTransforms[output + 1u] = current[1];
+    OutMeshSceneTransforms[output + 2u] = current[2];
+    OutMeshSceneTransforms[output + 3u] = current[3];
+    OutMeshSceneTransforms[output + 4u] = float4(inverseScale, determinantSign);
+    OutMeshSceneTransforms[output + 5u] = previous[0];
+    OutMeshSceneTransforms[output + 6u] = previous[1];
+    OutMeshSceneTransforms[output + 7u] = previous[2];
+    OutMeshSceneTransforms[output + 8u] = previous[3];
+}

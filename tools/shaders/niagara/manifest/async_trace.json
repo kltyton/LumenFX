@@ -1,0 +1,37 @@
+{
+  "schema": "lumenfx.niagara.async_trace.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2", "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPILER_DXC": 1, "COMPILER_HLSL": 1, "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0, "COMPILER_GLSL_ES3_1": 0, "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0, "SM5_PROFILE": 1, "FEATURE_LEVEL": 5,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0, "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_SUPPORTS_DISTANCE_FIELDS": 1, "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1,
+      "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0, "COMPILER_SUPPORTS_HLSL2021": 1,
+      "SUPPORTS_INDEPENDENT_SAMPLERS": 1, "UE_BINDLESS_ENABLED": 0,
+      "VIEW_HAS_TILEOFFSET_DATA": 1, "INSTANCED_STEREO": 0, "MOBILE_MULTI_VIEW": 0
+    }
+  },
+  "passes": [
+    {
+      "name": "global_distance_field",
+      "source": "Engine/Plugins/FX/Niagara/Shaders/Private/NiagaraRayMarchingShaders.usf",
+      "stage": "compute", "entrypoint": "NiagaraRayMarchGlobalSdfCS",
+      "niagara_async_trace_source": true,
+      "defines": {"THREADGROUP_SIZE_X": 32, "MAX_MARCH_COUNT": 16},
+      "resources": [
+        {"name": "TraceCounts", "kind": "niagara_async_trace_buffer", "original_hlsl_type": "Buffer<uint>", "hlsl_type": "StructuredBuffer<uint>", "stride_bytes": 4},
+        {"name": "Traces", "kind": "niagara_async_trace_buffer", "hlsl_type": "StructuredBuffer<FNiagaraAsyncGpuTrace>", "stride_bytes": 32},
+        {"name": "Results", "kind": "niagara_async_trace_buffer", "hlsl_type": "RWStructuredBuffer<FNiagaraAsyncGpuTraceResult>", "stride_bytes": 32, "uav": true},
+        {"name": "GlobalDistanceFieldPageAtlasTexture", "kind": "niagara_distance_field", "hlsl_type": "Texture3D", "format": "PF_R8"},
+        {"name": "GlobalDistanceFieldCoverageAtlasTexture", "kind": "niagara_distance_field", "hlsl_type": "Texture3D", "format": "PF_R8"},
+        {"name": "GlobalDistanceFieldMipTexture", "kind": "niagara_distance_field", "hlsl_type": "Texture3D", "format": "PF_R8"},
+        {"name": "GlobalDistanceFieldPageTableTexture", "kind": "niagara_distance_field_page_table", "hlsl_type": "Texture3D<uint>", "format": "PF_R32_UINT"}
+      ]
+    }
+  ]
+}

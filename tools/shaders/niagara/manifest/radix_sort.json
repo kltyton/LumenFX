@@ -1,0 +1,64 @@
+{
+  "schema": "lumenfx.niagara.radix_sort.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2",
+    "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPILER_DXC": 1, "COMPILER_HLSL": 1, "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0, "COMPILER_GLSL_ES3_1": 0, "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0, "SM5_PROFILE": 1, "FEATURE_LEVEL": 5,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0, "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1, "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0,
+      "COMPILER_SUPPORTS_HLSL2021": 1, "SUPPORTS_INDEPENDENT_SAMPLERS": 1, "UE_BINDLESS_ENABLED": 0,
+      "RADIX_BITS": 4, "THREAD_COUNT": 128, "KEYS_PER_LOOP": 8, "MAX_GROUP_COUNT": 64
+    },
+    "include_overrides": [
+      {"from": "Engine/Shaders/Private/Common.ush", "to": "tools/shaders/shared/compat/Common.ush"},
+      {"from": "Engine/Shaders/Public/Platform.ush", "to": "tools/shaders/shared/compat/Platform.ush"},
+      {"from": "/Engine/Generated/UniformBuffers/RadixSortUB.ush", "to": "tools/shaders/niagara/compat/RadixSortUB.ush"}
+    ]
+  },
+  "passes": [
+    {
+      "name": "clear", "source": "Engine/Shaders/Private/RadixSortShaders.usf", "stage": "compute",
+      "entrypoint": "RadixSort_ClearOffsets", "generated_preincludes": ["/Engine/Generated/UniformBuffers/RadixSortUB.ush"],
+      "defines": {"RADIX_SORT_CLEAR_OFFSETS": 1, "RADIX_SORT_UPSWEEP": 0, "RADIX_SORT_SPINE": 0, "RADIX_SORT_DOWNSWEEP": 0},
+      "resources": [
+        {"name": "OutOffsets", "kind": "ue_radix_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "upsweep", "source": "Engine/Shaders/Private/RadixSortShaders.usf", "stage": "compute",
+      "entrypoint": "RadixSort_Upsweep", "generated_preincludes": ["/Engine/Generated/UniformBuffers/RadixSortUB.ush"],
+      "defines": {"RADIX_SORT_CLEAR_OFFSETS": 0, "RADIX_SORT_UPSWEEP": 1, "RADIX_SORT_SPINE": 0, "RADIX_SORT_DOWNSWEEP": 0},
+      "resources": [
+        {"name": "InKeys", "kind": "ue_radix_sort_buffer", "original_hlsl_type": "Buffer<uint>", "hlsl_type": "StructuredBuffer<uint>", "stride_bytes": 4},
+        {"name": "OutOffsets", "kind": "ue_radix_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "spine", "source": "Engine/Shaders/Private/RadixSortShaders.usf", "stage": "compute",
+      "entrypoint": "RadixSort_Spine", "generated_preincludes": ["/Engine/Generated/UniformBuffers/RadixSortUB.ush"],
+      "defines": {"RADIX_SORT_CLEAR_OFFSETS": 0, "RADIX_SORT_UPSWEEP": 0, "RADIX_SORT_SPINE": 1, "RADIX_SORT_DOWNSWEEP": 0},
+      "resources": [
+        {"name": "InOffsets", "kind": "ue_radix_sort_buffer", "original_hlsl_type": "Buffer<uint>", "hlsl_type": "StructuredBuffer<uint>", "stride_bytes": 4},
+        {"name": "OutOffsets", "kind": "ue_radix_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true}
+      ]
+    },
+    {
+      "name": "downsweep", "source": "Engine/Shaders/Private/RadixSortShaders.usf", "stage": "compute",
+      "entrypoint": "RadixSort_Downsweep", "generated_preincludes": ["/Engine/Generated/UniformBuffers/RadixSortUB.ush"],
+      "defines": {"RADIX_SORT_CLEAR_OFFSETS": 0, "RADIX_SORT_UPSWEEP": 0, "RADIX_SORT_SPINE": 0, "RADIX_SORT_DOWNSWEEP": 1},
+      "resources": [
+        {"name": "InKeys", "kind": "ue_radix_sort_buffer", "original_hlsl_type": "Buffer<uint>", "hlsl_type": "StructuredBuffer<uint>", "stride_bytes": 4},
+        {"name": "InValues", "kind": "ue_radix_sort_buffer", "original_hlsl_type": "Buffer<uint>", "hlsl_type": "StructuredBuffer<uint>", "stride_bytes": 4},
+        {"name": "InOffsets", "kind": "ue_radix_sort_buffer", "original_hlsl_type": "Buffer<uint>", "hlsl_type": "StructuredBuffer<uint>", "stride_bytes": 4},
+        {"name": "OutKeys", "kind": "ue_radix_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true},
+        {"name": "OutValues", "kind": "ue_radix_sort_buffer", "original_hlsl_type": "RWBuffer<uint>", "hlsl_type": "RWStructuredBuffer<uint>", "stride_bytes": 4, "uav": true}
+      ]
+    }
+  ]
+}

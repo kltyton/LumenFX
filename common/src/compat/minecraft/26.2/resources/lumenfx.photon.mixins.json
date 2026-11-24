@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.kltyton.lumenfx.client.playback.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["ParticleEngineLifecycleMixin", "ParticleCollisionBlockChangeMixin", "ParticleShaderSourcesMixin"],
+  "injectors": {"defaultRequire": 1}
+}

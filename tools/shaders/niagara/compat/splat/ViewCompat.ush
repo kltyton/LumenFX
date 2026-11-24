@@ -1,0 +1,35 @@
+#pragma once
+
+#ifndef WORKING_COLOR_SPACE_IS_SRGB
+#define WORKING_COLOR_SPACE_IS_SRGB 1
+#endif
+
+#include "/Engine/Generated/UniformBuffers/View.ush"
+
+struct ViewState
+{
+	float4x4 ViewToClip;
+};
+
+#ifndef View_PreViewTranslation
+#define View_PreViewTranslation MakeDFVector3(View_PreViewTranslationHigh, View_PreViewTranslationLow)
+#endif
+#ifndef View_PrevPreViewTranslation
+#define View_PrevPreViewTranslation MakeDFVector3(View_PrevPreViewTranslationHigh, View_PrevPreViewTranslationLow)
+#endif
+#ifndef View_WorldCameraOrigin
+#define View_WorldCameraOrigin MakeDFVector3(View_WorldCameraOriginHigh, View_WorldCameraOriginLow)
+#endif
+#ifndef View_PrevWorldCameraOrigin
+#define View_PrevWorldCameraOrigin MakeDFVector3(View_PrevWorldCameraOriginHigh, View_PrevWorldCameraOriginLow)
+#endif
+
+float3 GetCameraVector(float3 Position, float3 CameraPosition)
+{
+	return (View_ViewToClip._44 >= 1.0f) ? View_ViewForward : normalize(Position - CameraPosition);
+}
+
+float3 GetCameraVectorFromWorldPosition(float3 WorldPosition)
+{
+	return GetCameraVector(WorldPosition, View_RelativeWorldCameraOriginTO);
+}

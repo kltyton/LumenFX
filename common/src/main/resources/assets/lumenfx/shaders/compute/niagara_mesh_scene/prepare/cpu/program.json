@@ -1,0 +1,675 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_mesh_scene",
+  "name": "prepare",
+  "pass": "prepare",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "cpu",
+    "defines": {
+      "LFX_SCENE_GPU": "0"
+    },
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [],
+  "sourceResources": [
+    {
+      "name": "OutMeshSceneMetrics",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "RWStructuredBuffer<float4>",
+      "hlsl_type": "RWStructuredBuffer<float4>",
+      "stride_bytes": 16,
+      "uav": true
+    },
+    {
+      "name": "CpuEmitterSceneData",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<float4>",
+      "hlsl_type": "StructuredBuffer<float4>",
+      "stride_bytes": 16
+    },
+    {
+      "name": "NiagaraParticleDataFloat",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<float>",
+      "hlsl_type": "StructuredBuffer<float>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "NiagaraParticleDataHalf",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "CpuMeshInstances",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<float>",
+      "hlsl_type": "StructuredBuffer<float>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "CpuMeshExtra",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<float>",
+      "hlsl_type": "StructuredBuffer<float>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "SceneParticleCounts",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "OutMeshSceneTransforms",
+      "kind": "mesh_scene_buffer",
+      "original_hlsl_type": "RWStructuredBuffer<float4>",
+      "hlsl_type": "RWStructuredBuffer<float4>",
+      "stride_bytes": 16,
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "LumenFX/NiagaraMeshScene.usf",
+      "workgroup": {
+        "x": 64,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "NiagaraMeshData",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "uniformBuffer",
+          "name": "LumenMeshSceneView",
+          "descriptorSet": 0,
+          "descriptorBinding": 11,
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "CpuMeshInstances",
+          "descriptorSet": 0,
+          "descriptorBinding": 5,
+          "access": "READ_WRITE",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "CpuMeshExtra",
+          "descriptorSet": 0,
+          "descriptorBinding": 6,
+          "access": "READ_WRITE",
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "CpuEmitterSceneData",
+          "descriptorSet": 0,
+          "descriptorBinding": 8,
+          "access": "READ_WRITE",
+          "glBinding": 2,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "OutMeshSceneTransforms",
+          "descriptorSet": 0,
+          "descriptorBinding": 9,
+          "access": "READ_WRITE",
+          "glBinding": 3,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "OutMeshSceneMetrics",
+          "descriptorSet": 0,
+          "descriptorBinding": 10,
+          "access": "READ_WRITE",
+          "glBinding": 4,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 47920,
+          "sha256": "1b4119a1b47f98a9584ba966f44c765bce5ba129911841f9427b4024524cfbd1"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 108848,
+          "sha256": "124e96c740ea3581ff021a23f47c4a24adfcd066547ca05760ffa4aad6b74236"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          64,
+          1,
+          1
+        ],
+        "capabilities": [
+          1
+        ],
+        "uniformBuffers": [
+          {
+            "name": "NiagaraMeshData",
+            "sourceName": "NiagaraMeshData",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "size": 96,
+            "members": [
+              {
+                "name": "MeshScalePivotSpace",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshRotation",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 16,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshPivotLocalSpace",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 32,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshFacingAxis",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 48,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshLockedAxisBlend",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 64,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshSubImage",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 80,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "LumenMeshSceneView",
+            "sourceName": "LumenMeshSceneView",
+            "descriptorSet": 0,
+            "descriptorBinding": 11,
+            "size": 192,
+            "members": [
+              {
+                "name": "MeshSceneDispatch",
+                "type": "uvec4",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshSceneInput",
+                "type": "uvec4",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 16,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshSceneCameraForward",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 32,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshSceneCameraUp",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 48,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshScenePreviousCameraForward",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 64,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshScenePreviousCameraUp",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 80,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshSceneCameraDeltaTime",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 96,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshSceneDistanceCenter",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 112,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshSceneCameraHigh",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 128,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshSceneCameraLow",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 144,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshScenePreviousCameraHigh",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 160,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MeshScenePreviousCameraLow",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 176,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [
+          {
+            "name": "CpuMeshInstances",
+            "sourceName": "CpuMeshInstances",
+            "descriptorSet": 0,
+            "descriptorBinding": 5,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "float[]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "CpuMeshExtra",
+            "sourceName": "CpuMeshExtra",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "float[]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "CpuEmitterSceneData",
+            "sourceName": "CpuEmitterSceneData",
+            "descriptorSet": 0,
+            "descriptorBinding": 8,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "vec4[]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "OutMeshSceneTransforms",
+            "sourceName": "OutMeshSceneTransforms",
+            "descriptorSet": 0,
+            "descriptorBinding": 9,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "vec4[]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "OutMeshSceneMetrics",
+            "sourceName": "OutMeshSceneMetrics",
+            "descriptorSet": 0,
+            "descriptorBinding": 10,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "vec4[]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "cpu",
+      "pipelinePass": "prepare",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "MainCS",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "NiagaraMeshData",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "uniformBuffer",
+      "name": "LumenMeshSceneView",
+      "descriptorSet": 0,
+      "descriptorBinding": 11,
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "CpuMeshInstances",
+      "descriptorSet": 0,
+      "descriptorBinding": 5,
+      "access": "READ_WRITE",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "CpuMeshExtra",
+      "descriptorSet": 0,
+      "descriptorBinding": 6,
+      "access": "READ_WRITE",
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "CpuEmitterSceneData",
+      "descriptorSet": 0,
+      "descriptorBinding": 8,
+      "access": "READ_WRITE",
+      "glBinding": 2,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "OutMeshSceneTransforms",
+      "descriptorSet": 0,
+      "descriptorBinding": 9,
+      "access": "READ_WRITE",
+      "glBinding": 3,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "OutMeshSceneMetrics",
+      "descriptorSet": 0,
+      "descriptorBinding": 10,
+      "access": "READ_WRITE",
+      "glBinding": 4,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 47920,
+        "sha256": "1b4119a1b47f98a9584ba966f44c765bce5ba129911841f9427b4024524cfbd1"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 108848,
+        "sha256": "124e96c740ea3581ff021a23f47c4a24adfcd066547ca05760ffa4aad6b74236"
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.kltyton.lumenfx.client.simulation.niagara.host.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["MinecraftVfxFrameMixin"],
+  "injectors": {"defaultRequire": 1}
+}

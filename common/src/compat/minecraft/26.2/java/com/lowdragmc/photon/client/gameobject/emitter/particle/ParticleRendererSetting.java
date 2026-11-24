@@ -1,0 +1,301 @@
+/* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
+package com.lowdragmc.photon.client.gameobject.emitter.particle;
+
+import com.lowdragmc.lowdraglib2.Platform;
+import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
+import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.lowdragmc.photon.client.gameobject.RuntimeValue;
+import com.lowdragmc.photon.client.gameobject.emitter.data.RendererSetting;
+import com.lowdragmc.photon.client.gameobject.emitter.data.model.IModelSource;
+import com.lowdragmc.photon.client.gameobject.emitter.data.model.JsonModelSource;
+import com.lowdragmc.photon.client.gameobject.emitter.data.shape.MeshData;
+import com.lowdragmc.photon.client.gameobject.particle.TileParticle;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import net.minecraft.client.Camera;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.ExtraCodecs;
+import org.apache.commons.lang3.function.TriFunction;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
+import java.util.Arrays;
+import java.util.Objects;
+
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
+public class ParticleRendererSetting extends RendererSetting implements IPersistedSerializable {
+
+    public enum Mode {
+        None((p, c, t) -> new Quaternionf()),
+        Billboard((p, c, t) -> {
+            // read the per-particle emitter's runtime so a per-instance facing override takes effect
+            var renderer = p.getRuntime().renderer;
+            return renderer.getFacingMode().compute(renderer.getFacingDirection(), p, c, t);
+        }),
+        Horizontal(0, -90),
+        Vertical(0, 0),
+        VerticalBillboard((p, c, t) -> {
+            var quaternion = new Quaternionf();
+            quaternion.rotateY((float) Math.toRadians(180 - c.yRot()));
+            return quaternion;
+        }),
+        StretchedBillboard((p, c, t) -> new Quaternionf()),
+        Model((p, c, t) -> new Quaternionf());
+
+        public final TriFunction<TileParticle, Camera, Float, Quaternionf> quaternion;
+
+        Mode(TriFunction<TileParticle, Camera, Float, Quaternionf> quaternion) {
+            this.quaternion = quaternion;
+        }
+
+        Mode(Quaternionf quaternion) {
+            this.quaternion = (p, c, t) -> quaternion;
+        }
+
+        Mode(float yRot, float xRot) {
+            var quaternion = new Quaternionf();
+            quaternion.rotateY((float) Math.toRadians(yRot));
+            quaternion.rotateX((float) Math.toRadians(xRot));
+            this.quaternion = (p, c, t) -> quaternion;
+        }
+    }
+
+    private final ParticleConfig config;
+    @Persisted
+    @EqualsAndHashCode.Include
+    protected Mode renderMode = Mode.Billboard;
+    @Nullable
+    @EqualsAndHashCode.Include
+    protected MeshData model;
+    @Persisted
+    @EqualsAndHashCode.Include
+    protected boolean shade = true;
+    @Persisted
+    @EqualsAndHashCode.Include
+    protected boolean useBlockUV = true;
+    /** Upload the mesh tangent as vertex data (and define {@code PHOTON_TANGENT} for the shaders), for
+     *  tangent-space normal mapping. Off = the vertex layout has no tangent at all. */
+    @Persisted
+    @EqualsAndHashCode.Include
+    protected boolean tangent = false;
+    @Persisted
+    @EqualsAndHashCode.Include
+    protected Vector3f modelPivot = new Vector3f();
+    @Persisted
+    @EqualsAndHashCode.Include
+    protected float velocityScale = 0.0f;
+    @Persisted
+    @EqualsAndHashCode.Include
+    protected float lengthScale = 2.0f;
+    @Persisted
+    @EqualsAndHashCode.Include
+    private boolean useGPUInstance = false;
+    @Persisted
+    @EqualsAndHashCode.Include
+    private FacingMode facingMode = FacingMode.DEFAULT;
+    @Persisted(subPersisted = true)
+    @EqualsAndHashCode.Include
+    private final FacingDirectionSetting facingDirection = new FacingDirectionSetting(this);
+
+    public ParticleRendererSetting(ParticleConfig config) {
+        this.config = config;
+    }
+
+    /**
+     * Slot-based per-emitter render override (see {@link RendererSetting.Runtime}) plus the tile-only
+     * fields. Overriding one field writes ONE {@link RuntimeValue} slot — no whole-renderer copy — and
+     * {@code getX()} falls back per-field to the immutable config. The render pipeline reads through this.
+     */
+    public static class Runtime extends RendererSetting.Runtime {
+        private final ParticleRendererSetting config;
+        public final RuntimeValue<Mode> renderMode;
+        public final RuntimeValue<MeshData> model;
+        public final RuntimeValue<Boolean> shade;
+        public final RuntimeValue<Boolean> useBlockUV;
+        public final RuntimeValue<Boolean> tangent;
+        public final RuntimeValue<Vector3f> modelPivot;
+        public final RuntimeValue<Float> velocityScale;
+        public final RuntimeValue<Float> lengthScale;
+        public final RuntimeValue<Boolean> useGPUInstance;
+        public final RuntimeValue<FacingMode> facingMode;
+        public final RuntimeValue<FacingDirectionSetting> facingDirection;
+
+        private Runtime(ParticleRendererSetting config) {
+            super(config);
+            this.config = config;
+            this.renderMode = new RuntimeValue<>(config::getRenderMode);
+            this.model = new RuntimeValue<>(config::getModel);
+            this.shade = new RuntimeValue<>(config::isShade);
+            this.useBlockUV = new RuntimeValue<>(config::isUseBlockUV);
+            this.tangent = new RuntimeValue<>(config::isTangent);
+            this.modelPivot = new RuntimeValue<>(config::getModelPivot);
+            this.velocityScale = new RuntimeValue<>(config::getVelocityScale);
+            this.lengthScale = new RuntimeValue<>(config::getLengthScale);
+            this.useGPUInstance = new RuntimeValue<>(config::isUseGPUInstance);
+            this.facingMode = new RuntimeValue<>(config::getFacingMode);
+            this.facingDirection = new RuntimeValue<>(config::getFacingDirection);
+        }
+
+        public Mode getRenderMode() { return renderMode.get(); }
+        public MeshData getModel() { return model.get(); }
+        public IModelSource getModelSource() { return getModel().getSource(); }
+        public boolean isShade() { return shade.get(); }
+        public boolean isUseBlockUV() { return useBlockUV.get(); }
+        public boolean isTangent() { return tangent.get(); }
+        public Vector3f getModelPivot() { return modelPivot.get(); }
+        public float getVelocityScale() { return velocityScale.get(); }
+        public float getLengthScale() { return lengthScale.get(); }
+        public boolean isUseGPUInstance() { return useGPUInstance.get(); }
+        public FacingMode getFacingMode() { return facingMode.get(); }
+        public FacingDirectionSetting getFacingDirection() { return facingDirection.get(); }
+
+        @Override
+        public boolean hasOverride() {
+            // only PASS-level fields (the batching key) force a separate render pass. facingMode/
+            // facingDirection are read per-particle (the Billboard lambda reads p.getRuntime()), so
+            // overriding them needs no pass — excluded here and from effectiveEquals.
+            return super.hasOverride() || renderMode.isOverridden() || model.isOverridden()
+                    || shade.isOverridden() || useBlockUV.isOverridden() || tangent.isOverridden()
+                    || modelPivot.isOverridden()
+                    || velocityScale.isOverridden() || lengthScale.isOverridden()
+                    || useGPUInstance.isOverridden();
+        }
+
+        @Override
+        public void clear() {
+            super.clear();
+            renderMode.clear();
+            model.clear();
+            shade.clear();
+            useBlockUV.clear();
+            tangent.clear();
+            modelPivot.clear();
+            velocityScale.clear();
+            lengthScale.clear();
+            useGPUInstance.clear();
+            facingMode.clear();
+            facingDirection.clear();
+        }
+
+        // NOTE: facingMode/facingDirection are intentionally NOT part of the batching key — they are read
+        // per-particle (the Billboard lambda reads p.getRuntime()), so emitters differing only in facing
+        // still merge into one draw (each particle reads its own emitter's value). This diverges from the
+        // authored ParticleRendererSetting's @EqualsAndHashCode on purpose.
+        @Override
+        public boolean effectiveEquals(RendererSetting.Runtime o) {
+            if (!super.effectiveEquals(o) || !(o instanceof Runtime other)) return false;
+            return getRenderMode() == other.getRenderMode()
+                    && Objects.equals(getModel(), other.getModel())
+                    && isShade() == other.isShade()
+                    && isUseBlockUV() == other.isUseBlockUV()
+                    && isTangent() == other.isTangent()
+                    && Objects.equals(getModelPivot(), other.getModelPivot())
+                    && getVelocityScale() == other.getVelocityScale()
+                    && getLengthScale() == other.getLengthScale()
+                    && isUseGPUInstance() == other.isUseGPUInstance();
+        }
+
+        @Override
+        public int effectiveHashCode() {
+            return Objects.hash(super.effectiveHashCode(), getRenderMode(), getModel(), isShade(), isUseBlockUV(), isTangent(),
+                    getModelPivot(), getVelocityScale(), getLengthScale(), isUseGPUInstance());
+        }
+    }
+
+    public Runtime createRuntime() {
+        return new Runtime(this);
+    }
+
+    public MeshData getModel() {
+        if (model == null) {
+            model = new MeshData(new JsonModelSource(Identifier.parse("block/dirt")));
+        }
+        return model;
+    }
+
+    /** Shortcut to the model's geometry source (render paths need mesh + UV semantics only). */
+    public IModelSource getModelSource() {
+        return getModel().getSource();
+    }
+
+    public void setRenderMode(Mode mode) {
+        this.renderMode = mode;
+        clearRenderPassInstance();
+    }
+
+    public void setModel(MeshData model) {
+        this.model = model;
+        clearRenderPassInstance();
+    }
+
+    public void setShade(boolean shade) {
+        this.shade = shade;
+        clearRenderPassInstance();
+    }
+
+    /** Toggling this changes the mesh vertex layout, so the base VBO is rebuilt — but that is
+     *  {@code TileParticleRenderer.modelMeshBuffer}'s own doing (it compares against what it baked);
+     *  this call is the same pass-invalidation hook the neighbouring setters use. */
+    public void setTangent(boolean tangent) {
+        this.tangent = tangent;
+        clearRenderPassInstance();
+    }
+
+    public void setUseBlockUV(boolean useBlockUV) {
+        this.useBlockUV = useBlockUV;
+        clearRenderPassInstance();
+    }
+
+    public void setModelPivot(Vector3f modelPivot) {
+        this.modelPivot = modelPivot;
+        clearRenderPassInstance();
+    }
+
+    public void setVelocityScale(float velocityScale) {
+        this.velocityScale = velocityScale;
+        clearRenderPassInstance();
+    }
+
+    public void setLengthScale(float lengthScale) {
+        this.lengthScale = lengthScale;
+        clearRenderPassInstance();
+    }
+
+    public void setFacingMode(FacingMode facingMode) {
+        this.facingMode = facingMode == null ? FacingMode.DEFAULT : facingMode;
+        clearRenderPassInstance();
+    }
+
+    private void onFacingSettingChanged() {
+        clearRenderPassInstance();
+    }
+
+    // 26.1: same top-level "model" key as the 1.21 serializeNBT override, on the ValueIO seam.
+    @Override
+    public void deserialize(net.minecraft.world.level.storage.@NotNull ValueInput input) {
+        IPersistedSerializable.super.deserialize(input);
+        if (facingMode == null) {
+            facingMode = FacingMode.DEFAULT;
+        }
+        if (renderMode == Mode.Model
+                && input.read("model", ExtraCodecs.NBT).orElse(null) instanceof CompoundTag tag) {
+            // MeshData's deserializer tolerates legacy payloads (bare modelLocation / source wrapper)
+            model = new MeshData(tag);
+        }
+    }
+
+    @Override
+    public void serialize(net.minecraft.world.level.storage.@NotNull ValueOutput output) {
+        IPersistedSerializable.super.serialize(output);
+        if (renderMode == Mode.Model && model != null) {
+            output.store("model", ExtraCodecs.NBT,
+                    model.serializeNBT(Platform.getFrozenRegistry()));
+        }
+    }
+}

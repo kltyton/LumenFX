@@ -1,0 +1,126 @@
+{
+  "schema": "lumenfx.shading_energy.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2",
+    "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "defines_base": {
+      "COMPILER_DXC": 1,
+      "COMPILER_HLSL": 1,
+      "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0,
+      "COMPILER_GLSL_ES3_1": 0,
+      "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0,
+      "SM5_PROFILE": 1,
+      "FEATURE_LEVEL": 5,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0,
+      "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1,
+      "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0,
+      "COMPILER_SUPPORTS_HLSL2021": 1,
+      "SUPPORTS_INDEPENDENT_SAMPLERS": 0,
+      "UE_BINDLESS_ENABLED": 0,
+      "THREADGROUPSIZE_X": 8,
+      "THREADGROUPSIZE_Y": 8
+    },
+    "include_overrides": [
+      {
+        "from": "Engine/Shaders/Private/Common.ush",
+        "to": "tools/shaders/lighting/compat/ShadingEnergyCommon.ush"
+      },
+      {
+        "from": "Engine/Shaders/Public/Platform.ush",
+        "to": "tools/shaders/shared/compat/Platform.ush"
+      }
+    ]
+  },
+  "passes": [
+    {
+      "name": "reflection_float", "stage": "compute", "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "defines": {"BUILD_ENERGY_TABLE":0},
+      "variants": [{"id":"substrate","defines":{"SUBSTRATE_ENABLED":1}}],
+      "resources": [{"name":"Output2Texture2D","kind":"shading_energy_table","hlsl_type":"RWTexture2D<float2>","gpuFormat":"RG32_FLOAT","dxcImageFormat":"rg32f","uav":true}]
+    },
+    {
+      "name": "reflection_unorm16", "stage": "compute", "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "defines": {"BUILD_ENERGY_TABLE":0},
+      "variants": [{"id":"substrate","defines":{"SUBSTRATE_ENABLED":1}}],
+      "resources": [{"name":"Output2Texture2D","kind":"shading_energy_table","hlsl_type":"RWTexture2D<float2>","gpuFormat":"RG16_UNORM","dxcImageFormat":"rg16","uav":true}]
+    },
+    {
+      "name": "reflection_unorm8", "stage": "compute", "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "defines": {"BUILD_ENERGY_TABLE":0},
+      "variants": [{"id":"substrate","defines":{"SUBSTRATE_ENABLED":1}}],
+      "resources": [{"name":"Output2Texture2D","kind":"shading_energy_table","hlsl_type":"RWTexture2D<float2>","gpuFormat":"RG8_UNORM","dxcImageFormat":"rg8","uav":true}]
+    },
+    {
+      "name": "transmission_float", "stage": "compute", "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "defines": {"BUILD_ENERGY_TABLE":1},
+      "variants": [{"id":"substrate","defines":{"SUBSTRATE_ENABLED":1}}],
+      "resources": [{"name":"OutputTexture3D","kind":"shading_energy_table","hlsl_type":"RWTexture3D<float2>","gpuFormat":"RG32_FLOAT","dxcImageFormat":"rg32f","uav":true}]
+    },
+    {
+      "name": "transmission_unorm16", "stage": "compute", "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "defines": {"BUILD_ENERGY_TABLE":1},
+      "variants": [{"id":"substrate","defines":{"SUBSTRATE_ENABLED":1}}],
+      "resources": [{"name":"OutputTexture3D","kind":"shading_energy_table","hlsl_type":"RWTexture3D<float2>","gpuFormat":"RG16_UNORM","dxcImageFormat":"rg16","uav":true}]
+    },
+    {
+      "name": "transmission_unorm8", "stage": "compute", "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "defines": {"BUILD_ENERGY_TABLE":1},
+      "variants": [{"id":"substrate","defines":{"SUBSTRATE_ENABLED":1}}],
+      "resources": [{"name":"OutputTexture3D","kind":"shading_energy_table","hlsl_type":"RWTexture3D<float2>","gpuFormat":"RG8_UNORM","dxcImageFormat":"rg8","uav":true}]
+    },
+    {
+      "name": "sheen_float", "stage": "compute", "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "defines": {"BUILD_ENERGY_TABLE":2},
+      "variants": [{"id":"legacy","defines":{"SUBSTRATE_ENABLED":0}},{"id":"substrate","defines":{"SUBSTRATE_ENABLED":1}}],
+      "resources": [{"name":"Output2Texture2D","kind":"shading_energy_table","hlsl_type":"RWTexture2D<float2>","gpuFormat":"RG32_FLOAT","dxcImageFormat":"rg32f","uav":true}]
+    },
+    {
+      "name": "sheen_unorm16", "stage": "compute", "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "defines": {"BUILD_ENERGY_TABLE":2},
+      "variants": [{"id":"legacy","defines":{"SUBSTRATE_ENABLED":0}},{"id":"substrate","defines":{"SUBSTRATE_ENABLED":1}}],
+      "resources": [{"name":"Output2Texture2D","kind":"shading_energy_table","hlsl_type":"RWTexture2D<float2>","gpuFormat":"RG16_UNORM","dxcImageFormat":"rg16","uav":true}]
+    },
+    {
+      "name": "sheen_unorm8", "stage": "compute", "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "defines": {"BUILD_ENERGY_TABLE":2},
+      "variants": [{"id":"legacy","defines":{"SUBSTRATE_ENABLED":0}},{"id":"substrate","defines":{"SUBSTRATE_ENABLED":1}}],
+      "resources": [{"name":"Output2Texture2D","kind":"shading_energy_table","hlsl_type":"RWTexture2D<float2>","gpuFormat":"RG8_UNORM","dxcImageFormat":"rg8","uav":true}]
+    },
+    {
+      "name": "diffuse_unorm16", "stage": "compute", "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "defines": {"BUILD_ENERGY_TABLE":3},
+      "variants": [{"id":"substrate","defines":{"SUBSTRATE_ENABLED":1}}],
+      "resources": [{"name":"Output1Texture2D","kind":"shading_energy_table","hlsl_type":"RWTexture2D<float>","gpuFormat":"R16_UNORM","dxcImageFormat":"r16","uav":true}]
+    },
+    {
+      "name": "diffuse_unorm8", "stage": "compute", "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "defines": {"BUILD_ENERGY_TABLE":3},
+      "variants": [{"id":"substrate","defines":{"SUBSTRATE_ENABLED":1}}],
+      "resources": [{"name":"Output1Texture2D","kind":"shading_energy_table","hlsl_type":"RWTexture2D<float>","gpuFormat":"R8_UNORM","dxcImageFormat":"r8","uav":true}]
+    },
+    {
+      "name": "ggx_max_half", "stage": "compute", "entrypoint": "BuildEnergyTableCS",
+      "source": "Engine/Shaders/Private/ShadingEnergyConservationTable.usf",
+      "defines": {"BUILD_ENERGY_TABLE":4},
+      "variants": [{"id":"substrate","defines":{"SUBSTRATE_ENABLED":1}}],
+      "resources": [{"name":"Output3Texture2D","kind":"shading_energy_table","hlsl_type":"RWTexture2D<float4>","gpuFormat":"RGBA16_FLOAT","dxcImageFormat":"rgba16f","uav":true}]
+    }
+  ]
+}

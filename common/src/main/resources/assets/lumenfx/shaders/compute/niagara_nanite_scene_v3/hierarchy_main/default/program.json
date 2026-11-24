@@ -1,0 +1,936 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_nanite_scene_v3",
+  "name": "hierarchy_main",
+  "pass": "hierarchy_main",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "default",
+    "defines": {
+      "NANITE_OCCLUSION_PASS": "1"
+    },
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [],
+  "sourceResources": [
+    {
+      "name": "NaniteHierarchy",
+      "kind": "nanite_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "NaniteRootNodes",
+      "kind": "nanite_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "NaniteClusterPages",
+      "kind": "nanite_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "NaniteAssemblyRows",
+      "kind": "nanite_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<float4>",
+      "hlsl_type": "StructuredBuffer<float4>",
+      "stride_bytes": 16
+    },
+    {
+      "name": "MeshSceneTransforms",
+      "kind": "nanite_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<float4>",
+      "hlsl_type": "StructuredBuffer<float4>",
+      "stride_bytes": 16
+    },
+    {
+      "name": "NaniteInstanceIds",
+      "kind": "nanite_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "NaniteInstanceCount",
+      "kind": "nanite_scene_buffer",
+      "original_hlsl_type": "StructuredBuffer<uint>",
+      "hlsl_type": "StructuredBuffer<uint>",
+      "stride_bytes": 4
+    },
+    {
+      "name": "NaniteVisibleClusters",
+      "kind": "nanite_scene_buffer",
+      "original_hlsl_type": "RWStructuredBuffer<uint4>",
+      "hlsl_type": "RWStructuredBuffer<uint4>",
+      "stride_bytes": 16,
+      "uav": true
+    },
+    {
+      "name": "NaniteStreamingRequests",
+      "kind": "nanite_scene_buffer",
+      "original_hlsl_type": "RWStructuredBuffer<uint>",
+      "hlsl_type": "RWStructuredBuffer<uint>",
+      "stride_bytes": 4,
+      "uav": true
+    },
+    {
+      "name": "NaniteCullCounts",
+      "kind": "nanite_scene_buffer",
+      "original_hlsl_type": "RWStructuredBuffer<uint>",
+      "hlsl_type": "RWStructuredBuffer<uint>",
+      "stride_bytes": 4,
+      "uav": true
+    },
+    {
+      "name": "NaniteFurthestDepth",
+      "kind": "nanite_scene_depth",
+      "original_hlsl_type": "Texture2D<float>",
+      "hlsl_type": "Texture2D<float>",
+      "format": "PF_R16F"
+    },
+    {
+      "name": "NaniteDeferred",
+      "kind": "nanite_scene_buffer",
+      "original_hlsl_type": "RWStructuredBuffer<uint4>",
+      "hlsl_type": "RWStructuredBuffer<uint4>",
+      "stride_bytes": 16,
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "CullNaniteHierarchy",
+      "source": "LumenFX/Nanite/NaniteHierarchyCull.usf",
+      "workgroup": {
+        "x": 64,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "NaniteCullView",
+          "descriptorSet": 0,
+          "descriptorBinding": 12,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NaniteHierarchy",
+          "descriptorSet": 0,
+          "descriptorBinding": 0,
+          "access": "READ_WRITE",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NaniteRootNodes",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "access": "READ_WRITE",
+          "glBinding": 1,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NaniteClusterPages",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "access": "READ_WRITE",
+          "glBinding": 2,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NaniteAssemblyRows",
+          "descriptorSet": 0,
+          "descriptorBinding": 3,
+          "access": "READ_WRITE",
+          "glBinding": 3,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "MeshSceneTransforms",
+          "descriptorSet": 0,
+          "descriptorBinding": 4,
+          "access": "READ_WRITE",
+          "glBinding": 4,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NaniteInstanceIds",
+          "descriptorSet": 0,
+          "descriptorBinding": 5,
+          "access": "READ_WRITE",
+          "glBinding": 5,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NaniteInstanceCount",
+          "descriptorSet": 0,
+          "descriptorBinding": 6,
+          "access": "READ_WRITE",
+          "glBinding": 6,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NaniteVisibleClusters",
+          "descriptorSet": 0,
+          "descriptorBinding": 7,
+          "access": "READ_WRITE",
+          "glBinding": 7,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NaniteStreamingRequests",
+          "descriptorSet": 0,
+          "descriptorBinding": 8,
+          "access": "READ_WRITE",
+          "glBinding": 8,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NaniteCullCounts",
+          "descriptorSet": 0,
+          "descriptorBinding": 9,
+          "access": "READ_WRITE",
+          "glBinding": 9,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "NaniteDeferred",
+          "descriptorSet": 0,
+          "descriptorBinding": 11,
+          "access": "READ_WRITE",
+          "glBinding": 10,
+          "stage": "compute"
+        },
+        {
+          "kind": "sampledTexture",
+          "name": "NaniteFurthestDepth",
+          "image": "NaniteFurthestDepth",
+          "format": "R16_FLOAT",
+          "formatRef": "PF_R16F",
+          "formatRule": "source-selected manifest resource format",
+          "descriptorForm": "SAMPLED_IMAGE",
+          "descriptorSet": 0,
+          "descriptorBinding": 10,
+          "samplerDescriptorBinding": -1,
+          "glBinding": 0,
+          "array": false,
+          "volume": false,
+          "cube": false,
+          "dummySampler": true,
+          "sharedImage": false,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [
+        {
+          "image": "NaniteFurthestDepth",
+          "imageUniform": "NaniteFurthestDepth",
+          "imageBinding": 10,
+          "samplerBinding": -1,
+          "descriptorSet": 0,
+          "glBinding": 0,
+          "dummy": true,
+          "shared": false
+        }
+      ],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 54644,
+          "sha256": "141bc4586a4c58294ac6bc229c60a7bf1957b20bd7b2d75ece33deff64f439fc"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 144256,
+          "sha256": "7e4fc144fed22c13f9e8befae4b3f71a520635db9757b50b369c1ed5632225dd"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          64,
+          1,
+          1
+        ],
+        "capabilities": [
+          1,
+          50
+        ],
+        "uniformBuffers": [
+          {
+            "name": "NaniteCullView",
+            "sourceName": "NaniteCullView",
+            "descriptorSet": 0,
+            "descriptorBinding": 12,
+            "size": 368,
+            "members": [
+              {
+                "name": "NaniteTranslatedWorldToClip",
+                "type": "vec4[4]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  4
+                ],
+                "offset": 0,
+                "size": 64,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NaniteViewForwardNear",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 64,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NaniteLodScales",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 80,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NaniteCullLimits",
+                "type": "uvec4",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 96,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NanitePageLayout",
+                "type": "uvec4",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 112,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NaniteCullFlags",
+                "type": "uvec4",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 128,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NaniteCullViewOrigin",
+                "type": "vec4",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 144,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NaniteFirstPerson",
+                "type": "vec4[3]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  3
+                ],
+                "offset": 160,
+                "size": 48,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NanitePreviousFirstPerson",
+                "type": "vec4[3]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  3
+                ],
+                "offset": 208,
+                "size": 48,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NaniteFeedback",
+                "type": "uvec4",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 256,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NaniteHzbWorldToClip",
+                "type": "vec4[4]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  4
+                ],
+                "offset": 272,
+                "size": 64,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NaniteHzbViewport",
+                "type": "uvec4",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 336,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "NaniteDeferredLayout",
+                "type": "uvec4",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 352,
+                "size": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [
+          {
+            "name": "NaniteHierarchy",
+            "sourceName": "NaniteHierarchy",
+            "descriptorSet": 0,
+            "descriptorBinding": 0,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "NaniteRootNodes",
+            "sourceName": "NaniteRootNodes",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "NaniteClusterPages",
+            "sourceName": "NaniteClusterPages",
+            "descriptorSet": 0,
+            "descriptorBinding": 2,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "NaniteAssemblyRows",
+            "sourceName": "NaniteAssemblyRows",
+            "descriptorSet": 0,
+            "descriptorBinding": 3,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "vec4[]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "MeshSceneTransforms",
+            "sourceName": "MeshSceneTransforms",
+            "descriptorSet": 0,
+            "descriptorBinding": 4,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "vec4[]",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "NaniteInstanceIds",
+            "sourceName": "NaniteInstanceIds",
+            "descriptorSet": 0,
+            "descriptorBinding": 5,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "NaniteInstanceCount",
+            "sourceName": "NaniteInstanceCount",
+            "descriptorSet": 0,
+            "descriptorBinding": 6,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "NaniteVisibleClusters",
+            "sourceName": "NaniteVisibleClusters",
+            "descriptorSet": 0,
+            "descriptorBinding": 7,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uvec4[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "NaniteStreamingRequests",
+            "sourceName": "NaniteStreamingRequests",
+            "descriptorSet": 0,
+            "descriptorBinding": 8,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "NaniteCullCounts",
+            "sourceName": "NaniteCullCounts",
+            "descriptorSet": 0,
+            "descriptorBinding": 9,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "NaniteDeferred",
+            "sourceName": "NaniteDeferred",
+            "descriptorSet": 0,
+            "descriptorBinding": 11,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uvec4[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 4,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 16,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "default",
+      "pipelinePass": "hierarchy_main",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "CullNaniteHierarchy",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "NaniteCullView",
+      "descriptorSet": 0,
+      "descriptorBinding": 12,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NaniteHierarchy",
+      "descriptorSet": 0,
+      "descriptorBinding": 0,
+      "access": "READ_WRITE",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NaniteRootNodes",
+      "descriptorSet": 0,
+      "descriptorBinding": 1,
+      "access": "READ_WRITE",
+      "glBinding": 1,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NaniteClusterPages",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "access": "READ_WRITE",
+      "glBinding": 2,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NaniteAssemblyRows",
+      "descriptorSet": 0,
+      "descriptorBinding": 3,
+      "access": "READ_WRITE",
+      "glBinding": 3,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "MeshSceneTransforms",
+      "descriptorSet": 0,
+      "descriptorBinding": 4,
+      "access": "READ_WRITE",
+      "glBinding": 4,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NaniteInstanceIds",
+      "descriptorSet": 0,
+      "descriptorBinding": 5,
+      "access": "READ_WRITE",
+      "glBinding": 5,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NaniteInstanceCount",
+      "descriptorSet": 0,
+      "descriptorBinding": 6,
+      "access": "READ_WRITE",
+      "glBinding": 6,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NaniteVisibleClusters",
+      "descriptorSet": 0,
+      "descriptorBinding": 7,
+      "access": "READ_WRITE",
+      "glBinding": 7,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NaniteStreamingRequests",
+      "descriptorSet": 0,
+      "descriptorBinding": 8,
+      "access": "READ_WRITE",
+      "glBinding": 8,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NaniteCullCounts",
+      "descriptorSet": 0,
+      "descriptorBinding": 9,
+      "access": "READ_WRITE",
+      "glBinding": 9,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "NaniteDeferred",
+      "descriptorSet": 0,
+      "descriptorBinding": 11,
+      "access": "READ_WRITE",
+      "glBinding": 10,
+      "stage": "compute"
+    },
+    {
+      "kind": "sampledTexture",
+      "name": "NaniteFurthestDepth",
+      "image": "NaniteFurthestDepth",
+      "format": "R16_FLOAT",
+      "formatRef": "PF_R16F",
+      "formatRule": "source-selected manifest resource format",
+      "descriptorForm": "SAMPLED_IMAGE",
+      "descriptorSet": 0,
+      "descriptorBinding": 10,
+      "samplerDescriptorBinding": -1,
+      "glBinding": 0,
+      "array": false,
+      "volume": false,
+      "cube": false,
+      "dummySampler": true,
+      "sharedImage": false,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 54644,
+        "sha256": "141bc4586a4c58294ac6bc229c60a7bf1957b20bd7b2d75ece33deff64f439fc"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 144256,
+        "sha256": "7e4fc144fed22c13f9e8befae4b3f71a520635db9757b50b369c1ed5632225dd"
+      }
+    }
+  }
+}

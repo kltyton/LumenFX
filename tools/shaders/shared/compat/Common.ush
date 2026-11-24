@@ -1,0 +1,582 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+// Common definitions used by the offline Niagara and particle resource shader passes.
+
+#pragma once
+
+// ---------------------------------------------------------------------------
+// Target environment.  The manifest may override these; the reference source
+// profile is D3D12 PCD3D_SM5, compiled offline with DXC.  COMPILER_DXC=1 below
+// describes the offline compiler choice, not the original engine compiler.
+// PLATFORM_SUPPORTS_REAL_TYPES and the SM6 wave-operation capability are 0 for
+// this SM5 profile; hardware wave support does not replace the platform gate.
+// ---------------------------------------------------------------------------
+#ifndef COMPILER_DXC
+#define COMPILER_DXC 1
+#endif
+#ifndef COMPILER_HLSL
+#define COMPILER_HLSL 1
+#endif
+#ifndef COMPILER_VULKAN
+#define COMPILER_VULKAN 0
+#endif
+#ifndef COMPILER_GLSL
+#define COMPILER_GLSL 0
+#endif
+#ifndef COMPILER_GLSL_ES3_1
+#define COMPILER_GLSL_ES3_1 0
+#endif
+#ifndef COMPILER_METAL
+#define COMPILER_METAL 0
+#endif
+#ifndef SM6_PROFILE
+#define SM6_PROFILE 0
+#endif
+#ifndef SM5_PROFILE
+#define SM5_PROFILE 1
+#endif
+#ifndef FEATURE_LEVEL
+#define FEATURE_LEVEL 5
+#endif
+#ifndef PLATFORM_SUPPORTS_REAL_TYPES
+#define PLATFORM_SUPPORTS_REAL_TYPES 0
+#endif
+#ifndef PLATFORM_SUPPORTS_RELAXED_PRECISION
+#define PLATFORM_SUPPORTS_RELAXED_PRECISION 0
+#endif
+#ifndef PLATFORM_USES_SPIRV_RESOURCE_TYPES
+#define PLATFORM_USES_SPIRV_RESOURCE_TYPES 1
+#endif
+#ifndef PLATFORM_SUPPORTS_STATIC_SAMPLERS
+#define PLATFORM_SUPPORTS_STATIC_SAMPLERS 1
+#endif
+#ifndef PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER
+#define PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER 0
+#endif
+#ifndef PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS
+#define PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS 0
+#endif
+#ifndef PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE
+#define PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE 0
+#endif
+#ifndef COMPILER_SUPPORTS_HLSL2021
+#define COMPILER_SUPPORTS_HLSL2021 0
+#endif
+#ifndef COMPILER_SUPPORTS_MINMAX3
+#define COMPILER_SUPPORTS_MINMAX3 0
+#endif
+#ifndef COMPILER_SUPPORTS_MED3
+#define COMPILER_SUPPORTS_MED3 0
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_ONCE
+#define COMPILER_SUPPORTS_WAVE_ONCE 0
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_VOTE
+#define COMPILER_SUPPORTS_WAVE_VOTE 0
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_MINMAX
+#define COMPILER_SUPPORTS_WAVE_MINMAX 0
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_BIT_ORAND
+#define COMPILER_SUPPORTS_WAVE_BIT_ORAND 0
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_PERMUTE
+#define COMPILER_SUPPORTS_WAVE_PERMUTE 0
+#endif
+#ifndef COMPILER_SUPPORTS_WAVE_SWIZZLE_GCN
+#define COMPILER_SUPPORTS_WAVE_SWIZZLE_GCN 0
+#endif
+#ifndef SUPPORTS_INDEPENDENT_SAMPLERS
+#define SUPPORTS_INDEPENDENT_SAMPLERS 1
+#endif
+#ifndef UE_BINDLESS_ENABLED
+#define UE_BINDLESS_ENABLED 0
+#endif
+#ifndef PLATFORM_GPU_ARCH
+#define PLATFORM_GPU_ARCH PLATFORM_GPU_ARCH_UNKNOWN
+#endif
+#ifndef VELOCITY_ENCODE_DEPTH
+#define VELOCITY_ENCODE_DEPTH 1
+#endif
+#ifndef VELOCITY_SUPPORT_TEMPORAL_RESPONSIVENESS
+// Set by ShaderCompiler.cpp from VelocitySupportsTemporalResponsiveness().
+// The manifest records the exact platform value; do not silently flip it.
+#define VELOCITY_SUPPORT_TEMPORAL_RESPONSIVENESS 1
+#endif
+// ---------------------------------------------------------------------------
+// Platform layer: attributes ([unroll], [branch], [flatten]), HLSL-2021
+// select()/and()/or(), min3/max3, INVARIANT and wave capability macros.
+// Source: Engine/Shaders/Public/Platform.ush.
+// ---------------------------------------------------------------------------
+#include "Platform.ush"
+
+float2 ViewportUVToScreenPos(float2 ViewportUV)
+{
+    return float2(2 * ViewportUV.x - 1, 1 - 2 * ViewportUV.y);
+}
+
+float2 ScreenPosToViewportUV(float2 ScreenPos)
+{
+    return float2(0.5 + 0.5 * ScreenPos.x, 0.5 - 0.5 * ScreenPos.y);
+}
+
+#ifndef PI
+const static float PI = 3.1415926535897932f;
+#endif
+const static float Max10BitsFloat = 64512.0f;
+
+// ---------------------------------------------------------------------------
+// Large world coordinates / double-float.  Source:
+// Engine/Shaders/Private/LargeWorldCoordinates.ush,
+// Engine/Shaders/Private/DoubleFloat.ush,
+// Engine/Shaders/Private/DoubleFloatOperations.ush.
+//
+// The engine defines these from ShaderCompiler.cpp using
+// FLargeWorldRenderScalar::GetTileSize():
+//   UE_LWC_RENDER_TILE_SIZE       = 2097152.0f (2^21)
+//   UE_LWC_RENDER_TILE_SIZE_SQRT  = sqrt(TileSize)
+//   UE_LWC_RENDER_TILE_SIZE_RSQRT = rsqrt(TileSize)
+//   UE_LWC_RENDER_TILE_SIZE_RCP   = 1.0f / TileSize
+//   UE_LWC_RENDER_TILE_SIZE_FMOD_PI  = fmod(TileSize, PI)
+//   UE_LWC_RENDER_TILE_SIZE_FMOD_2PI = fmod(TileSize, 2.0 * PI)
+// (Engine/Source/Runtime/Core/Public/Misc/LargeWorldRenderPosition.h:14)
+// ---------------------------------------------------------------------------
+#ifndef UE_LWC_RENDER_TILE_SIZE
+#define UE_LWC_RENDER_TILE_SIZE 2097152.0f
+#endif
+#ifndef UE_LWC_RENDER_TILE_SIZE_SQRT
+#define UE_LWC_RENDER_TILE_SIZE_SQRT sqrt(UE_LWC_RENDER_TILE_SIZE)
+#endif
+#ifndef UE_LWC_RENDER_TILE_SIZE_RSQRT
+#define UE_LWC_RENDER_TILE_SIZE_RSQRT rsqrt(UE_LWC_RENDER_TILE_SIZE)
+#endif
+#ifndef UE_LWC_RENDER_TILE_SIZE_RCP
+#define UE_LWC_RENDER_TILE_SIZE_RCP (1.0f / UE_LWC_RENDER_TILE_SIZE)
+#endif
+#ifndef UE_LWC_RENDER_TILE_SIZE_FMOD_PI
+#define UE_LWC_RENDER_TILE_SIZE_FMOD_PI fmod(UE_LWC_RENDER_TILE_SIZE, 3.14159265358979323846f)
+#endif
+#ifndef UE_LWC_RENDER_TILE_SIZE_FMOD_2PI
+#define UE_LWC_RENDER_TILE_SIZE_FMOD_2PI fmod(UE_LWC_RENDER_TILE_SIZE, 6.28318530717958647692f)
+#endif
+
+#include "/Engine/Private/LargeWorldCoordinates.ush"
+
+// The view struct needs FDFVector3, therefore it is included after LWC.
+#include "ViewCompat.ush"
+
+// ---------------------------------------------------------------------------
+// Constants from Engine/Shaders/Private/Common.ush.
+// ---------------------------------------------------------------------------
+#ifndef MaxHalfFloat
+const static float MaxHalfFloat = 65504.0f;
+#endif
+#ifndef FLOAT_MAX
+#define FLOAT_MAX (asfloat(0x7F7FFFFF))
+#endif
+#ifndef POSITIVE_INFINITY
+#define POSITIVE_INFINITY (asfloat(0x7F800000))
+#endif
+#ifndef NEGATIVE_INFINITY
+#define NEGATIVE_INFINITY (asfloat(0xFF800000))
+#endif
+
+// ---------------------------------------------------------------------------
+// Exact definitions from Engine/Shaders/Private/Common.ush.
+// ---------------------------------------------------------------------------
+
+// Common.ush: IsOrthoProjection() family.
+bool IsOrthoProjection(float4x4 ViewToClip)
+{
+	return ViewToClip._44 >= 1.0f;
+}
+
+bool IsOrthoProjection(ViewState InView)
+{
+	return IsOrthoProjection(InView.ViewToClip);
+}
+
+bool IsOrthoProjection()
+{
+	return IsOrthoProjection(View.ViewToClip);
+}
+
+float IsOrthoProjectionFloat()
+{
+	return select(IsOrthoProjection(), 1.0f, 0.0f);
+}
+
+// Common.ush: ConvertToDeviceZ().
+float ConvertToDeviceZ(float SceneDepth)
+{
+	FLATTEN
+	if (IsOrthoProjection())
+	{
+		// Ortho
+		return SceneDepth * View.ViewToClip[2][2] + View.ViewToClip[3][2];
+	}
+	else
+	{
+		// Perspective
+		return 1.0f / ((SceneDepth + View.InvDeviceZToWorldZTransform[3]) * View.InvDeviceZToWorldZTransform[2]);
+	}
+}
+
+// Common.ush: ConvertFromDeviceZ().
+float ConvertFromDeviceZ(float DeviceZ)
+{
+	return DeviceZ * View.InvDeviceZToWorldZTransform[0] + View.InvDeviceZToWorldZTransform[1] + 1.0f / (DeviceZ * View.InvDeviceZToWorldZTransform[2] - View.InvDeviceZToWorldZTransform[3]);
+}
+
+// Common.ush: AdjustClipToPrevClipForProjectionType().
+float2 AdjustClipToPrevClipForProjectionType(float2 Velocity, float DeviceZ)
+{
+	if(IsOrthoProjection())
+	{
+		/*
+		* Motion vectors on far distance planes are greatly influenced by slight rotations in camera angle
+		* And with Orthographic cameras, this magnifies the velocities over large distances.
+		* As a result, we need to counter this by reducing the speed with the DeviceZ
+		*
+		* Because this is ClipToPrevClip rather than velocity, we use the non - linear device z which works better than linear depth,
+		* however if adjusting velocity directly, linear depth should be used instead.
+		*/
+		Velocity *= DeviceZ;
+	}
+	return Velocity;
+}
+
+// Common.ush: GetScreenPositionForProjectionType().
+float2 GetScreenPositionForProjectionType(float2 ScreenPosition, float SceneDepth)
+{
+	return select(IsOrthoProjection(), ScreenPosition, ScreenPosition * SceneDepth);
+}
+
+// Common.ush: GetDepthPixelRadiusForProjectionType().
+float GetDepthPixelRadiusForProjectionType(float SceneDepth)
+{
+	return View.WorldDepthToPixelWorldRadius.x * SceneDepth + View.WorldDepthToPixelWorldRadius.y;
+}
+
+// Common.ush: length2().
+float length2(float2 v)
+{
+	return dot(v, v);
+}
+
+float length2(float3 v)
+{
+	return dot(v, v);
+}
+
+float length2(float4 v)
+{
+	return dot(v, v);
+}
+
+// Common.ush: ZOrder2D().
+uint2 ZOrder2D(uint Index, const uint SizeLog2)
+{
+	uint2 Coord = 0;
+
+	UNROLL
+	for (uint i = 0; i < SizeLog2; i++)
+	{
+		Coord.x |= ((Index >> (2 * i + 0)) & 0x1) << i;
+		Coord.y |= ((Index >> (2 * i + 1)) & 0x1) << i;
+	}
+
+	return Coord;
+}
+
+// ---------------------------------------------------------------------------
+// Velocity encoding/decoding and the has-pixel-animation bits, copied from
+// Engine/Shaders/Private/Common.ush.  The enum is derived exactly the same
+// way: VELOCITY_ENCODE_GAMMA=1 on SM5+, ENCODED_VELOCITY_TYPE=float4 for DXC
+// (uint4 only for COMPILER_GLSL_ES3_1).
+// ---------------------------------------------------------------------------
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+	#define VELOCITY_ENCODE_GAMMA 1
+#else
+	#define VELOCITY_ENCODE_GAMMA 0
+#endif
+
+#if COMPILER_GLSL_ES3_1
+	#define ENCODED_VELOCITY_TYPE uint4
+#else
+	#define ENCODED_VELOCITY_TYPE float4
+#endif
+
+#define VELOCITY_ENCODE_HAS_PIXEL_ANIMATION VELOCITY_ENCODE_DEPTH
+#define VELOCITY_ENCODE_TEMPORAL_RESPONSIVENESS (VELOCITY_SUPPORT_TEMPORAL_RESPONSIVENESS & VELOCITY_ENCODE_HAS_PIXEL_ANIMATION)
+
+#if VELOCITY_ENCODE_TEMPORAL_RESPONSIVENESS
+	#define TEMPORAL_RESPONSIVENESS_MASK 0x3
+	#define VELOCITY_Z_LOW_MASK 0xFFFC
+#else
+	#define TEMPORAL_RESPONSIVENESS_MASK 0x1
+	#define VELOCITY_Z_LOW_MASK 0xFFFE
+#endif
+
+ENCODED_VELOCITY_TYPE EncodeVelocityToTexture(float3 V, uint TemporalResponsivenessMask)
+{
+	#if VELOCITY_ENCODE_GAMMA
+		V.xy = sign(V.xy) * sqrt(abs(V.xy)) * (2.0 / sqrt(2.0));
+	#endif
+
+	float4 EncodedV;
+	EncodedV.xy = V.xy * (0.499f * 0.5f) + 32767.0f / 65535.0f;
+
+	#if VELOCITY_ENCODE_DEPTH
+		uint Vz = asuint(V.z);
+		EncodedV.z = saturate(float((Vz >> 16) & 0xFFFF) * rcp(65535.0f) + (0.1 / 65535.0f));
+		EncodedV.w = saturate(float(((Vz >> 0) & VELOCITY_Z_LOW_MASK) | (TemporalResponsivenessMask & TEMPORAL_RESPONSIVENESS_MASK)) * rcp(65535.0f) + (0.1 / 65535.0f));
+	#else
+		EncodedV.zw = 0.0;
+	#endif
+
+#if COMPILER_GLSL_ES3_1
+	return uint4(EncodedV * 65535.0 + 0.5f);
+#else
+	return EncodedV;
+#endif
+}
+
+ENCODED_VELOCITY_TYPE EncodeVelocityToTexture(float3 V, bool bHasPixelAnimation, float TemporalResponsiveness)
+{
+	uint TemporalResponsivenessMask = uint(bHasPixelAnimation);
+#if VELOCITY_ENCODE_TEMPORAL_RESPONSIVENESS
+	TemporalResponsivenessMask |= select(TemporalResponsiveness > 0.5f, 3U, uint(TemporalResponsiveness > 0));
+#endif
+	return EncodeVelocityToTexture(V, TemporalResponsivenessMask);
+}
+
+ENCODED_VELOCITY_TYPE EncodeVelocityToTexture(float3 V, bool bHasPixelAnimation)
+{
+	return EncodeVelocityToTexture(V, uint(bHasPixelAnimation));
+}
+
+ENCODED_VELOCITY_TYPE EncodeVelocityToTexture(float3 V)
+{
+	return EncodeVelocityToTexture(V, 0);
+}
+
+float3 DecodeVelocityFromTexture(ENCODED_VELOCITY_TYPE InEncodedV)
+{
+#if COMPILER_GLSL_ES3_1
+	float4 EncodedV = InEncodedV / 65535.0f;
+#else
+	float4 EncodedV = InEncodedV;
+#endif
+	const float InvDiv = 1.0f / (0.499f * 0.5f);
+
+	float3 V;
+	V.xy = EncodedV.xy * InvDiv - 32767.0f / 65535.0f * InvDiv;
+
+	#if VELOCITY_ENCODE_DEPTH
+		V.z = asfloat((uint(round(EncodedV.z * 65535.0f)) << 16) | (uint(round(EncodedV.w * 65535.0f)) & VELOCITY_Z_LOW_MASK));
+	#else
+		V.z = 0.0;
+	#endif
+
+	#if VELOCITY_ENCODE_GAMMA
+		V.xy = (V.xy * abs(V.xy)) * 0.5;
+	#endif
+
+	return V;
+}
+
+#if VELOCITY_ENCODE_HAS_PIXEL_ANIMATION
+bool DecodeHasPixelAnimationFromVelocityTexture(ENCODED_VELOCITY_TYPE EncodedV)
+{
+	return (uint(round(EncodedV.w * 65535.0f)) & 0x1) != 0x0;
+}
+#endif
+
+#if VELOCITY_ENCODE_TEMPORAL_RESPONSIVENESS
+bool DecodeDisableAnimationAAFromVelocityTexture(ENCODED_VELOCITY_TYPE EncodedV)
+{
+	return (uint(round(EncodedV.w * 65535.0f)) & 0x2) != 0x0;
+}
+#endif
+
+#ifndef LFX_COMMON_POWERS_DEFINED
+#define LFX_COMMON_POWERS_DEFINED 1
+#define LFX_COMMON_POWERS_IMPL(Type) \
+Type Square(Type x) { return x * x; } \
+Type Pow2(Type x) { return x * x; }
+LFX_COMMON_POWERS_IMPL(float)
+LFX_COMMON_POWERS_IMPL(float2)
+LFX_COMMON_POWERS_IMPL(float3)
+LFX_COMMON_POWERS_IMPL(float4)
+#undef LFX_COMMON_POWERS_IMPL
+#endif
+
+#ifndef ClampedPow
+float ClampedPow(float x, float y) { return pow(max(abs(x), 0.000001f), y); }
+float2 ClampedPow(float2 x, float2 y) { return float2(ClampedPow(x.x, y.x), ClampedPow(x.y, y.y)); }
+float3 ClampedPow(float3 x, float3 y) { return float3(ClampedPow(x.x, y.x), ClampedPow(x.y, y.y), ClampedPow(x.z, y.z)); }
+float4 ClampedPow(float4 x, float4 y) { return float4(ClampedPow(x.x, y.x), ClampedPow(x.y, y.y), ClampedPow(x.z, y.z), ClampedPow(x.w, y.w)); }
+#endif
+
+#ifndef PhongShadingPow
+float PhongShadingPow(float X, float Y) { return ClampedPow(X, Y); }
+float2 PhongShadingPow(float2 X, float2 Y) { return ClampedPow(X, Y); }
+float3 PhongShadingPow(float3 X, float3 Y) { return ClampedPow(X, Y); }
+float4 PhongShadingPow(float4 X, float4 Y) { return ClampedPow(X, Y); }
+#endif
+
+uint DivideAndRoundUp(uint Dividend, uint Divisor)
+{
+	return (Dividend + Divisor - 1) / Divisor;
+}
+
+uint DivideAndRoundUp(uint Dividend, uint Divisor, uint DivisorAsBitShift)
+{
+	return (Dividend + Divisor - 1) >> DivisorAsBitShift;
+}
+
+#define DivideAndRoundUp2(Dividend) DivideAndRoundUp((Dividend),    2u,  1u)
+#define DivideAndRoundUp4(Dividend) DivideAndRoundUp((Dividend),    4u,  2u)
+#define DivideAndRoundUp8(Dividend) DivideAndRoundUp((Dividend),    8u,  3u)
+#define DivideAndRoundUp16(Dividend) DivideAndRoundUp((Dividend),  16u,  4u)
+#define DivideAndRoundUp32(Dividend) DivideAndRoundUp((Dividend),  32u,  5u)
+#define DivideAndRoundUp64(Dividend) DivideAndRoundUp((Dividend),  64u,  6u)
+#define DivideAndRoundUp128(Dividend) DivideAndRoundUp((Dividend), 128u, 7u)
+#define DivideAndRoundUp256(Dividend) DivideAndRoundUp((Dividend), 256u, 8u)
+
+#ifndef SwapGeneric
+#define SwapGeneric(T) void Swap(inout T A, inout T B) { T Temp = A; A = B; B = Temp; }
+SwapGeneric(uint)
+SwapGeneric(uint2)
+SwapGeneric(uint3)
+SwapGeneric(uint4)
+SwapGeneric(float)
+SwapGeneric(float2)
+SwapGeneric(float3)
+SwapGeneric(float4)
+#endif
+
+float ComputeDistanceFromBoxToPointInside(float3 BoxCenter, float3 BoxExtent, float3 InPoint)
+{
+	float3 DistancesToMin = max(InPoint - BoxCenter + BoxExtent, 0);
+	float3 DistancesToMax = max(BoxCenter + BoxExtent - InPoint, 0);
+	float3 ClosestDistances = min(DistancesToMin, DistancesToMax);
+	return min(ClosestDistances.x, min(ClosestDistances.y, ClosestDistances.z));
+}
+
+// ---------------------------------------------------------------------------
+// Texture sampling helpers matching Engine/Shaders/Private/Common.ush.
+// ---------------------------------------------------------------------------
+float4 Texture2DSample(Texture2D Tex, SamplerState Sampler, float2 UV)
+{
+	return Tex.Sample(Sampler, UV);
+}
+
+float4 Texture2DSampleLevel(Texture2D Tex, SamplerState Sampler, float2 UV, float Mip)
+{
+	return Tex.SampleLevel(Sampler, UV, Mip);
+}
+
+float4 Texture2DSampleBias(Texture2D Tex, SamplerState Sampler, float2 UV, float MipBias)
+{
+	return Tex.SampleBias(Sampler, UV, MipBias);
+}
+
+float4 Texture2DSampleGrad(Texture2D Tex, SamplerState Sampler, float2 UV, float2 DDX, float2 DDY)
+{
+	return Tex.SampleGrad(Sampler, UV, DDX, DDY);
+}
+
+float4 Texture3DSample(Texture3D Tex, SamplerState Sampler, float3 UV)
+{
+	return Tex.Sample(Sampler, UV);
+}
+
+float4 Texture3DSampleLevel(Texture3D Tex, SamplerState Sampler, float3 UV, float Mip)
+{
+	return Tex.SampleLevel(Sampler, UV, Mip);
+}
+
+float4 Texture3DSampleBias(Texture3D Tex, SamplerState Sampler, float3 UV, float MipBias)
+{
+	return Tex.SampleBias(Sampler, UV, MipBias);
+}
+
+float4 Texture3DSampleGrad(Texture3D Tex, SamplerState Sampler, float3 UV, float3 DDX, float3 DDY)
+{
+	return Tex.SampleGrad(Sampler, UV, DDX, DDY);
+}
+
+float4 Texture2DArraySample(Texture2DArray Tex, SamplerState Sampler, float3 UV)
+{
+	return Tex.Sample(Sampler, UV);
+}
+
+float4 Texture2DArraySampleLevel(Texture2DArray Tex, SamplerState Sampler, float3 UV, float Mip)
+{
+	return Tex.SampleLevel(Sampler, UV, Mip);
+}
+
+float4 TextureCubeSample(TextureCube Tex, SamplerState Sampler, float3 UV)
+{
+	return Tex.Sample(Sampler, UV);
+}
+
+float4 TextureCubeSampleLevel(TextureCube Tex, SamplerState Sampler, float3 UV, float Mip)
+{
+	return Tex.SampleLevel(Sampler, UV, Mip);
+}
+
+// ---------------------------------------------------------------------------
+// Global sampler.  The engine exposes the bilinear clamped static sampler
+// through GetGlobalSampler(Bilinear, Clamped) at s3/space1000.  This adapter
+// therefore declares the same slot directly, or uses GetGlobalSampler when the
+// platform layer provides it.
+// ---------------------------------------------------------------------------
+#ifndef GlobalBilinearClampedSampler
+	#if defined(GetGlobalSampler)
+		#define GlobalBilinearClampedSampler GetGlobalSampler(Bilinear, Clamped)
+	#else
+		[[vk::binding(64, 0)]] SamplerState GlobalBilinearClampedSampler : register(s3, space1000);
+	#endif
+#endif
+
+#ifndef GlobalPointClampedSampler
+	#if defined(GetGlobalSampler)
+		#define GlobalPointClampedSampler GetGlobalSampler(Point, Clamped)
+	#else
+		[[vk::binding(65, 0)]] SamplerState GlobalPointClampedSampler : register(s1, space1000);
+	#endif
+#endif
+
+#ifndef GlobalPointWrappedSampler
+	#if defined(GetGlobalSampler)
+		#define GlobalPointWrappedSampler GetGlobalSampler(Point, Wrapped)
+	#else
+		[[vk::binding(66, 0)]] SamplerState GlobalPointWrappedSampler : register(s0, space1000);
+	#endif
+#endif
+
+#ifndef GlobalBilinearWrappedSampler
+	#if defined(GetGlobalSampler)
+		#define GlobalBilinearWrappedSampler GetGlobalSampler(Bilinear, Wrapped)
+	#else
+		[[vk::binding(67, 0)]] SamplerState GlobalBilinearWrappedSampler : register(s2, space1000);
+	#endif
+#endif
+
+#ifndef GlobalTrilinearClampedSampler
+	#if defined(GetGlobalSampler)
+		#define GlobalTrilinearClampedSampler GetGlobalSampler(Trilinear, Clamped)
+	#else
+		[[vk::binding(68, 0)]] SamplerState GlobalTrilinearClampedSampler : register(s4, space1000);
+	#endif
+#endif
+
+#ifndef GlobalTrilinearWrappedSampler
+	#if defined(GetGlobalSampler)
+		#define GlobalTrilinearWrappedSampler GetGlobalSampler(Trilinear, Wrapped)
+	#else
+		[[vk::binding(69, 0)]] SamplerState GlobalTrilinearWrappedSampler : register(s5, space1000);
+	#endif
+#endif

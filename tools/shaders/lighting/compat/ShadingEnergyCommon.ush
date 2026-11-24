@@ -1,0 +1,36 @@
+#pragma once
+
+// ShaderBake replacement for engine Common.ush in the native energy table kernel.
+// This entry point has no view, scene resources, or runtime material uniform buffers.
+#include "/Engine/Public/Platform.ush"
+
+static const float PI = 3.1415926535897932f;
+
+float length2(float2 x) { return dot(x, x); }
+float length2(float3 x) { return dot(x, x); }
+float length2(float4 x) { return dot(x, x); }
+
+#define LFX_COMMON_POWERS(Type) \
+Type Square(Type x) { return x * x; } \
+Type Pow2(Type x) { return x * x; } \
+Type Pow4(Type x) { Type xx = x * x; return xx * xx; } \
+Type Pow5(Type x) { Type xx = x * x; return xx * xx * x; }
+LFX_COMMON_POWERS(float)
+LFX_COMMON_POWERS(float2)
+LFX_COMMON_POWERS(float3)
+LFX_COMMON_POWERS(float4)
+#undef LFX_COMMON_POWERS
+#define LFX_COMMON_POWERS_DEFINED 1
+
+float ClampedPow(float x, float y) { return pow(max(abs(x), 0.000001f), y); }
+float PhongShadingPow(float X, float Y) { return ClampedPow(X, Y); }
+float2 PhongShadingPow(float2 X, float2 Y) { return float2(ClampedPow(X.x, Y.x), ClampedPow(X.y, Y.y)); }
+float3 PhongShadingPow(float3 X, float3 Y) { return float3(ClampedPow(X.x, Y.x), ClampedPow(X.y, Y.y), ClampedPow(X.z, Y.z)); }
+float4 PhongShadingPow(float4 X, float4 Y) { return float4(ClampedPow(X.x, Y.x), ClampedPow(X.y, Y.y), ClampedPow(X.z, Y.z), ClampedPow(X.w, Y.w)); }
+
+float4 Texture2DSampleLevel(Texture2D image, SamplerState sampler, float2 uv, float lod)
+{
+    return image.SampleLevel(sampler, uv, lod);
+}
+
+#include "/Engine/Private/FastMathThirdParty.ush"

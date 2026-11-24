@@ -1,0 +1,115 @@
+/* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
+package com.lowdragmc.photon.client.gameobject.emitter.data.model;
+
+import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigSetter;
+import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
+import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
+import com.lowdragmc.photon.Photon;
+import lombok.Getter;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.LoadingOverlay;
+import com.lowdragmc.photon.client.gameobject.emitter.data.model.skin.SkinnedModel;
+import net.minecraft.resources.Identifier;
+import org.jetbrains.annotations.Nullable;
+
+import java.io.FileNotFoundException;
+import java.util.Objects;
+
+/**
+ * Geometry from a glTF 2.0 file parsed at runtime through the resource manager — same deal as
+ * {@link ObjModelSource}: no bakery, no atlas, no resource reload. Reads {@code .glb} and
+ * {@code .gltf} with embedded buffers; see {@link GltfMeshParser} for what is taken from the file.
+ *
+ * <p>The reason to pick this over OBJ: glTF can carry real per-vertex <b>tangents</b>, so a model
+ * exported alongside a baked normal map keeps the exact frame the map was baked against instead of one
+ * reconstructed from UVs. Turn on the emitter's {@code Tangent} renderer setting to upload them.</p>
+ */
+@LDLRegisterClient(name = "gltf_model", registry = "photon:model_source")
+public class GltfModelSource implements IModelSource {
+    @Getter
+    @Configurable(name = "GltfModelSource.modelLocation")
+    private Identifier modelLocation = Photon.id("models/missing.glb");
+    /** glTF's UV origin is already top-left like Minecraft's, so unlike OBJ this defaults to off. */
+    @Getter
+    @Configurable(name = "GltfModelSource.flipV", tips = "photon.model_source.gltf_model.flipV.tips")
+    private boolean flipV = false;
+
+    public GltfModelSource() {
+    }
+
+    public GltfModelSource(Identifier modelLocation) {
+        this.modelLocation = modelLocation;
+    }
+
+    @ConfigSetter(field = "modelLocation")
+    public void setModelLocation(Identifier modelLocation) {
+        invalidate(); // drop the old key's entry before it changes
+        this.modelLocation = modelLocation;
+    }
+
+    @ConfigSetter(field = "flipV")
+    public void setFlipV(boolean flipV) {
+        invalidate();
+        this.flipV = flipV;
+    }
+
+    private PhotonMeshCache.GltfKey key() {
+        return new PhotonMeshCache.GltfKey(modelLocation, flipV);
+    }
+
+    /**
+     * The bind-pose geometry.
+     *
+     * <p>Goes through the <b>model</b> cache under the same key {@link AnimatedGltfModelSource} uses, so a
+     * file referenced by both a static and an animated source is parsed once rather than twice. This
+     * source then ignores everything but the mesh.</p>
+     */
+    @Override
+    public PhotonMesh getMesh() {
+        return PhotonMeshCache.INSTANCE.getModel(key(), k -> load()).mesh();
+    }
+
+    @Override
+    public void invalidate() {
+        PhotonMeshCache.INSTANCE.invalidate(key());
+    }
+
+    @Override
+    public IModelSource copy() {
+        var copy = new GltfModelSource(modelLocation);
+        copy.flipV = flipV;
+        return copy;
+    }
+
+    /** {@code null} = "can't load right now, don't cache" (retry next call); see {@link PhotonMeshCache#get}. */
+    @Nullable
+    private SkinnedModel load() {
+        // mid-reload the resource manager is swapping; caching EMPTY now would blank the mesh until the
+        // next invalidation, so retry afterwards instead (mirrors ObjModelSource).
+        if (Minecraft.getInstance().gui.overlay() instanceof LoadingOverlay) {
+            return null;
+        }
+        try (var in = Minecraft.getInstance().getResourceManager().open(modelLocation)) {
+            return GltfMeshParser.parseModel(in, flipV);
+        } catch (FileNotFoundException e) {
+            // a source whose file has not been picked yet; a stack trace says nothing extra
+            Photon.LOGGER.warn("glTF model {} does not exist", modelLocation);
+            return SkinnedModel.EMPTY;
+        } catch (Exception e) {
+            Photon.LOGGER.warn("Failed to load glTF model {}", modelLocation, e);
+            return SkinnedModel.EMPTY;
+        }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        var that = (GltfModelSource) o;
+        return flipV == that.flipV && Objects.equals(modelLocation, that.modelLocation);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(modelLocation, flipV);
+    }
+}

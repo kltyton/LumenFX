@@ -1,0 +1,288 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_render_target_mips",
+  "name": "generate",
+  "pass": "generate",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "blur",
+    "defines": {
+      "GENMIPS_GAUSSIAN": "1",
+      "GENMIPS_SRGB": "0"
+    },
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [],
+  "sourceResources": [
+    {
+      "name": "MipInSRV",
+      "kind": "niagara_render_target_2d",
+      "hlsl_type": "Texture2D",
+      "format": "PF_FloatRGBA"
+    },
+    {
+      "name": "MipOutUAV",
+      "kind": "niagara_render_target_2d",
+      "hlsl_type": "RWTexture2D<float4>",
+      "gpuFormat": "RGBA16_FLOAT",
+      "dxcImageFormat": "unknown",
+      "uav": true
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Plugins/FX/Niagara/Shaders/Private/NiagaraGenerateMips.usf",
+      "workgroup": {
+        "x": 8,
+        "y": 8,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": true,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": false
+      },
+      "bindings": [
+        {
+          "kind": "uniformBuffer",
+          "name": "Globals",
+          "sourceName": "$Globals",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageImage",
+          "name": "MipOutUAV",
+          "format": "RGBA16_FLOAT",
+          "formatRule": "source-selected manifest resource format",
+          "descriptorSet": 0,
+          "descriptorBinding": 4,
+          "access": "WRITE_ONLY",
+          "array": false,
+          "glBinding": 0,
+          "dynamicFloatFormat": true,
+          "stage": "compute"
+        },
+        {
+          "kind": "sampledTexture",
+          "name": "MipInSRV",
+          "image": "MipInSRV",
+          "sampler": "MipInSampler",
+          "format": "RGBA16_FLOAT",
+          "formatRef": "PF_FloatRGBA",
+          "formatRule": "source-selected manifest resource format",
+          "descriptorForm": "SEPARATE_IMAGE_AND_SAMPLER",
+          "descriptorSet": 0,
+          "descriptorBinding": 2,
+          "samplerDescriptorBinding": 3,
+          "glBinding": 0,
+          "array": false,
+          "volume": false,
+          "cube": false,
+          "dummySampler": false,
+          "sharedImage": false,
+          "dynamicFloatFormat": true,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [
+        {
+          "name": "MipInSampler",
+          "descriptorSet": 0,
+          "descriptorBinding": 3,
+          "shared": false
+        }
+      ],
+      "samplerPairs": [
+        {
+          "image": "MipInSRV",
+          "imageUniform": "MipInSRV",
+          "imageBinding": 2,
+          "sampler": "MipInSampler",
+          "samplerBinding": 3,
+          "descriptorSet": 0,
+          "glBinding": 0,
+          "dummy": false,
+          "shared": false
+        }
+      ],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 2824,
+          "sha256": "a25d626880ffbc2ad868e199c6de1a5e0bc747188591a76f142befc4d5c369a2"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 3988,
+          "sha256": "dbdc6537a2a82871e18698626711be5816fc1e42dc381b7a8e87867266b4ea78"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          8,
+          8,
+          1
+        ],
+        "capabilities": [
+          1,
+          56
+        ],
+        "uniformBuffers": [
+          {
+            "name": "Globals",
+            "sourceName": "$Globals",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "size": 28,
+            "members": [
+              {
+                "name": "SrcTexelSize",
+                "type": "vec2",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 2,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 0,
+                "size": 8,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "DstTexelSize",
+                "type": "vec2",
+                "baseType": "float",
+                "bitWidth": 32,
+                "vectorSize": 2,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 8,
+                "size": 8,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "MipOutSize",
+                "type": "ivec2",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 2,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 16,
+                "size": 8,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              },
+              {
+                "name": "KernelHWidth",
+                "type": "int",
+                "baseType": "int",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [],
+                "offset": 24,
+                "size": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageBuffers": [],
+        "storageImages": [
+          {
+            "name": "MipOutUAV",
+            "descriptorSet": 0,
+            "descriptorBinding": 4,
+            "array": false,
+            "imageStorageFormat": 0
+          }
+        ],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "blur",
+      "pipelinePass": "generate",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "MainCS",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "uniformBuffer",
+      "name": "Globals",
+      "sourceName": "$Globals",
+      "descriptorSet": 0,
+      "descriptorBinding": 1,
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageImage",
+      "name": "MipOutUAV",
+      "format": "RGBA16_FLOAT",
+      "formatRule": "source-selected manifest resource format",
+      "descriptorSet": 0,
+      "descriptorBinding": 4,
+      "access": "WRITE_ONLY",
+      "array": false,
+      "glBinding": 0,
+      "dynamicFloatFormat": true,
+      "stage": "compute"
+    },
+    {
+      "kind": "sampledTexture",
+      "name": "MipInSRV",
+      "image": "MipInSRV",
+      "sampler": "MipInSampler",
+      "format": "RGBA16_FLOAT",
+      "formatRef": "PF_FloatRGBA",
+      "formatRule": "source-selected manifest resource format",
+      "descriptorForm": "SEPARATE_IMAGE_AND_SAMPLER",
+      "descriptorSet": 0,
+      "descriptorBinding": 2,
+      "samplerDescriptorBinding": 3,
+      "glBinding": 0,
+      "array": false,
+      "volume": false,
+      "cube": false,
+      "dummySampler": false,
+      "sharedImage": false,
+      "dynamicFloatFormat": true,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 2824,
+        "sha256": "a25d626880ffbc2ad868e199c6de1a5e0bc747188591a76f142befc4d5c369a2"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 3988,
+        "sha256": "dbdc6537a2a82871e18698626711be5816fc1e42dc381b7a8e87867266b4ea78"
+      }
+    }
+  }
+}

@@ -1,0 +1,352 @@
+{
+  "schema": "lumenfx.shaders.index.v1",
+  "pipeline": "shading_energy",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "programs": [
+    {
+      "pass": "reflection_float",
+      "variant": "substrate",
+      "selectionKeys": [],
+      "path": "shading_energy/reflection_float/substrate/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 7224,
+            "sha256": "7b633790e93de9b9c4c7c513cee90bc26148b9528cae8ab83a409cb7cd283e4b"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 13920,
+            "sha256": "d7ea5b2eab93da6ce2072439ec13a7f110da82f255fada223c8cb37e376133d2"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "reflection_unorm16",
+      "variant": "substrate",
+      "selectionKeys": [],
+      "path": "shading_energy/reflection_unorm16/substrate/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 7224,
+            "sha256": "aaeac0a5d48b07917c9629014a1eac1b762cd7654074e4a5a415359359c0304f"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 13920,
+            "sha256": "b04af0d5ae73a69b5a723fb1282568ade453dcab59fff8139860223d28255ce9"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "reflection_unorm8",
+      "variant": "substrate",
+      "selectionKeys": [],
+      "path": "shading_energy/reflection_unorm8/substrate/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 7224,
+            "sha256": "22b946d0e5275b34ec218bd4fcd270376015ad80890ea039a100c858cbfe3b23"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 13920,
+            "sha256": "88928dada0bd2e0381f3a2bd6b3a1149167211144f3be755805cff7c6260c83c"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "transmission_float",
+      "variant": "substrate",
+      "selectionKeys": [],
+      "path": "shading_energy/transmission_float/substrate/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 11284,
+            "sha256": "17e1e48610bad38a82e1ee4749b4ec563070d2909307538990558c9c4bcf5dcb"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 20936,
+            "sha256": "c28f46546e7c81c878355194de1afa50e801b222b9d87a1c11d9db5ddc71ff3b"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "transmission_unorm16",
+      "variant": "substrate",
+      "selectionKeys": [],
+      "path": "shading_energy/transmission_unorm16/substrate/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 11284,
+            "sha256": "7c7d1c1d989a950b0f19ab1cecfab1a06eb72a9881578fec0160db2ec5cd733d"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 20936,
+            "sha256": "8c389502c752264cb852b64030b296a4299c183f9490767ba1bef7e07668731a"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "transmission_unorm8",
+      "variant": "substrate",
+      "selectionKeys": [],
+      "path": "shading_energy/transmission_unorm8/substrate/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 11284,
+            "sha256": "6e814a593fadae4805ad011515e4c7eef1c23d23e83af86f061ee0636823311c"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 20936,
+            "sha256": "a4eb4d538cec8a36ca269a9f94b14225ac404a566e20d6c3f893102282316199"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "sheen_float",
+      "variant": "legacy",
+      "selectionKeys": [],
+      "path": "shading_energy/sheen_float/legacy/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 6152,
+            "sha256": "518621134e09fdc17ffff03af1720043374f99be6318615631388ed8222427cb"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 11080,
+            "sha256": "66d55c1fa846ba49136f3d35bcfe43daeb015bb29e18ea350e4de0d3753efab2"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "sheen_float",
+      "variant": "substrate",
+      "selectionKeys": [],
+      "path": "shading_energy/sheen_float/substrate/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 5944,
+            "sha256": "83488ef32823919a99e77932a57060db1599d49cbd9fc1187b0a34d361272f68"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 10144,
+            "sha256": "3d65e6379a51fa008084c959c18234f46c4bc9b99f76072f4ae81354f55daf47"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "sheen_unorm16",
+      "variant": "legacy",
+      "selectionKeys": [],
+      "path": "shading_energy/sheen_unorm16/legacy/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 6152,
+            "sha256": "6f2ee5f225028f9f2ef06cc11a856a36edb0f46965b1175f86b734b1b3476877"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 11080,
+            "sha256": "af9afcfa9dcb2fec59f14fd722e8346627f8ce842e6eab6600c9a3650672c716"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "sheen_unorm16",
+      "variant": "substrate",
+      "selectionKeys": [],
+      "path": "shading_energy/sheen_unorm16/substrate/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 5944,
+            "sha256": "dd05aaace244ae6e57a475fca4ac814993b103ab5f50d99fd04f51b816e86626"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 10144,
+            "sha256": "baa7d38b22e129d1fb890442bf7656bf7a35ac4ff56f83162b6c83be3108bcd6"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "sheen_unorm8",
+      "variant": "legacy",
+      "selectionKeys": [],
+      "path": "shading_energy/sheen_unorm8/legacy/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 6152,
+            "sha256": "47210146c62ec74bf3bb2e27da39aacc385e913b4493520bbbaead92ead9d5c8"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 11080,
+            "sha256": "2479638da9ef6cbfa42b2a1493e45cc77d9423cf87d6af4e4049a06c9722eb9a"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "sheen_unorm8",
+      "variant": "substrate",
+      "selectionKeys": [],
+      "path": "shading_energy/sheen_unorm8/substrate/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 5944,
+            "sha256": "07ec04cf1a70360b67a3b40ae5c3fa1aa578321af90a9ff6c65d86504d3ff679"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 10144,
+            "sha256": "374de22ebfd8546627b8a18347d48da4f139147e1152a4798f310a0f837291ad"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "diffuse_unorm16",
+      "variant": "substrate",
+      "selectionKeys": [],
+      "path": "shading_energy/diffuse_unorm16/substrate/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 6364,
+            "sha256": "70d35408c1a9ce528e9c8653a4e105309a9ae9c894c496bb4ea8d22ad09362bb"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 11804,
+            "sha256": "49bd356d73d38ae258a9dd7414814cac84b0002d2263782c541e2e75471fdbc6"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "diffuse_unorm8",
+      "variant": "substrate",
+      "selectionKeys": [],
+      "path": "shading_energy/diffuse_unorm8/substrate/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 6364,
+            "sha256": "2ed958bd73b7ba4b42aba305ac3c2e820f9f0704426f29526c6ee6aed214aae9"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 11804,
+            "sha256": "dac7784ed7210829e6b4a2917618527053f7584e7baf9e5ecd9db8b3d20d7283"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "ggx_max_half",
+      "variant": "substrate",
+      "selectionKeys": [],
+      "path": "shading_energy/ggx_max_half/substrate/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 6972,
+            "sha256": "cda9044e82fe6e82861ddeaed90569d5e92302648b6db2f90a4344a0985d7710"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 15132,
+            "sha256": "2de84b930b268669ed76c53cb75404d424ae11346d55bc543706f8b15743dfb4"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    }
+  ]
+}

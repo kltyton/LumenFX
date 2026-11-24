@@ -1,0 +1,38 @@
+{
+  "schema": "lumenfx.niagara.emitter.source.v1",
+  "engine": {
+    "version": "5.9.0-preview-2", "head": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+    "cache_root": "E:/.aaabackup/智能体产物/缓存文件/Eden Realm/vfx-performance/source/unreal/ue5.8.4"
+  },
+  "compile_contract": {
+    "reuse_shared_compat": false,
+    "defines_base": {
+      "COMPILER_DXC": 1, "COMPILER_HLSL": 1, "COMPILER_VULKAN": 0,
+      "COMPILER_GLSL": 0, "COMPILER_GLSL_ES3_1": 0, "COMPILER_METAL": 0,
+      "SM6_PROFILE": 0, "SM5_PROFILE": 1,
+      "PLATFORM_SUPPORTS_REAL_TYPES": 0, "PLATFORM_SUPPORTS_RELAXED_PRECISION": 0,
+      "PLATFORM_SUPPORTS_DISTANCE_FIELDS": 1,
+      "PLATFORM_USES_SPIRV_RESOURCE_TYPES": 1, "PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS": 0,
+      "COMPILER_SUPPORTS_HLSL2021": 1, "SUPPORTS_INDEPENDENT_SAMPLERS": 1, "UE_BINDLESS_ENABLED": 0,
+      "VIEW_HAS_TILEOFFSET_DATA": 1, "INSTANCED_STEREO": 0, "MOBILE_MULTI_VIEW": 0,
+      "SUBSTRATE_TOP_LAYER_TYPE": "uint",
+      "WORKING_COLOR_SPACE_IS_SRGB": 1,
+      "UE_LWC_RENDER_TILE_SIZE": "2097152.0f",
+      "UE_LWC_RENDER_TILE_SIZE_SQRT": "1448.15466f",
+      "UE_LWC_RENDER_TILE_SIZE_RSQRT": "0.000690533954f",
+      "UE_LWC_RENDER_TILE_SIZE_RCP": "4.76837158e-07f",
+      "UE_LWC_RENDER_TILE_SIZE_FMOD_PI": "0.673652053f",
+      "UE_LWC_RENDER_TILE_SIZE_FMOD_2PI": "0.673652053f"
+    },
+    "include_overrides": [
+      {"from": "Engine/Shaders/Shared/HLSLStaticAssert.h", "to": "tools/shaders/niagara/compat/emitter/HLSLStaticAssert.ush"}
+    ]
+  },
+  "passes": [
+    {
+      "name": "emitter", "source": "Engine/Plugins/FX/Niagara/Shaders/Private/NiagaraEmitterInstanceShader.usf",
+      "stage": "compute", "entrypoint": "SimulateMainComputeCS",
+      "variants": [{"id": "default", "defines": {}}]
+    }
+  ]
+}

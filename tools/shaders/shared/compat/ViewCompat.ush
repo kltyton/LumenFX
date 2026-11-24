@@ -1,0 +1,65 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+// View fields use the source shader names from SceneView.h. DXC reflection
+// determines the layout of the uniform block used by offline shader passes.
+
+#pragma once
+
+struct FViewUniformShaderParameters
+{
+	// SceneView.h: VIEW_UNIFORM_BUFFER_MEMBER_PER_VIEW(FMatrix44f, ViewToClip)
+	float4x4 ViewToClip;
+
+	// SceneView.h: VIEW_UNIFORM_BUFFER_MEMBER_PER_VIEW(FVector4f, InvDeviceZToWorldZTransform)
+	float4 InvDeviceZToWorldZTransform;
+
+	// SceneView.h: VIEW_UNIFORM_BUFFER_MEMBER_PER_VIEW(FMatrix44f, ScreenToTranslatedWorld)
+	float4x4 ScreenToTranslatedWorld;
+
+	// SceneView.h: PreViewTranslationHigh + PreViewTranslationLow, exposed to
+	// shaders as FDFVector3 by the UE shader generation layer.
+	FDFVector3 PreViewTranslation;
+
+	// SceneView.h: PrevPreViewTranslationHigh + PrevPreViewTranslationLow.
+	FDFVector3 PrevPreViewTranslation;
+
+	// SceneView.h: VIEW_UNIFORM_BUFFER_MEMBER_PER_VIEW(FMatrix44f, PrevScreenToTranslatedWorld)
+	float4x4 PrevScreenToTranslatedWorld;
+
+	// SceneView.h: VIEW_UNIFORM_BUFFER_MEMBER_PER_VIEW(FMatrix44f, ClipToPrevClip)
+	float4x4 ClipToPrevClip;
+
+	// SceneView.h: VIEW_UNIFORM_BUFFER_MEMBER_PER_VIEW(FVector2f, WorldDepthToPixelWorldRadius)
+	float2 WorldDepthToPixelWorldRadius;
+
+	// SceneView.h: VIEW_UNIFORM_BUFFER_MEMBER(uint32, StateFrameIndexMod8)
+	uint StateFrameIndexMod8;
+
+	// SceneView.h: VIEW_UNIFORM_BUFFER_MEMBER(uint32, StateFrameIndex)
+	uint StateFrameIndex;
+
+#if VIEW_HAS_TILEOFFSET_DATA
+struct ViewStateTileOffsetData
+{
+	FLWCVector3 PreViewTranslation;
+	FLWCVector3 PrevPreViewTranslation;
+};
+#endif
+
+	// SceneView.h: VIEW_UNIFORM_BUFFER_MEMBER(float, GeneralPurposeTweak)
+	float GeneralPurposeTweak;
+#if VIEW_HAS_TILEOFFSET_DATA
+	ViewStateTileOffsetData TileOffset;
+#endif
+};
+
+// UE names the by-value view state ViewState.
+#define ViewState FViewUniformShaderParameters
+
+// In a compute shader PrimaryView and ResolvedView alias the same view data.
+#define PrimaryView View
+#define ResolvedView View
+
+[[vk::binding(0, 0)]] cbuffer ViewUniformBuffer : register(b0, space0)
+{
+	FViewUniformShaderParameters View;
+};

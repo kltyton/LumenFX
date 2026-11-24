@@ -1,0 +1,8 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+// Stateless Niagara uses the source PCG implementation. The same engine
+// include also exposes screen-space interleaved gradient noise.
+
+#pragma once
+
+#include "/Engine/Private/RandomInterleavedGradientNoise.ush"
+#include "/Engine/Private/RandomPCG.ush"

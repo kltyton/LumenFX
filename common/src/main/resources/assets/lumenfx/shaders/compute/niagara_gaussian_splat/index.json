@@ -1,0 +1,283 @@
+{
+  "schema": "lumenfx.shaders.index.v1",
+  "pipeline": "niagara_gaussian_splat",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "programs": [
+    {
+      "pass": "build_splats",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_gaussian_splat/build_splats/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 15748,
+            "sha256": "21f8fc84277081c7396e97fc9db683b0213185ad9a6a3ce70d9add863a25170d"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 23616,
+            "sha256": "d86278d57e10bfb831272462e00f9225a8db718ec869b46c6ddf6241751c47c3"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "shading",
+      "variant": "sh0",
+      "selectionKeys": [],
+      "path": "niagara_gaussian_splat/shading/sh0/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 43804,
+            "sha256": "d648da6cb9b8b4c2080b91f92cb7dc0e001ecbd858bfe0919863080ccb92e7b1"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 63864,
+            "sha256": "0942eda4c3d406808c73b29529b916d4522e0bd2244c807167d2bc7319742a01"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "shading",
+      "variant": "sh1",
+      "selectionKeys": [],
+      "path": "niagara_gaussian_splat/shading/sh1/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 46004,
+            "sha256": "138a082f4ece12ac550fd69e74b70cf7cbd08ea61f3a66a22f9e35e55072d767"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 67080,
+            "sha256": "01c4126f35eb22a69f8f6cf1bfb73714f059db29f6fa27d24d7fb9befeafb410"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "shading",
+      "variant": "sh2",
+      "selectionKeys": [],
+      "path": "niagara_gaussian_splat/shading/sh2/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 46764,
+            "sha256": "5e1c27085780f54b9fcd5c74be2165bbaf85a14e3e994d5ed9cd38652a5d5a44"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 68424,
+            "sha256": "dd6df74e6e7dee5395cc9a90efabd3acfc724bb1fad850b37d52837ae1670f58"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "shading",
+      "variant": "sh3",
+      "selectionKeys": [],
+      "path": "niagara_gaussian_splat/shading/sh3/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 47836,
+            "sha256": "183a1f22a715bf327e50ed0c7eda11dabf2811b2285ce9f061acc8a5cea98fb5"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 70436,
+            "sha256": "6a09f94049e1c1df0c51f745c4072a26ee4bbd2e7fc98f75894cc1a889ac5487"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "draw_indirect_args",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_gaussian_splat/draw_indirect_args/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 896,
+            "sha256": "790e4bd4325e906bec8c98e063b2825e55b30e3aedbcef6849875e5358fb57a8"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 1200,
+            "sha256": "57a4fe60662082f402964779c40c97cd31357ce5b0abe87dbce3392ded722efd"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "gather_shaded_splats",
+      "variant": "gpu_0",
+      "selectionKeys": [],
+      "path": "niagara_gaussian_splat/gather_shaded_splats/gpu_0/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 2228,
+            "sha256": "75aa53ad0b91142ca9eacc565df28990d39d2c15c3aa489793ff055bd4af9539"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 3760,
+            "sha256": "a5bdadf21eef304dd37cbfb457c78b095a0ba4e7557117c5f2c285da217acd8d"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "gather_shaded_splats",
+      "variant": "gpu_1",
+      "selectionKeys": [],
+      "path": "niagara_gaussian_splat/gather_shaded_splats/gpu_1/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 2400,
+            "sha256": "d3380405cf7760cf87c8b20f31df33e346b477ec85b53edcb0ef42af12e7173e"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 4064,
+            "sha256": "575cf5b1b33dde2b5c5c1f763e84037a72bc85700e6a3268d4b0105592fecb6b"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "tile_count",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_gaussian_splat/tile_count/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 25088,
+            "sha256": "558d1f26e0fa9f5722a7402332e291a1e349baac456d1226609c90ba1e2f6aac"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 28260,
+            "sha256": "204837975a8333480c64105d93a774c0b460d93c498ca3b650577e39e0577386"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "prefix_sum",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_gaussian_splat/prefix_sum/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 2672,
+            "sha256": "c4bfd8321b27a4acca0985e469103fa9070844335f8add3dd336bfdcd061598c"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 4288,
+            "sha256": "679c550e9ff54b4a1f8551caa03b9353506c04701f66712fc1e005fd3947f02b"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "fill_splat_index_buffer",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_gaussian_splat/fill_splat_index_buffer/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 25828,
+            "sha256": "b808467192930344b63ab68c6069b4a75748e0bedbfb08ffc160efba7395efde"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 29848,
+            "sha256": "8fc935a9101791dae2c21f5be208dccf058081f23f96a93db69a684ab1e5fcd0"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    },
+    {
+      "pass": "tile_rasterize",
+      "variant": "default",
+      "selectionKeys": [],
+      "path": "niagara_gaussian_splat/tile_rasterize/default/program.json",
+      "artifacts": {
+        "compute": {
+          "vulkan": {
+            "path": "vulkan.compute.spv",
+            "size": 26300,
+            "sha256": "9331fe7521a28b4d2bb286b5901fec126691bff7c91f6160f7d8706433c25b0c"
+          },
+          "opengl": {
+            "path": "opengl.compute.spv",
+            "size": 30716,
+            "sha256": "c9ed9795ecbd32199adedb53b3c7632af031c181d1e6500237bc6cf7b7066a3f"
+          }
+        }
+      },
+      "stages": [
+        "compute"
+      ]
+    }
+  ]
+}

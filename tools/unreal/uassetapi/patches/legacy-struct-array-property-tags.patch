@@ -1,0 +1,121 @@
+--- a/UAssetAPI/PropertyTypes/Objects/PropertyData.cs
++++ b/UAssetAPI/PropertyTypes/Objects/PropertyData.cs
+@@ -252,7 +252,7 @@
+         /// <summary>
+         /// Complete reading the property tag of this property.
+         /// </summary>
+-        protected virtual void ReadEndPropertyTag(AssetBinaryReader reader)
++        protected internal virtual void ReadEndPropertyTag(AssetBinaryReader reader)
+         {
+             if (reader.Asset.HasUnversionedProperties) return;
+ 
+@@ -304,7 +304,7 @@
+         /// <summary>
+         /// Complete writing the property tag of this property.
+         /// </summary>
+-        protected virtual void WriteEndPropertyTag(AssetBinaryWriter writer)
++        protected internal virtual void WriteEndPropertyTag(AssetBinaryWriter writer)
+         {
+             if (writer.Asset.HasUnversionedProperties) return;
+ 
+--- a/UAssetAPI/PropertyTypes/Objects/ArrayPropertyData.cs
++++ b/UAssetAPI/PropertyTypes/Objects/ArrayPropertyData.cs
+@@ -75,7 +75,7 @@
+             FName name = this.Name;
+             long structLength = 1;
+             FName fullType = FName.DefineDummy(reader.Asset, "Generic");
+-            Guid structGUID = new Guid();
++            StructPropertyData legacyInnerTag = null;
+ 
+             bool isSpecialCase = false;
+             if (reader.Asset is UAsset asset)
+@@ -105,10 +105,18 @@
+ 
+                 if (thisArrayType.Value.Value != ArrayType.Value.Value) throw new FormatException("Invalid array type: " + thisArrayType.ToString() + " vs " + ArrayType.ToString());
+ 
+-                structLength = reader.ReadInt64(); // length value
++                structLength = reader.ReadInt32();
++                int arrayIndex = reader.ReadInt32();
+                 fullType = reader.ReadFName();
+-                structGUID = reader.ReadGuid();
+-                reader.ReadPropertyGuid();
++                legacyInnerTag = new StructPropertyData(name, fullType)
++                {
++                    ArrayIndex = arrayIndex,
++                    StructGUID = reader.Asset.ObjectVersion >= ObjectVersion.VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG
++                        ? reader.ReadGuid()
++                        : Guid.Empty
++                };
++                // The legacy inner tag has the same GUID and extensions as any full property tag.
++                legacyInnerTag.ReadEndPropertyTag(reader);
+             }
+             else
+             {
+@@ -125,22 +133,19 @@
+ 
+             if (numEntries == 0)
+             {
+-                DummyStruct = new StructPropertyData(name, fullType)
+-                {
+-                    StructGUID = structGUID
+-                };
++                DummyStruct = legacyInnerTag ?? new StructPropertyData(name, fullType);
+             }
+             else
+             {
+                 var propTypeName = PropertyTypeName?.GetParameter(0);
+                 for (int i = 0; i < numEntries; i++)
+                 {
+-                    var data = new StructPropertyData(name, fullType);
++                    var data = (i == 0 ? legacyInnerTag : null) ?? new StructPropertyData(name, fullType);
+                     data.Offset = reader.BaseStream.Position;
+                     data.Ancestry.Initialize(Ancestry, Name);
+                     data.PropertyTypeName = propTypeName;
+                     data.Read(reader, false, structLength, 0, PropertySerializationContext.Array);
+-                    data.StructGUID = structGUID;
++                    if (legacyInnerTag != null) data.StructGUID = legacyInnerTag.StructGUID;
+                     results[i] = data;
+                 }
+                 DummyStruct = (StructPropertyData)results[0];
+@@ -246,6 +251,7 @@
+             FName fullType = DummyStruct.StructType;
+ 
+             int lengthLoc = -1;
++            long innerPayloadStart = -1;
+ 
+             bool isSpecialCase = false;
+             if (writer.Asset is UAsset)
+@@ -258,10 +264,12 @@
+                 writer.Write(DummyStruct.Name);
+                 writer.Write(new FName(writer.Asset, "StructProperty"));
+                 lengthLoc = (int)writer.BaseStream.Position;
+-                writer.Write((long)0);
++                writer.Write(0);
++                writer.Write(DummyStruct.ArrayIndex);
+                 writer.Write(fullType);
+                 if (writer.Asset.ObjectVersion >= ObjectVersion.VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG) writer.Write(DummyStruct.StructGUID);
+-                if (writer.Asset.ObjectVersion >= ObjectVersion.VER_UE4_PROPERTY_GUID_IN_PROPERTY_TAG) writer.Write((byte)0);
++                DummyStruct.WriteEndPropertyTag(writer);
++                innerPayloadStart = writer.BaseStream.Position;
+             }
+ 
+             for (int i = 0; i < Value.Length; i++)
+@@ -271,13 +279,12 @@
+                 Value[i].Write(writer, false);
+             }
+ 
+-            if (writer.Asset.ObjectVersionUE5 < ObjectVersionUE5.PROPERTY_TAG_COMPLETE_TYPE_NAME && writer.Asset.ObjectVersion >= ObjectVersion.VER_UE4_INNER_ARRAY_TAG_INFO && !isSpecialCase)
+-            {
+-                int fullLen = (int)writer.BaseStream.Position - lengthLoc;
+-                int newLoc = (int)writer.BaseStream.Position;
++            if (lengthLoc >= 0)
++            {
++                long end = writer.BaseStream.Position;
+                 writer.Seek(lengthLoc, SeekOrigin.Begin);
+-                writer.Write(fullLen - 32 - (includeHeader ? 1 : 0));
+-                writer.Seek(newLoc, SeekOrigin.Begin);
++                writer.Write(checked((int)(end - innerPayloadStart)));
++                writer.BaseStream.Seek(end, SeekOrigin.Begin);
+             }
+         }
+         else

@@ -1,0 +1,47 @@
+#version 450
+#define LFX_COMPUTE_INTEGRATION
+#moj_import <lumenfx:volumetric_common.glsl>
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout(binding = 1) uniform sampler2D ScatteringSampler;
+layout(rgba16f, binding = 2) writeonly uniform image2D IntegratedOutput;
+
+ivec2 atlasPixel(ivec2 xy, int slice) {
+    int columns = int(FogGrid.w + 0.5);
+    return xy + ivec2(slice % columns, slice / columns) * ivec2(FogGrid.xy + 0.5);
+}
+
+void main() {
+    ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
+    ivec3 size = ivec3(FogGrid.xyz + 0.5);
+    if (any(greaterThanEqual(xy, size.xy))) return;
+
+    vec2 gridXY = vec2(xy) + 0.5;
+    vec3 previousSliceWorld = lfx_cell_world_at_slice(gridXY, 0.0);
+    vec3 accumulatedLighting = vec3(0.0);
+    float accumulatedTransmittance = 1.0;
+    float accumulatedDepth = 0.0;
+
+    for (int layer = 0; layer < size.z; layer++) {
+        vec4 scattering = lfx_sample_atlas(ScatteringSampler,
+                vec3(gridXY, float(layer) + 0.5), FogGrid, FogAtlas);
+        vec3 layerWorld = lfx_cell_world_at_slice(gridXY, float(layer) + 0.5);
+        float stepLength = length(layerWorld - previousSliceWorld) * 100.0;
+        previousSliceWorld = layerWorld;
+
+        float transmittance = exp(-scattering.w * stepLength);
+        accumulatedDepth += stepLength;
+        float fadeIn = clamp(accumulatedDepth * FogDepth.w, 0.0, 1.0);
+        vec3 integratedScattering = fadeIn
+                * (scattering.rgb - scattering.rgb * transmittance)
+                / max(scattering.w, 0.00001);
+        accumulatedLighting += integratedScattering * accumulatedTransmittance;
+        accumulatedTransmittance *= mix(1.0, transmittance, fadeIn);
+        imageStore(IntegratedOutput, atlasPixel(xy, layer),
+                vec4(accumulatedLighting, accumulatedTransmittance));
+    }
+
+    int tiles = int(FogAtlas.x + 0.5) / size.x * (int(FogAtlas.y + 0.5) / size.y);
+    for (int layer = size.z; layer < tiles; layer++)
+        imageStore(IntegratedOutput, atlasPixel(xy, layer), vec4(0.0));
+}

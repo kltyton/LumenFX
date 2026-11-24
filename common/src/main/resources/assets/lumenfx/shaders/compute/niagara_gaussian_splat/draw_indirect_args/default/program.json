@@ -1,0 +1,221 @@
+{
+  "schema": "lumenfx.shaders.program.v1",
+  "pipeline": "niagara_gaussian_splat",
+  "name": "draw_indirect_args",
+  "pass": "draw_indirect_args",
+  "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+  "variant": {
+    "id": "default",
+    "defines": {},
+    "selectionKeys": []
+  },
+  "stageClass": "compute",
+  "abiLowering": [
+    {
+      "resource": "SplatCountBuffer",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "RWDrawIndirectArgs",
+      "from": "RWBuffer<uint>",
+      "to": "RWStructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    },
+    {
+      "resource": "StatsClusterCountBuffer",
+      "from": "Buffer<uint>",
+      "to": "StructuredBuffer<uint>",
+      "elementStride": 4,
+      "scope": "Niagara GPU particle buffer"
+    }
+  ],
+  "sourceResources": [
+    {
+      "name": "SplatCountBuffer",
+      "kind": "storage_buffer",
+      "niagara_buffer_lowering": "read:uint",
+      "stride_bytes": 4
+    },
+    {
+      "name": "RWDrawIndirectArgs",
+      "kind": "storage_buffer",
+      "niagara_buffer_lowering": "write:uint",
+      "stride_bytes": 4,
+      "uav": true
+    },
+    {
+      "name": "StatsClusterCountBuffer",
+      "kind": "storage_buffer",
+      "niagara_buffer_lowering": "read:uint",
+      "stride_bytes": 4
+    }
+  ],
+  "stages": [
+    {
+      "stage": "compute",
+      "entrypoint": "MainCS",
+      "source": "Engine/Plugins/GaussianSplat/Shaders/Private/GaussianSplatDrawIndirectArgs.usf",
+      "workgroup": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "capabilities": {
+        "waveOperations": false,
+        "nativeFp16": false,
+        "storage16": false,
+        "subgroupExtended": false,
+        "storageImageExtendedFormats": false,
+        "storageImageWriteWithoutFormat": false,
+        "storageImageReadWithoutFormat": false,
+        "storageBuffers": true
+      },
+      "bindings": [
+        {
+          "kind": "storageBuffer",
+          "name": "SplatCountBuffer",
+          "descriptorSet": 0,
+          "descriptorBinding": 0,
+          "access": "READ_ONLY",
+          "glBinding": 0,
+          "stage": "compute"
+        },
+        {
+          "kind": "storageBuffer",
+          "name": "RWDrawIndirectArgs",
+          "descriptorSet": 0,
+          "descriptorBinding": 1,
+          "access": "READ_WRITE",
+          "glBinding": 1,
+          "stage": "compute"
+        }
+      ],
+      "samplers": [],
+      "samplerPairs": [],
+      "artifacts": {
+        "vulkan": {
+          "path": "vulkan.compute.spv",
+          "size": 896,
+          "sha256": "790e4bd4325e906bec8c98e063b2825e55b30e3aedbcef6849875e5358fb57a8"
+        },
+        "opengl": {
+          "path": "opengl.compute.spv",
+          "size": 1200,
+          "sha256": "57a4fe60662082f402964779c40c97cd31357ce5b0abe87dbce3392ded722efd"
+        }
+      },
+      "reflection": {
+        "localSize": [
+          1,
+          1,
+          1
+        ],
+        "capabilities": [
+          1
+        ],
+        "uniformBuffers": [],
+        "storageBuffers": [
+          {
+            "name": "SplatCountBuffer",
+            "sourceName": "SplatCountBuffer",
+            "descriptorSet": 0,
+            "descriptorBinding": 0,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          },
+          {
+            "name": "RWDrawIndirectArgs",
+            "sourceName": "RWDrawIndirectArgs",
+            "descriptorSet": 0,
+            "descriptorBinding": 1,
+            "size": 0,
+            "members": [
+              {
+                "name": "",
+                "type": "uint[]",
+                "baseType": "uint",
+                "bitWidth": 32,
+                "vectorSize": 1,
+                "columns": 1,
+                "arrayDimensions": [
+                  0
+                ],
+                "offset": 0,
+                "size": 0,
+                "arrayStride": 4,
+                "matrixOrder": "unspecified",
+                "rowMajor": false,
+                "members": []
+              }
+            ]
+          }
+        ],
+        "storageImages": [],
+        "stageInputs": [],
+        "stageOutputs": []
+      },
+      "pipelineVariant": "default",
+      "pipelinePass": "draw_indirect_args",
+      "engineHead": "2f66b3f91297f7ad9261f18a70c836fa5472d645",
+      "glRoute": "PRECOMPILED_OPENGL_SPIRV",
+      "vulkanEntryPoint": "MainCS",
+      "openglEntryPoint": "main"
+    }
+  ],
+  "bindings": [
+    {
+      "kind": "storageBuffer",
+      "name": "SplatCountBuffer",
+      "descriptorSet": 0,
+      "descriptorBinding": 0,
+      "access": "READ_ONLY",
+      "glBinding": 0,
+      "stage": "compute"
+    },
+    {
+      "kind": "storageBuffer",
+      "name": "RWDrawIndirectArgs",
+      "descriptorSet": 0,
+      "descriptorBinding": 1,
+      "access": "READ_WRITE",
+      "glBinding": 1,
+      "stage": "compute"
+    }
+  ],
+  "artifacts": {
+    "compute": {
+      "vulkan": {
+        "path": "vulkan.compute.spv",
+        "size": 896,
+        "sha256": "790e4bd4325e906bec8c98e063b2825e55b30e3aedbcef6849875e5358fb57a8"
+      },
+      "opengl": {
+        "path": "opengl.compute.spv",
+        "size": 1200,
+        "sha256": "57a4fe60662082f402964779c40c97cd31357ce5b0abe87dbce3392ded722efd"
+      }
+    }
+  }
+}

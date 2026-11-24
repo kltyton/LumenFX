@@ -1,0 +1,87 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ComputeShaderUtils.ush"
+#include "/Engine/Private/ThreadGroupPrefixSum.ush"
+#include "/Engine/Generated/LumenMeshSceneFrustum.ush"
+
+StructuredBuffer<float> NiagaraParticleDataFloat;
+StructuredBuffer<uint> NiagaraParticleDataHalf;
+StructuredBuffer<int> NiagaraParticleDataInt;
+StructuredBuffer<int> SceneSortedIndices;
+StructuredBuffer<uint> SceneParticleCounts;
+StructuredBuffer<float4> MeshSceneTransforms;
+StructuredBuffer<float4> MeshSceneMetrics;
+RWStructuredBuffer<uint> OutMeshSceneRawIndices;
+RWStructuredBuffer<uint> OutMeshSceneBlockCounts;
+
+cbuffer LumenMeshSceneCull
+{
+    uint4 CullDispatch; // CPU draw count, GPU count offset, sorted-index offset, component stride.
+    uint4 CullAttributes; // Mesh-index/visibility offsets, expected mesh index/visibility value.
+    float4 CullLocalCenter;
+    float4 CullLocalExtent;
+    float4 CullDistanceRange;
+    float4 CullLodScreenSize; // Squared lower/upper thresholds (-1 disables upper), radius and projection factor.
+    uint4 CullFlags; // Orthographic, near clipping (1) or point shadow cube (2), CPU emitter upload, logical block count.
+    float4x4 CullTranslatedWorldToClip;
+    float4x4 CullViewToClip;
+    float4 CullShadowCube;
+};
+
+#define USE_GLOBAL_NIAGARA_DATA_BUFFERS 0
+#define ENABLE_NIAGARA_INT_DATA_ACCESS 1
+#define NiagaraGetFloatBuffer() NiagaraParticleDataFloat
+#define NiagaraGetHalfBuffer() NiagaraParticleDataHalf
+#define NiagaraGetIntBuffer() NiagaraParticleDataInt
+uint NiagaraGetFloatDataStride() { return CullDispatch.w; }
+uint NiagaraGetIntDataStride() { return CullDispatch.w; }
+#include "/Plugin/FX/Niagara/Private/NiagaraParticleAccess.ush"
+
+bool LumenMeshSceneVisible(uint particle)
+{
+    uint transformBase = particle * 9u;
+    if (MeshSceneTransforms[transformBase + 4u].w == 0.0f) return false;
+    if (CullFlags.z == 0u)
+    {
+        if (NiagaraSafeGetInt((int)CullAttributes.x, particle, 0) != (int)CullAttributes.z
+            || NiagaraSafeGetInt((int)CullAttributes.y, particle, (int)CullAttributes.w) != (int)CullAttributes.w)
+            return false;
+        float2 metric = MeshSceneMetrics[particle].xy;
+        if (metric.x < CullDistanceRange.x || metric.x > CullDistanceRange.y) return false;
+        float screenRadius = saturate(CullLodScreenSize.z / max(1.0f, metric.y * CullLodScreenSize.w));
+        if (screenRadius < CullLodScreenSize.x || (CullLodScreenSize.y >= 0.0f && screenRadius >= CullLodScreenSize.y))
+            return false;
+    }
+    // The instance-culling entrypoint accepts an empty local bound without a frustum test.
+    if (dot(CullLocalExtent.xyz, CullLocalExtent.xyz) <= 0.0f) return true;
+    float4x4 transform = float4x4(MeshSceneTransforms[transformBase], MeshSceneTransforms[transformBase + 1u],
+        MeshSceneTransforms[transformBase + 2u], MeshSceneTransforms[transformBase + 3u]);
+    if (CullFlags.y == 2u)
+    {
+        float3 center = mul(float4(CullLocalCenter.xyz, 1.0f), transform).xyz;
+        float3 extent = mul(CullLocalExtent.xyz, abs((float3x3)transform));
+        return all(abs(center - CullShadowCube.xyz) <= CullShadowCube.www + extent);
+    }
+    FFrustumCullData cull = BoxCullFrustum(CullLocalCenter.xyz, CullLocalExtent.xyz, transform,
+        CullTranslatedWorldToClip, CullViewToClip, CullFlags.x != 0u, CullFlags.y != 0u, false);
+    return cull.bIsVisible;
+}
+
+[numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
+void CullCS(uint3 group : SV_GroupID, uint thread : SV_GroupIndex)
+{
+    uint block = GetUnWrappedDispatchGroupId(group);
+    if (block >= CullFlags.w) return;
+    uint rank = block * NUM_THREADS_PER_GROUP + thread;
+    uint count = CullDispatch.y == 0xffffffffu ? CullDispatch.x : SceneParticleCounts[CullDispatch.y];
+    bool visible = rank < CullDispatch.x && rank < count;
+    uint particle = rank;
+    if (visible)
+    {
+        if (CullDispatch.z != 0xffffffffu) particle = (uint)SceneSortedIndices[CullDispatch.z + rank];
+        visible = LumenMeshSceneVisible(particle);
+    }
+    uint groupSum;
+    ThreadGroupPrefixSum(visible ? 1u : 0u, thread, groupSum);
+    if (thread == 0u) OutMeshSceneBlockCounts[block] = groupSum;
+    if (rank < CullDispatch.x) OutMeshSceneRawIndices[rank] = visible ? particle : 0xffffffffu;
+}
