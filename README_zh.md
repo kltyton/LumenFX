@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> | <strong>简体中文</strong> | <a href="https://github.com/kltyton/LumenFX/wiki">Wiki 文档</a>
+  <a href="README.md">English</a> | <strong>简体中文</strong> | <a href="https://github.com/kltyton/LumenFX/wiki/Home-zh">中文 Wiki 文档</a>
 </p>
 
 ---
@@ -126,12 +126,12 @@ effect.close(); // 停止新粒子发射，让已有粒子自然播放完毕后�
 
 ## 文档与离线制作工具
 
-- **[GitHub Wiki 完整文档](https://github.com/kltyton/LumenFX/wiki)**（同步存档于 [`docs/wiki/`](docs/wiki/Home.md)）：
-  - [快速入门与 API 指南](docs/wiki/Getting-Started.md)
-  - [效果 JSON 与自定义 GLSL 材质参考](docs/wiki/Effect-Format-Reference.md)
-  - [Niagara、Unity 与 Photon 工作流](docs/wiki/Niagara-and-Unity-Workflow.md)
-  - [图形后端与模组兼容说明](docs/wiki/Graphics-Backends-and-Compatibility.md)
-  - [Photon 分支关系与开源许可说明](docs/wiki/Fork-and-Licensing.md)
+- **[GitHub 中文 Wiki 完整文档](https://github.com/kltyton/LumenFX/wiki/Home-zh)**（同步存档于 [`docs/wiki/`](docs/wiki/Home-zh.md)）：
+  - [快速入门与 API 指南](docs/wiki/Getting-Started-zh.md)
+  - [效果 JSON 与自定义 GLSL 材质参考](docs/wiki/Effect-Format-Reference-zh.md)
+  - [Niagara、Unity 与 Photon 工作流](docs/wiki/Niagara-and-Unity-Workflow-zh.md)
+  - [图形后端与模组兼容说明](docs/wiki/Graphics-Backends-and-Compatibility-zh.md)
+  - [Photon 分支关系与开源许可说明](docs/wiki/Fork-and-Licensing-zh.md)
 - **离线制作工具**（不会打包进游戏运行 JAR）：
   - [Unity ParticleSystem 导出器](tools/unity/README.md) — 在 Unity 编辑器中导出 Shuriken 层级、URP Shader Graph 材质、纹理与网格。
   - [Unreal Engine Niagara 离线转换器](tools/compiler/README.md) — 离线编译 Niagara CPU VectorVM、GPU 计算着色器、材质图、向量场与 SimCache。

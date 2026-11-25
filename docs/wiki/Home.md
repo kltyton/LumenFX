@@ -1,3 +1,7 @@
+<p align="right">
+  <strong>English</strong> | <a href="Home-zh">简体中文</a>
+</p>
+
 # Welcome to the LumenFX Wiki
 
 **LumenFX** is a lightweight, resource-driven cross-engine VFX runtime for Minecraft supporting **LumenFX JSON**, **Unity ParticleSystem (Shuriken)** exports, **Unreal Engine Niagara** (CPU VectorVM, GPU compute SPIR-V, and SimCache `.lfsc`), and **Photon `.fx`** assets across **Minecraft 1.20.1, 1.21.1, 26.1.2, and 26.2** (Forge, NeoForge, and Fabric).

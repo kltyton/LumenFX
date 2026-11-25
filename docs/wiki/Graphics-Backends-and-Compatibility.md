@@ -1,3 +1,7 @@
+<p align="right">
+  <strong>English</strong> | <a href="Graphics-Backends-and-Compatibility-zh">简体中文</a>
+</p>
+
 # Graphics Backends & Compatibility
 
 ## Single Unified JAR Per Target

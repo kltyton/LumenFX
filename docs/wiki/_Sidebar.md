@@ -1,5 +1,6 @@
 ### LumenFX Wiki
 
+**English**
 - [[Home]]
 - [[Getting Started|Getting-Started]]
 - [[Effect Format Reference|Effect-Format-Reference]]
@@ -7,9 +8,17 @@
 - [[Graphics Backends & Compatibility|Graphics-Backends-and-Compatibility]]
 - [[Fork Lineage & Licensing|Fork-and-Licensing]]
 
+**简体中文**
+- [[首页（中文）|Home-zh]]
+- [[快速入门与 API|Getting-Started-zh]]
+- [[效果格式与着色器参考|Effect-Format-Reference-zh]]
+- [[Niagara、Unity 与 Photon 工作流|Niagara-and-Unity-Workflow-zh]]
+- [[图形后端与模组兼容|Graphics-Backends-and-Compatibility-zh]]
+- [[分支渊源与开源许可|Fork-and-Licensing-zh]]
+
 ---
 
-**Links**
+**Links / 相关链接**
 - [GitHub Repository](https://github.com/kltyton/LumenFX)
 - [Sighs Maven Repository](https://maven.sighs.cc/repository/maven-public/)
 - [Upstream Photon](https://github.com/Low-Drag-MC/Photon)

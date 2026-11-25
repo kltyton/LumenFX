@@ -1,3 +1,7 @@
+<p align="right">
+  <strong>English</strong> | <a href="Getting-Started-zh">简体中文</a>
+</p>
+
 # Getting Started
 
 ## Installation (Players & Modpacks)

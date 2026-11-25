@@ -1,3 +1,7 @@
+<p align="right">
+  <strong>English</strong> | <a href="Effect-Format-Reference-zh">简体中文</a>
+</p>
+
 # Effect Format Reference
 
 LumenFX loads effects from standard Minecraft resource packs.

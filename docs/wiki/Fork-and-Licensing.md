@@ -1,3 +1,7 @@
+<p align="right">
+  <strong>English</strong> | <a href="Fork-and-Licensing-zh">简体中文</a>
+</p>
+
 # Fork Lineage & Licensing
 
 ## Fork Relationship to Photon

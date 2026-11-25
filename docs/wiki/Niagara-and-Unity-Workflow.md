@@ -1,3 +1,7 @@
+<p align="right">
+  <strong>English</strong> | <a href="Niagara-and-Unity-Workflow-zh">简体中文</a>
+</p>
+
 # Niagara, Unity & Photon Workflow
 
 LumenFX separates **offline authoring/conversion** from the **lightweight runtime JAR**. None of the Unity, Unreal, or compiler binaries are shipped inside the Minecraft mod JAR.
