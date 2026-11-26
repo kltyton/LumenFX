@@ -1,0 +1,18 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.kltyton.lumenfx.client.compat.keyframe.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "plugin": "com.kltyton.lumenfx.client.keyframe.LumenFxKeyframeMixinPlugin",
+  "client": [
+    "Gecko41201AnimationControllerMixin",
+    "Gecko41211AnimationControllerMixin",
+    "Gecko41201AnimationProcessorMixin",
+    "Gecko41211AnimationProcessorMixin",
+    "Gecko4GeoBoneMixin",
+    "KbrBedrockParticlesMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

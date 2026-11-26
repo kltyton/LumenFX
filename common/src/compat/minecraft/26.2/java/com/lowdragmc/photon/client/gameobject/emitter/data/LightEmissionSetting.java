@@ -1,10 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.editor.ui.sceneeditor.sceneobject.TransformRef;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.editor.ui.sceneeditor.sceneobject.TransformRef;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.Constant;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction;
@@ -32,48 +29,45 @@ import org.joml.Vector4f;
 @Getter
 public class LightEmissionSetting extends ToggleGroup {
 
-    @Configurable(name = "LightEmissionSetting.ratio", tips = "photon.emitter.config.lightEmission.ratio")
-    @ConfigNumber(range = {0, 1})
+    @Persisted
     protected float ratio = 1;
 
-    @Configurable(name = "LightEmissionSetting.maxLights", tips = "photon.emitter.config.lightEmission.maxLights")
-    @ConfigNumber(range = {0, 1024})
+    @Persisted
     protected int maxLights = 32;
 
-    @Configurable(name = "LightEmissionSetting.useParticleColor", tips = "photon.emitter.config.lightEmission.useParticleColor")
+    @Persisted
     protected boolean useParticleColor = true;
 
-    @Configurable(name = "LightEmissionSetting.color", tips = "photon.emitter.config.lightEmission.color")
+    @Persisted
     @NumberFunctionConfig(types = {HDRConstantColor.class, HDRRandomColor.class, HDRGradient.class, HDRRandomGradient.class}, defaultValue = -1)
     protected NumberFunction color = new HDRConstantColor();
 
-    @Configurable(name = "LightEmissionSetting.intensity", tips = "photon.emitter.config.lightEmission.intensity")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, defaultValue = 4,
             curveConfig = @CurveConfig(bound = {0, 32}, xAxis = "lifetime", yAxis = "intensity"))
     protected NumberFunction intensity = NumberFunction.constant(4);
 
-    @Configurable(name = "LightEmissionSetting.range", tips = "photon.emitter.config.lightEmission.range")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, defaultValue = 4,
             curveConfig = @CurveConfig(bound = {0, 32}, xAxis = "lifetime", yAxis = "range"))
     protected NumberFunction range = NumberFunction.constant(4);
 
-    @Configurable(name = "LightEmissionSetting.alphaAffectsIntensity", tips = "photon.emitter.config.lightEmission.alphaAffectsIntensity")
+    @Persisted
     protected boolean alphaAffectsIntensity = true;
 
-    @Configurable(name = "LightEmissionSetting.sizeAffectsRange", tips = "photon.emitter.config.lightEmission.sizeAffectsRange")
+    @Persisted
     protected boolean sizeAffectsRange = false;
 
-    @Configurable(name = "LightEmissionSetting.castShadows", tips = "photon.emitter.config.lightEmission.castShadows")
+    @Persisted
     protected boolean castShadows = false;
 
-    @Configurable(name = "LightEmissionSetting.sourceRadius", tips = "photon.emitter.config.lightEmission.sourceRadius")
-    @ConfigNumber(range = {0, 8})
+    @Persisted
     protected float sourceRadius = 0.1f;
 
-    @Configurable(name = "LightEmissionSetting.spot", subConfigurable = true, tips = "photon.emitter.config.lightEmission.spot")
+    @Persisted(subPersisted = true)
     protected final Spot spot = new Spot();
 
-    @Configurable(name = "LightEmissionSetting.volumetric", subConfigurable = true, tips = "photon.emitter.config.lightEmission.volumetric")
+    @Persisted(subPersisted = true)
     protected final VolumetricSetting volumetric = new VolumetricSetting();
 
     public Runtime createRuntime() {
@@ -84,21 +78,19 @@ public class LightEmissionSetting extends ToggleGroup {
     @Setter
     @Getter
     public static class Spot extends ToggleGroup {
-        @Configurable(name = "LightEmissionSetting.spot.innerAngle", tips = "photon.emitter.config.lightEmission.spot.innerAngle")
-        @ConfigNumber(range = {0, 89})
+        @Persisted
         protected float innerAngle = 20;
 
-        @Configurable(name = "LightEmissionSetting.spot.outerAngle", tips = "photon.emitter.config.lightEmission.spot.outerAngle")
-        @ConfigNumber(range = {0.1, 90})
+        @Persisted
         protected float outerAngle = 35;
 
-        @Configurable(name = "LightEmissionSetting.spot.alignToVelocity", tips = "photon.emitter.config.lightEmission.spot.alignToVelocity")
+        @Persisted
         protected boolean alignToVelocity = true;
 
-        @Configurable(name = "LightEmissionSetting.spot.direction", tips = "photon.emitter.config.lightEmission.spot.direction")
+        @Persisted
         protected Vector3f direction = new Vector3f(0, -1, 0);
 
-        @Configurable(name = "LightEmissionSetting.spot.space", tips = "photon.emitter.config.lightEmission.spot.space")
+        @Persisted
         protected ValueSpace space = ValueSpace.Local;
         @Persisted
         public final TransformRef customSpace = new TransformRef();

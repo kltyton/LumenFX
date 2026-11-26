@@ -21,7 +21,10 @@ public final class LumenFxFabric2612ClientMod implements ClientModInitializer {
         ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(
                 LumenFx.id("direct_vfx"),
                 (ResourceManagerReloadListener) manager -> DirectVfxEngine.INSTANCE.reloadResources());
-        ClientTickEvents.END_CLIENT_TICK.register(client -> DirectVfxEngine.INSTANCE.tickClient());
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            DirectVfxEngine.INSTANCE.tickClient();
+            com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onClientTick(client.level);
+        });
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> DirectVfxEngine.INSTANCE.clearLevel());
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> {
             CameraRenderState cam = context.levelState().cameraRenderState;

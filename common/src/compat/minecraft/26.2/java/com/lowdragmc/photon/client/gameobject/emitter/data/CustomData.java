@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
 
-import com.lowdragmc.lowdraglib2.math.HDRColor;
+import com.kltyton.lumenfx.internal.photon.core.math.HDRColor;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.color.Color;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.color.Gradient;

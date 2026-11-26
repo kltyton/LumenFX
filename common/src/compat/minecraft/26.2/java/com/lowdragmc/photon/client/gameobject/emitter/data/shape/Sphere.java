@@ -1,10 +1,8 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.shape;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
-import com.lowdragmc.lowdraglib2.utils.Vector3fHelper;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.utils.Vector3fHelper;
 import com.lowdragmc.photon.client.gameobject.emitter.IParticleEmitter;
 import com.lowdragmc.photon.client.gameobject.particle.TileParticle;
 import lombok.Getter;
@@ -17,19 +15,16 @@ import org.joml.Vector3f;
 public class Sphere implements IShape {
 
     @Getter @Setter
-    @Configurable(name = "radius")
-    @ConfigNumber(range = {0, 1000})
+    @Persisted
     private float radius = .5f;
     @Getter @Setter
-    @Configurable(name = "radiusThickness")
-    @ConfigNumber(range = {0, 1})
+    @Persisted
     private float radiusThickness = 1;
     @Getter @Setter
-    @Configurable(name = "arc")
-    @ConfigNumber(range = {0, 360}, wheel = 10)
+    @Persisted
     private float arc = 360;
     @Getter
-    @Configurable(name = "ShapeArcSetting", subConfigurable = true, tips = "photon.emitter.config.shape.arc")
+    @Persisted(subPersisted = true)
     private final ShapeArcSetting shapeArc = new ShapeArcSetting();
 
     @Override

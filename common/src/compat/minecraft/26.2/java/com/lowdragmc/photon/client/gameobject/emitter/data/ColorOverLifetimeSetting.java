@@ -1,7 +1,6 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunctionConfig;
@@ -23,7 +22,7 @@ import org.joml.Vector4f;
 public class ColorOverLifetimeSetting extends ToggleGroup {
 
 
-    @Configurable(name = "color", tips = "photon.emitter.config.colorOverLifetime.color")
+    @Persisted
     @NumberFunctionConfig(types = {Gradient.class, RandomGradient.class}, defaultValue = -1)
     protected NumberFunction color = new Gradient();
 

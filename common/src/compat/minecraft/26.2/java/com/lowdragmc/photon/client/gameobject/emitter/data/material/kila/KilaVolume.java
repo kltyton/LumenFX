@@ -1,8 +1,8 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.material.kila;
 
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
-import com.lowdragmc.photon.client.shadergraph.PhotonShaderCompiler;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.lowdragmc.photon.client.shadergraph.PhotonShaderConstants;
 
 /** Turns the flat quad into a ball of fog: alpha is the view ray's path through a sphere (Inigo Quilez). */
 public class KilaVolume extends KilaModule {
@@ -39,7 +39,7 @@ public class KilaVolume extends KilaModule {
         // x = the radius as a share of the quad's half width, y = density, z = power, w = 1 while the scene depth clips it
         layout.define("KILA_VOLUME").vec4("KilaVolume", 1, 1, 1, 0);
         if (clip) {
-            layout.define("KILA_VOLUME_CLIP").sampler(PhotonShaderCompiler.SCENE_DEPTH);
+            layout.define("KILA_VOLUME_CLIP").sampler(PhotonShaderConstants.SCENE_DEPTH);
         }
     }
 

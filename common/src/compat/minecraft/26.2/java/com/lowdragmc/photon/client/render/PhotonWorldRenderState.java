@@ -428,7 +428,7 @@ public final class PhotonWorldRenderState {
                                                       TextureManager manager) {
         var bound = new ArrayList<BoundTexture>(textures.size());
         for (var entry : textures.entrySet()) {
-            var texture = manager.getTexture(entry.getValue());
+            var texture = com.lowdragmc.photon.client.resource.PhotonProceduralTextures.resolve(manager, entry.getValue());
             bound.add(new BoundTexture(entry.getKey(), texture.getTextureView(), texture.getSampler()));
         }
         return bound;

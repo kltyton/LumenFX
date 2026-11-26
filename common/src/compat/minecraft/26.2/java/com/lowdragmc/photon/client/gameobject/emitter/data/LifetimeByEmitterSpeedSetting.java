@@ -1,9 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.math.Range;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.math.Range;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.emitter.IParticleEmitter;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.Constant;
@@ -26,12 +24,11 @@ import lombok.Setter;
 @Getter
 public class LifetimeByEmitterSpeedSetting extends ToggleGroup {
 
-    @Configurable(name = "LifetimeByEmitterSpeedSetting.multiplier", tips = "photon.emitter.config.lifetimeByEmitterSpeed.multiplier")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, defaultValue = 1f, curveConfig = @CurveConfig(bound = {0, 1}, xAxis = "multiplier", yAxis = "emitter velocity"))
     protected NumberFunction multiplier = NumberFunction.constant(1);
 
-    @Configurable(name = "ColorBySpeedSetting.speedRange", tips = "photon.emitter.config.lifetimeByEmitterSpeed.speedRange")
-    @ConfigNumber(range = {0, 1000}, type = ConfigNumber.Type.FLOAT)
+    @Persisted
     protected Range speedRange = Range.of(0f, 1f);
 
     public Runtime createRuntime() {

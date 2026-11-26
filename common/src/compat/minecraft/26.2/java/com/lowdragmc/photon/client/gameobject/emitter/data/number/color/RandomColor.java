@@ -1,15 +1,15 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.number.color;
 
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
-import com.lowdragmc.lowdraglib2.utils.ColorUtils;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.utils.ColorUtils;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.RandomConstant;
 import net.minecraft.util.RandomSource;
 
 import java.util.function.Supplier;
 
-import static com.lowdragmc.lowdraglib2.utils.ColorUtils.*;
+import static com.kltyton.lumenfx.internal.photon.core.utils.ColorUtils.*;
 
 /**
  * @author KilaBash

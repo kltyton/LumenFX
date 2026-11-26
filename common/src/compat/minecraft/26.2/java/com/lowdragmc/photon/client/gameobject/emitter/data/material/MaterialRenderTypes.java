@@ -6,7 +6,7 @@ import com.lowdragmc.photon.Photon;
 import com.lowdragmc.photon.client.render.PhotonMaterialUniforms;
 import com.lowdragmc.photon.client.render.PhotonPipelines;
 import com.lowdragmc.photon.client.render.PhotonRenderTypes;
-import com.lowdragmc.photon.client.shadergraph.PhotonShaderCompiler;
+import com.lowdragmc.photon.client.shadergraph.PhotonShaderConstants;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
@@ -67,7 +67,7 @@ public final class MaterialRenderTypes {
             // what the drain fills from this frame's capture; demand-driven, so a frame with no soft
             // material in it takes no depth copy at all
             var sceneSamplers = key.uniforms().usesSoftParticles()
-                    ? List.of(PhotonShaderCompiler.SCENE_DEPTH) : List.<String>of();
+                    ? List.of(PhotonShaderConstants.SCENE_DEPTH) : List.<String>of();
             // placeholders; Photon binds the live captures
             sceneSamplers.forEach(name -> setup.withTexture(name, MissingTextureAtlasSprite.getLocation()));
             // no sortOnUpload(): sorting is RendererSetting.SortMode

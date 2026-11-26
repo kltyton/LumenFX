@@ -34,6 +34,7 @@ public final class LumenFxFabric1211ClientMod implements ClientModInitializer {
                 lastLevel = client.level;
             }
             if (client.level != null) DirectVfxEngine.INSTANCE.tickClient();
+            com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onClientTick(client.level);
         });
         WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> {
             Vec3 cam = context.camera().getPosition();

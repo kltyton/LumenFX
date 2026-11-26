@@ -1,8 +1,8 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.material.kila;
 
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
-import com.lowdragmc.photon.client.shadergraph.PhotonShaderCompiler;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.lowdragmc.photon.client.shadergraph.PhotonShaderConstants;
 
 /**
  * Paints the particle onto the scene behind it, inside a box its quad sets. The quad must cover the decal on screen
@@ -51,7 +51,7 @@ public class KilaProjection extends KilaModule {
                 // x = orientation (⚠️ ordinals MIRRORED IN kila.fsh: 0 ground, 1 the quad's own plane), y = the decal's
                 // width as a share of the quad's
                 .vec4("KilaProjectionShape", 0, 0.5f, 0, 0)
-                .sampler(PhotonShaderCompiler.SCENE_DEPTH);
+                .sampler(PhotonShaderConstants.SCENE_DEPTH);
     }
 
     @Override

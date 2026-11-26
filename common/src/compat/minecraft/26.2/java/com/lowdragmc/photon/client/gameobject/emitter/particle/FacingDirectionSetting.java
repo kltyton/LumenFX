@@ -1,16 +1,12 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.particle;
-
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigSelector;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import lombok.EqualsAndHashCode;
 import org.joml.Vector3f;
 
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class FacingDirectionSetting implements IConfigurable, IPersistedSerializable {
+public class FacingDirectionSetting implements IPersistedSerializable {
 
     public final ParticleRendererSetting particleRendererSetting;
 
@@ -23,8 +19,6 @@ public class FacingDirectionSetting implements IConfigurable, IPersistedSerializ
         CUSTOM_DIRECTION
     }
 
-    @Configurable(name = "FacingDirectionSetting.mode", tips = "photon.emitter.config.renderer.facingDirection.mode")
-    @ConfigSelector(subConfiguratorBuilder = "buildModeConfigurator")
     @Persisted
     @EqualsAndHashCode.Include
     private Mode mode = Mode.DERIVE_FROM_VELOCITY;

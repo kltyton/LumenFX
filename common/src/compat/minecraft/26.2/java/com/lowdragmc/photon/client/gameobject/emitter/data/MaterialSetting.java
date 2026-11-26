@@ -1,10 +1,9 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
 
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.mojang.blaze3d.PrimitiveTopology;
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
 import com.lowdragmc.photon.client.gameobject.emitter.data.material.BlendMode;
 import com.lowdragmc.photon.client.gameobject.emitter.data.material.IMaterial;
 import com.lowdragmc.photon.client.gameobject.emitter.data.material.MaterialRenderState;
@@ -25,7 +24,7 @@ import javax.annotation.Nonnull;
 @Setter
 @Accessors(chain = true)
 @EqualsAndHashCode
-public class MaterialSetting implements IConfigurable, IPersistedSerializable {
+public class MaterialSetting implements IPersistedSerializable {
     /** Where the blend / cull / depth state of this slot comes from. */
     public enum RenderStateSource {
         /** The material's own state when it has one, otherwise this slot's. */
@@ -35,17 +34,17 @@ public class MaterialSetting implements IConfigurable, IPersistedSerializable {
     }
 
     @Nonnull
-    @Configurable(name = "material")
+    @Persisted
     protected IMaterial material;
-    @Configurable(name = "MaterialSetting.renderStateSource", tips = "MaterialSetting.renderStateSource.tips")
+    @Persisted
     protected RenderStateSource renderStateSource = RenderStateSource.MATERIAL;
-    @Configurable(name = "MaterialSetting.blendMode", subConfigurable = true)
+    @Persisted(subPersisted = true)
     protected final BlendMode blendMode = new BlendMode();
-    @Configurable
+    @Persisted
     protected boolean cull = true;
-    @Configurable
+    @Persisted
     protected boolean depthTest = true;
-    @Configurable
+    @Persisted
     protected boolean depthMask = false;
 
     public MaterialSetting() {

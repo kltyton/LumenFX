@@ -21,6 +21,7 @@ java {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = java_version as int
+    options.debugOptions.debugLevel = 'source,lines'
 }
 
 evaluationDependsOn(':common')
@@ -63,7 +64,6 @@ tasks.named('jar', Jar) {
     manifest.attributes('Implementation-Version': project.version.toString())
     from common.sourceSets.main.output
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(templeRoot.toPath().resolve('LICENSE').toFile()) { rename { "LICENSE_${mod_id}" } }
 }
 repositories { mavenCentral() }
 def localJars = fileTree(dir: file('libs'), include: ['*.jar'], exclude: ['*-sources.jar', '*-javadoc.jar'])

@@ -1,9 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.math.noise.PerlinNoise;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.math.noise.PerlinNoise;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.*;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.curve.Curve;
@@ -33,25 +31,24 @@ public class NoiseSetting extends ToggleGroup {
 
     private final ThreadLocal<PerlinNoise> noise = ThreadLocal.withInitial(PerlinNoise::new);
 
-    @Configurable(name = "NoiseSetting.frequency", tips = "photon.emitter.config.noise.frequency")
-    @ConfigNumber(range = {-Float.MAX_VALUE, Float.MAX_VALUE})
+    @Persisted
     protected float frequency = 1;
 
-    @Configurable(name = "NoiseSetting.quality", tips = "photon.emitter.config.noise.quality")
+    @Persisted
     protected Quality quality = Quality.Noise2D;
 
-    @Configurable(name = "NoiseSetting.remap", subConfigurable = true, tips = "photon.emitter.config.noise.remap")
+    @Persisted(subPersisted = true)
     protected final Remap remap = new Remap();
 
-    @Configurable(name = "NoiseSetting.position", tips = "photon.emitter.config.noise.position")
+    @Persisted
     @NumberFunction3Config(common = @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, curveConfig = @CurveConfig(bound = {0, 1}, xAxis = "lifetime", yAxis = "strength")))
     protected NumberFunction3 position = new NumberFunction3(0.1, 0.1, 0.1);
 
-    @Configurable(name = "NoiseSetting.rotation", tips = "photon.emitter.config.noise.rotation")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, wheelDur = 10, curveConfig = @CurveConfig(bound = {0, 180}, xAxis = "lifetime", yAxis = "rotation amount"))
     protected NumberFunction rotation = NumberFunction.constant(0);
 
-    @Configurable(name = "NoiseSetting.size", tips = "photon.emitter.config.noise.size")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, curveConfig = @CurveConfig(bound = {-1, 1}, xAxis = "lifetime", yAxis = "size amount"))
     protected NumberFunction size = NumberFunction.constant(0);
 
@@ -154,7 +151,7 @@ public class NoiseSetting extends ToggleGroup {
     public static class Remap extends ToggleGroup {
         @Setter
         @Getter
-        @Configurable
+        @Persisted
         @NumberFunctionConfig(types = {Curve.class}, defaultValue = 1f, curveConfig = @CurveConfig(bound = {-1, 1}, xAxis = "base noise", yAxis = "remap result"))
         protected NumberFunction remapCurve = new Curve(Integer.MIN_VALUE, Integer.MAX_VALUE, -1, 1, 1f, "base noise", "remap result");
     }

@@ -592,6 +592,11 @@ public final class VfxEngine {
         for (int i = 0; i < builders.length; i++) builders[i] = new EffectMeshBuilder(i);
     }
 
+    public boolean hasEffect(Identifier id) {
+        if (id == null) return false;
+        return resources.definitions().containsKey(id) || FXHelper.contains(id);
+    }
+
     public EffectHandle spawn(ClientLevel level, Identifier id, Vec3 position, long seed) {
         return createEffect(level, id, position, seed, false, Pooling.None);
     }
@@ -870,6 +875,7 @@ public final class VfxEngine {
         previousSkeletalMeshStreaming.clearResidency();
         renderResourcesReleased = false;
         resources = next;
+        com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onResourceReload();
         pending.forEach(request -> {
             if (request.scope().resourceGeneration() != next.generation() && pending.remove(request)) {
                 request.handle().invalidate();

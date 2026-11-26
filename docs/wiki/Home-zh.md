@@ -36,6 +36,7 @@ flowchart LR
 | :--- | :--- |
 | **[[快速入门与 API\|Getting-Started-zh]]** | 玩家安装步骤、8 目标支持矩阵、Sighs Maven 依赖配置与 Java API 快速上手（`VfxEffects` / `EffectHandle`）。 |
 | **[[效果格式与着色器参考\|Effect-Format-Reference-zh]]** | 资源目录约定、LumenFX JSON v1 字段表、曲线与随机范围、发射形状、渲染器与自定义 GLSL 片元着色器。 |
-| **[[Niagara、Unity 与 Photon 工作流\|Niagara-and-Unity-Workflow-zh]]** | Unity 编辑器导出流程、Unreal Engine Niagara CPU/GPU 与 SimCache 离线编译流程，以及 Photon `.fx` 兼容说明。 |
-| **[[图形后端与模组兼容\|Graphics-Backends-and-Compatibility-zh]]** | Minecraft 26.2 动态 Vulkan 优先 / OpenGL 自动回退逻辑、用户显式参数覆盖，以及 Iris / Sodium / KBR 可选兼容说明。 |
+| **[[Niagara、Unity 与 Photon 工作流\|Niagara-and-Unity-Workflow-zh]]** | Unity UPM 编辑器插件、Unreal Engine 5 编辑器插件与 Niagara 离线编译器流程，以及 Photon `.fx` 兼容说明。 |
+| **[[GeckoLib 与 KBR 粒子关键帧\|GeckoLib-and-KBR-Keyframes-zh]]** | 在 GeckoLib 4.x / 5.x 与 KBR 的 Blockbench `particle_effects` 关键帧中触发 LumenFX 特效、3D 定位点跟随与 `LumenFxKeyframeBridge` API。 |
+| **[[图形后端与模组兼容\|Graphics-Backends-and-Compatibility-zh]]** | Minecraft 26.2 动态 Vulkan 优先 / OpenGL 自动回退逻辑、用户显式参数覆盖，以及 Iris / Sodium / GeckoLib / KBR / KilaGraph 可选兼容说明。 |
 | **[[分支渊源与开源许可\|Fork-and-Licensing-zh]]** | 与上游 Photon 26.2 的分支关系、核心差异对比、署名要求与 MIT / CC BY-NC-SA 4.0 许可明细。 |

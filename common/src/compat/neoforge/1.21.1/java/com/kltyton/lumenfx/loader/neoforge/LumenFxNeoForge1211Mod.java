@@ -33,7 +33,11 @@ public final class LumenFxNeoForge1211Mod {
             modBus.addListener((RegisterClientReloadListenersEvent event) ->
                     event.registerReloadListener((ResourceManagerReloadListener) manager ->
                             DirectVfxEngine.INSTANCE.reloadResources()));
-            NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> DirectVfxEngine.INSTANCE.tickClient());
+            NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> {
+                DirectVfxEngine.INSTANCE.tickClient();
+                com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onClientTick(
+                        net.minecraft.client.Minecraft.getInstance().level);
+            });
             NeoForge.EVENT_BUS.addListener((LevelEvent.Unload event) -> {
                 if (event.getLevel().isClientSide()) DirectVfxEngine.INSTANCE.clearLevel();
             });

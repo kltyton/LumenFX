@@ -1,9 +1,9 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.number;
 
-import com.lowdragmc.lowdraglib2.registry.ILDLRegisterClient;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
-import com.lowdragmc.lowdraglib2.utils.PersistedParser;
+import com.kltyton.lumenfx.internal.photon.core.registry.ILDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.utils.PersistedParser;
 import com.lowdragmc.photon.PhotonRegistries;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.color.Color;
 import com.mojang.serialization.Codec;

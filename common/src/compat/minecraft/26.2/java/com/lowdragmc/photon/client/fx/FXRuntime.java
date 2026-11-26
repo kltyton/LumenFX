@@ -1,8 +1,8 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.fx;
 
-import com.lowdragmc.lowdraglib2.editor.ui.sceneeditor.sceneobject.IScene;
-import com.lowdragmc.lowdraglib2.editor.ui.sceneeditor.sceneobject.ISceneObject;
+import com.kltyton.lumenfx.internal.photon.core.editor.ui.sceneeditor.sceneobject.IScene;
+import com.kltyton.lumenfx.internal.photon.core.editor.ui.sceneeditor.sceneobject.ISceneObject;
 import com.lowdragmc.photon.Photon;
 import com.lowdragmc.photon.client.fx.timeline.SectionControl;
 import com.lowdragmc.photon.client.fx.timeline.TimelinePlayer;

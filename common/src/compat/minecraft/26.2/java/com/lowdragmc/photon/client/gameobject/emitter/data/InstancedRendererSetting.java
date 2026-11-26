@@ -1,7 +1,6 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -18,7 +17,7 @@ import java.util.Objects;
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 public class InstancedRendererSetting extends RendererSetting {
 
-    @Configurable(name = "ParticleRendererSetting.useGPUInstance")
+    @Persisted
     @EqualsAndHashCode.Include
     private boolean useGPUInstance = false;
 

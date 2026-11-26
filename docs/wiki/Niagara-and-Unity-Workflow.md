@@ -8,16 +8,18 @@ LumenFX separates **offline authoring/conversion** from the **lightweight runtim
 
 ---
 
-## 1. Unity ParticleSystem (Shuriken)
+## 1. Unity ParticleSystem (Shuriken) — UPM Editor Plugin
 
-The Unity Editor exporter lives in `tools/unity/Editor/` inside the repository and supports **Unity 2020.3 LTS and newer**.
+The Unity Editor exporter is packaged as a standard Unity Package Manager (UPM) package in `tools/unity/` (`com.kltyton.lumenfx.exporter`) and supports **Unity 2020.3 LTS and newer**.
 
-### Exporting Steps
+### Installing & Exporting Steps
 
-1. Copy `tools/unity/Editor` into your Unity project (for example `Assets/Editor/LumenFX/`).
-2. Select the root `GameObject` of your particle hierarchy in the Unity Hierarchy window.
-3. Open **Assets → LumenFX → Export Selected Particle Systems...**.
-4. Configure your resource namespace, effect ID, and output directory, then click **Validate** or **Export**.
+1. In Unity, open **Window → Package Manager → + → Add package from disk...** and choose `tools/unity/package.json` (or **Add package from git URL...**: `https://github.com/kltyton/LumenFX.git?path=/tools/unity`).
+2. Optional creator tools:
+   - Create Minecraft-scaled starter hierarchies via **GameObject → LumenFX** (`Sprite Burst Preset`, `Ribbon Trail Preset`, `Mesh Spark Preset`).
+   - Toggle the Scene View **Minecraft 1-Block Grid & Player Height Guide** via **Tools → LumenFX → Toggle Minecraft 1-Block Grid**.
+3. Select one or more root `GameObject`s in the Hierarchy window and open **Tools → LumenFX → Particle Exporter...**.
+4. Configure your resource namespace, effect ID (or enable **Batch Export**), output directory, and optional `pack.mcmeta` output, then click **Validate** (clickable inline diagnostics) or **Export**.
 
 ### Supported Unity Features
 
@@ -30,11 +32,17 @@ See [`tools/unity/README.md`](https://github.com/kltyton/LumenFX/blob/main/tools
 
 ---
 
-## 2. Unreal Engine Niagara
+## 2. Unreal Engine Niagara — UE5 Editor Plugin & Offline Compiler
 
-The offline Niagara compiler lives in `tools/compiler/` (.NET 10) alongside helper export tools in `tools/unreal/`.
+The offline Niagara compiler lives in `tools/compiler/` (.NET 10) alongside the **UE5 Editor Plugin** (`tools/unreal/LumenFxExporter/LumenFxExporter.uplugin`) and export scripts in `tools/unreal/`.
 
-### Workflow Overview
+### Option A — UE5 Editor Plugin (Recommended for Creators)
+
+1. Copy `tools/unreal/LumenFxExporter` into `<YourUE5Project>/Plugins/LumenFxExporter` and enable **LumenFX Niagara Exporter** in **Edit → Plugins**.
+2. Configure the `LumenFX` repository path and default output directory in **Project Settings → Plugins → LumenFX Exporter**.
+3. Right-click any `UNiagaraSystem` asset in the Content Browser and choose **LumenFX → Export to Minecraft LumenFX...** to run pre-export validation and async compilation with live progress logs. See [`tools/unreal/LumenFxExporter/README.md`](https://github.com/kltyton/LumenFX/blob/main/tools/unreal/LumenFxExporter/README.md).
+
+### Option B — CLI Workflow Overview
 
 1. Export the target Niagara System, Emitters, Materials, Functions, and Texture2D descriptions using `tools/unreal/Export-UnrealAssets.ps1` (UAssetAPI JSON) plus full-resolution source PNGs.
 2. Run the offline compiler:

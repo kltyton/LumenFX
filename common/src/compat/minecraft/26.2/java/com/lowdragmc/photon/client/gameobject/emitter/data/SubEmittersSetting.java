@@ -1,12 +1,8 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.ReadOnlyManaged;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.ReadOnlyManaged;
 import com.lowdragmc.photon.client.collision.BlockFilter;
 import com.lowdragmc.photon.client.collision.CollisionEvent;
 import com.lowdragmc.photon.client.collision.Contact;
@@ -58,7 +54,7 @@ import java.util.concurrent.CompletableFuture;
 @Getter
 public class SubEmittersSetting extends ToggleGroup {
 
-    @Configurable(name = "SubEmittersSetting.emitters")
+    @Persisted
     @ReadOnlyManaged(serializeMethod = "emittersSerialize", deserializeMethod = "emittersDeserialize")
     protected List<Emitter> emitters = new ArrayList<>();
 
@@ -154,36 +150,35 @@ public class SubEmittersSetting extends ToggleGroup {
 
     @Setter
     @Getter
-    public static class Emitter implements IConfigurable, IPersistedSerializable {
+    public static class Emitter implements IPersistedSerializable {
         @Nullable
         @Persisted
         protected Identifier fxLocation = null;
-        @Configurable(name = "Emitter.event", tips = "photon.emitter.config.sub_emitters.emitter.event")
+        @Persisted
         protected Event event = Event.Birth;
-        @Configurable(name = "Emitter.emitProbability", tips = "photon.emitter.config.sub_emitters.emitter.emit_probability")
+        @Persisted
         @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, max = 1, curveConfig = @CurveConfig(bound = {0, 1}, xAxis = "probability", yAxis = "lifetime"))
         protected NumberFunction emitProbability = NumberFunction.constant(0);
-        @Configurable(name = "Emitter.tickInterval", tips = "photon.emitter.config.sub_emitters.emitter.tick_interval")
-        @ConfigNumber(range = {1, Integer.MAX_VALUE})
+        @Persisted
         protected int tickInterval = 1;
-        @Configurable(name = "Emitter.inheritColor", tips = "photon.emitter.config.sub_emitters.emitter.inherit_color")
+        @Persisted
         protected boolean inheritColor = false;
-        @Configurable(name = "Emitter.inheritSize", tips = "photon.emitter.config.sub_emitters.emitter.inherit_size")
+        @Persisted
         protected boolean inheritSize = false;
-        @Configurable(name = "Emitter.inheritRotation", tips = "photon.emitter.config.sub_emitters.emitter.inherit_rotation")
+        @Persisted
         protected boolean inheritRotation = false;
-        @Configurable(name = "Emitter.inheritLifetime", tips = "photon.emitter.config.sub_emitters.emitter.inherit_lifetime")
+        @Persisted
         protected boolean inheritLifetime = false;
-        @Configurable(name = "Emitter.inheritDuration", tips = "photon.emitter.config.sub_emitters.emitter.inherit_duration")
+        @Persisted
         protected boolean inheritDuration = false;
         /** False for entries saved before the option existed; new entries start with it on. */
-        @Configurable(name = "Emitter.spawnAtContact", tips = "photon.emitter.config.sub_emitters.emitter.spawn_at_contact")
+        @Persisted
         protected boolean spawnAtContact = false;
-        @Configurable(name = "Emitter.alignToNormal", tips = "photon.emitter.config.sub_emitters.emitter.align_to_normal")
+        @Persisted
         protected boolean alignToNormal = false;
-        @Configurable(name = "Emitter.surface", tips = "photon.emitter.config.sub_emitters.emitter.surface")
+        @Persisted
         protected Surface surface = Surface.Any;
-        @Configurable(name = "Emitter.surfaceBlocks", tips = "photon.emitter.config.sub_emitters.emitter.surface_blocks")
+        @Persisted
         @ReadOnlyManaged(serializeMethod = "stringsSerialize", deserializeMethod = "stringsDeserialize")
         protected List<String> surfaceBlocks = new ArrayList<>();
         /** The resolved {@link #surfaceBlocks}; read from particle workers, so replaced whole, never changed. */

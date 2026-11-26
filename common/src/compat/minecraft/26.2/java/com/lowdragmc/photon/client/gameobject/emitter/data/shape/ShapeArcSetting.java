@@ -1,10 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.shape;
-
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.gameobject.emitter.IParticleEmitter;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.Constant;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction;
@@ -16,9 +13,9 @@ import com.lowdragmc.photon.client.gameobject.emitter.data.number.curve.RandomCu
 import com.lowdragmc.photon.client.gameobject.particle.TileParticle;
 import net.minecraft.util.RandomSource;
 
-public class ShapeArcSetting implements IConfigurable, IPersistedSerializable {
+public class ShapeArcSetting implements IPersistedSerializable {
 
-    @Configurable(name = "ShapeArcSetting.arcMode", tips = "photon.emitter.config.shape.arc.mode")
+    @Persisted
     private ShapeArcMode arcMode = ShapeArcMode.Random;
     @Persisted
     private float arcSpread = 0.0f;

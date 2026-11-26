@@ -1,11 +1,10 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.material;
 
-import com.lowdragmc.lowdraglib2.Platform;
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigSetter;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.utils.PersistedParser;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.PersistedSetter;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.Platform;
+import com.kltyton.lumenfx.internal.photon.core.utils.PersistedParser;
 import com.lowdragmc.photon.Photon;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.curve.Curve;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -28,10 +27,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class CurveTexture implements AutoCloseable, IConfigurable, PhotonValueSerializable {
+public class CurveTexture implements AutoCloseable, PhotonValueSerializable {
     private final int width;
     private final int height;
-    @Configurable(name = "curves", canCollapse = false, collapse = false)
+    @Persisted
     private final List<Curve> curves = new ArrayList<>();
     // runtime
     private boolean isDirty = false;
@@ -128,7 +127,7 @@ public class CurveTexture implements AutoCloseable, IConfigurable, PhotonValueSe
         isDirty = false;
     }
 
-    @ConfigSetter(field = "curves")
+    @PersistedSetter(field = "curves")
     private void setCurves(List<Curve> curves) {
         if (curves != this.curves) {
             this.curves.clear();

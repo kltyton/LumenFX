@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject;
 
-import com.lowdragmc.lowdraglib2.utils.PersistedParser;
+import com.kltyton.lumenfx.internal.photon.core.utils.PersistedParser;
 import com.lowdragmc.photon.PhotonRegistries;
 import com.lowdragmc.photon.client.fx.timeline.AnimatedPropertyType;
 import com.lowdragmc.photon.client.fx.timeline.property.ColorPropertyType;

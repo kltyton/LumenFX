@@ -1,0 +1,28 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.2.0",
+  "FriendlyName": "LumenFX Exporter",
+  "Description": "Export Unreal Engine Niagara Systems directly into Minecraft resource packs for LumenFX.",
+  "Category": "VFX",
+  "CreatedBy": "kltyton",
+  "CreatedByURL": "https://github.com/kltyton/LumenFX",
+  "DocsURL": "https://github.com/kltyton/LumenFX/wiki/Niagara-and-Unity-Workflow",
+  "CanContainContent": false,
+  "IsBetaVersion": false,
+  "IsExperimentalVersion": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "LumenFxExporter",
+      "Type": "Editor",
+      "LoadingPhase": "PostEngineInit"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "Niagara",
+      "Enabled": true
+    }
+  ]
+}

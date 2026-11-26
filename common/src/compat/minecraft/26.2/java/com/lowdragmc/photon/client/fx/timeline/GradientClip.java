@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.fx.timeline;
 
-import com.lowdragmc.lowdraglib2.math.GradientColor;
+import com.kltyton.lumenfx.internal.photon.core.math.GradientColor;
 
 /**
  * A time window {@code [start, end)} on a color lane during which the color property emits this gradient

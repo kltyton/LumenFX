@@ -1,10 +1,9 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.shape;
 
-import com.lowdragmc.lowdraglib2.Platform;
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.Platform;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.Photon;
 import com.lowdragmc.photon.client.gameobject.emitter.data.model.IModelSource;
 import com.lowdragmc.photon.client.gameobject.emitter.data.model.JsonModelSource;
@@ -26,7 +25,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class MeshData implements IConfigurable, IPersistedSerializable {
+public final class MeshData implements IPersistedSerializable {
     @Getter
     @Persisted
     private IModelSource source = new JsonModelSource();

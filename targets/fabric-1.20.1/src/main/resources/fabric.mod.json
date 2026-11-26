@@ -11,6 +11,9 @@
     "main": ["com.kltyton.lumenfx.loader.fabric.LumenFxFabric1201Mod"],
     "client": ["com.kltyton.lumenfx.loader.fabric.LumenFxFabric1201ClientMod"]
   },
+  "mixins": [
+    "lumenfx.keyframe.mixins.json"
+  ],
   "depends": {
     "fabricloader": "${loader_version_range}",
     "minecraft": "${minecraft_version_range}",

@@ -1,6 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.fx.timeline;
 
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.PhotonRegistries;
 import com.lowdragmc.photon.client.gameobject.FXObject;
 import net.minecraft.core.HolderLookup;
@@ -41,7 +42,7 @@ public interface AnimatedPropertyType {
     }
 
     /** The i18n key for this property's display label. Defaults to the per-type timeline key; config-backed
-     *  types override it to reuse the field's {@code @Configurable} label. */
+     *  types override it to reuse the field's {@code @Persisted} label. */
     default String displayNameKey() {
         return "photon.gui.editor.timeline.property." + name();
     }

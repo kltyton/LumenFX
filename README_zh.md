@@ -18,12 +18,12 @@
 
 **LumenFX 是 [Photon](https://github.com/Low-Drag-MC/Photon)（[KilaBash](https://github.com/KilaBash) / Low-Drag-MC 著作的 Photon 26.2）的独立衍生分支（Fork）。**
 
-在继承 Photon 粒子模拟核心、时间线、曲线与 `.fx` 特效播放能力的基础上，LumenFX 将运行层重构并扩展为**轻量化、纯资源驱动的客户端 VFX 运行库**：
+在继承 Photon 粒子模拟核心、时间线、曲线与 `.fx` 特效播放能力的基础上，LumenFX 将运行层重构并扩展为**超轻量、零强制外部依赖、纯资源驱动的客户端 VFX 运行库**：
 
-- **运行包不含游戏内编辑器**——所有特效均以标准 Minecraft 资源包形式加载（`assets/<namespace>/lumenfx/...`），保持模组轻量与整洁。
-- **跨引擎资产兼容**——通过统一入口同时运行 LumenFX 原生 JSON 特效、Photon `.fx` 资产、离线导出的 **Unity ParticleSystem（Shuriken）** 粒子系统，以及离线编译的 **Unreal Engine Niagara** 粒子系统（支持 CPU VectorVM、GPU SPIR-V 计算与 SimCache `.lfsc`）。
-- **多版本多加载器统一交付**——完整覆盖 Minecraft **1.20.1、1.21.1、26.1.2 与 26.2**（Forge、NeoForge、Fabric），每个目标仅交付单一统一 JAR。
-- **26.2 动态 Vulkan 优先 / OpenGL 自动回退**——无需玩家区分 Vulkan 版或 OpenGL 版，启动时自动选择最佳图形后端。
+- **极致轻量、无重型外部前置与游戏内编辑器**——彻底解耦外部 `LDLib2` 与 `KilaGraph` 强依赖（KilaGraph 着色器图仍以纯可选软兼容方式保留），运行 JAR 不含编辑器、演示贴图或重复冗余文件，所有特效均以标准 Minecraft 资源包形式加载（`assets/<namespace>/lumenfx/...`）。
+- **跨引擎资产兼容与前端编辑器插件**——同时运行 LumenFX 原生 JSON、Photon `.fx`、**Unity ParticleSystem（Shuriken）**（配套标准 **Unity UPM 编辑器插件**）与 **Unreal Engine Niagara**（CPU VectorVM、GPU SPIR-V 计算与 SimCache `.lfsc`，配套 **UE5 编辑器插件** 与离线编译器）。
+- **原生软兼容 GeckoLib（4.x / 5.x）与 KBR 粒子关键帧系统**——全部 8 个目标均可在 Blockbench 动画 `particle_effects` 关键帧中直接触发 LumenFX 粒子与拖尾，支持 3D 定位点位置与旋转跟随，并与 KBR 原生暴雪/3D 粒子和平共存。
+- **多版本多加载器统一交付**——完整覆盖 Minecraft **1.20.1、1.21.1、26.1.2 与 26.2**（Forge、NeoForge、Fabric），每个目标仅交付单一统一 JAR，并在 26.2 提供**动态 Vulkan 优先 / OpenGL 自动回退**。
 
 源自 Photon 26.2 的代码文件完整保留 KilaBash 的署名与版权声明，遵循随附的 [Photon 许可证（CC BY-NC-SA 4.0）](licenses/photon/LICENSE)；LumenFX 原创代码与离线工具采用 [MIT 许可证](LICENSE)。
 
@@ -58,7 +58,8 @@
   - 当系统显卡驱动及已装渲染模组支持 Vulkan 时（包含独立运行与 Sodium 共装），**默认自动启用 Vulkan**；
   - 当环境不支持 Vulkan 或检测到必须使用 OpenGL 的渲染模组（如 Iris）时，**自动无缝回退至 OpenGL**；
   - 始终尊重用户的显式图形后端参数（`--graphicsBackend`）、视频设置及原版崩溃恢复。
-- **纯可选兼容，可完全独立运行**：不强制依赖 Iris、Sodium 或 KBR，开箱即用；与上述渲染模组共装时自动启用可选兼容路径。
+- **零强制前置，全可选软兼容**：完全独立运行，不强制依赖 LDLib2、KilaGraph、Iris、Sodium、GeckoLib 或 KBR；共装时自动启用对应可选兼容路径。
+- **GeckoLib 与 KBR 粒子关键帧兼容**：直接在 Blockbench 动画的 `particle_effects` 关键帧中触发 LumenFX 特效，自动按 ID 分流（未命中时交还 KBR 原生暴雪/3D 粒子），支持 3D 定位点位置/旋转跟随、`pre_effect_script` 参数指令与 `LumenFxKeyframeBridge` 公开 Java API。
 - **有界多线程模拟与原子重载**：将粒子数值计算分配至有界工作线程池，支持游戏内资源包热重载（F3+T）并自动回收过期渲染管线。
 
 ---
@@ -94,7 +95,7 @@ repositories {
 
 dependencies {
     // 按需替换为上表中对应版本与加载器的 Artifact ID
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.2:0.1.3'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.2:0.2.0'
 }
 ```
 
@@ -130,10 +131,12 @@ effect.close(); // 停止新粒子发射，让已有粒子自然播放完毕后�
   - [快速入门与 API 指南](docs/wiki/Getting-Started-zh.md)
   - [效果 JSON 与自定义 GLSL 材质参考](docs/wiki/Effect-Format-Reference-zh.md)
   - [Niagara、Unity 与 Photon 工作流](docs/wiki/Niagara-and-Unity-Workflow-zh.md)
+  - [GeckoLib 与 KBR 粒子关键帧集成](docs/wiki/GeckoLib-and-KBR-Keyframes-zh.md)
   - [图形后端与模组兼容说明](docs/wiki/Graphics-Backends-and-Compatibility-zh.md)
   - [Photon 分支关系与开源许可说明](docs/wiki/Fork-and-Licensing-zh.md)
-- **离线制作工具**（不会打包进游戏运行 JAR）：
-  - [Unity ParticleSystem 导出器](tools/unity/README.md) — 在 Unity 编辑器中导出 Shuriken 层级、URP Shader Graph 材质、纹理与网格。
+- **离线编辑器插件与编译工具**（不会打包进游戏运行 JAR）：
+  - [Unity UPM 编辑器插件](tools/unity/README.md)（`com.kltyton.lumenfx.exporter`）— 支持 Unity Package Manager 直接安装，提供预设模板、Minecraft 1 格参考网格、窗口内联校验、批量导出、URP Shader Graph 编译及可选 `pack.mcmeta` 生成。
+  - [Unreal Engine 5 编辑器插件](tools/unreal/LumenFxExporter/README_zh.md)（`LumenFxExporter.uplugin`）— 内容浏览器右键 `UNiagaraSystem` 直接导出，内置项目设置、导出前校验与异步编译进度面板。
   - [Unreal Engine Niagara 离线转换器](tools/compiler/README.md) — 离线编译 Niagara CPU VectorVM、GPU 计算着色器、材质图、向量场与 SimCache。
 
 ---

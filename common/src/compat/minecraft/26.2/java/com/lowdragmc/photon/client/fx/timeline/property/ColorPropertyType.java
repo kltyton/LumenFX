@@ -1,14 +1,14 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.fx.timeline.property;
 
-import com.lowdragmc.lowdraglib2.math.GradientColor;
+import com.kltyton.lumenfx.internal.photon.core.math.GradientColor;
 import com.lowdragmc.photon.client.fx.timeline.AnimatedProperty;
 import com.lowdragmc.photon.client.fx.timeline.AnimatedPropertyType;
 import com.lowdragmc.photon.client.fx.timeline.GradientClip;
 import com.lowdragmc.photon.client.gameobject.FXObject;
 import com.lowdragmc.photon.client.gameobject.FXObjectType;
 import com.lowdragmc.photon.client.gameobject.RuntimeBinding;
-import com.lowdragmc.lowdraglib2.math.HDRColor;
+import com.kltyton.lumenfx.internal.photon.core.math.HDRColor;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.color.HDRColorFunction;
 import com.lowdragmc.photon.utils.ValueIONbt;

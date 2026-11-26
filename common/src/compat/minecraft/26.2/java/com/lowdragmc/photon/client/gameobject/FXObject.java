@@ -1,9 +1,9 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject;
 
-import com.lowdragmc.lowdraglib2.editor.ui.sceneeditor.sceneobject.IScene;
-import com.lowdragmc.lowdraglib2.math.Transform;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.editor.ui.sceneeditor.sceneobject.IScene;
+import com.kltyton.lumenfx.internal.photon.core.math.Transform;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.fx.FXRuntime;
 import com.lowdragmc.photon.client.fx.IEffectExecutor;
 import com.lowdragmc.photon.client.fx.ParticleTickHost;

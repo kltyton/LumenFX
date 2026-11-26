@@ -101,7 +101,8 @@ if (loader == 'neoforge') {
     }
 }
 
-// Native Windows x64 JNI math & audio DLLs (shared once under common/build/generated/nativeResources)
+// Native Windows x64 JNI math & audio DLLs (26.2 runtime only)
+def isMc262Target = minecraft_version == '26.2'
 def nativeOutDir = new File(commonRoot, 'build/generated/nativeResources')
 def nativeMathDll = new File(nativeOutDir, 'windows/x64/lumenfx/lumenfx_math.dll')
 def nativeAudioDll = new File(nativeOutDir, 'windows/x64/lumenfx/lumenfx_audio.dll')
@@ -134,26 +135,19 @@ def nativeAudio = tasks.register('compileNativeAudio', Exec) {
 
 // Mixin compatibility level & refmap filtering
 tasks.named('processResources', ProcessResources) {
-    dependsOn nativeMath, nativeAudio
-    from(nativeOutDir) {
-        exclude 'windows/x64/lumenfx/*.lib', 'windows/x64/lumenfx/*.exp'
+    if (isMc262Target) {
+        dependsOn nativeMath, nativeAudio
+        from(nativeOutDir) {
+            exclude 'windows/x64/lumenfx/*.lib', 'windows/x64/lumenfx/*.exp'
+        }
+    } else {
+        exclude 'assets/lumenfx/shaders/**'
+        exclude 'assets/photon/**'
     }
     exclude 'assets/lumenfx/shaders/fog/integrate.comp'
+    exclude 'META-INF/licenses/**'
     inputs.property('mixinJavaVersion', java_version)
     inputs.property('mixinNeedsRefmap', mappedMixin)
-    def extraProps = [:]
-    if (findProperty('ldlib2_version')) extraProps['ldlib2_version'] = findProperty('ldlib2_version').toString()
-    if (findProperty('kilagraph_version')) extraProps['kilagraph_version'] = findProperty('kilagraph_version').toString()
-    if (!extraProps.isEmpty()) {
-        inputs.properties(extraProps)
-        filesMatching(['META-INF/neoforge.mods.toml', 'META-INF/mods.toml', 'fabric.mod.json']) {
-            filter { line ->
-                def out = line
-                extraProps.each { k, v -> out = out.replace("\${${k}}", v) }
-                out
-            }
-        }
-    }
     filesMatching('*.mixins.json') {
         filter { line ->
             def out = line.replace('"JAVA_25"', "\"JAVA_${java_version}\"")
@@ -164,8 +158,16 @@ tasks.named('processResources', ProcessResources) {
 }
 
 tasks.named('jar', Jar) {
-    from(new File(templeRoot, 'licenses')) { into('licenses') }
+    if (loader == 'forge') {
+        manifest.attributes('MixinConfigs': 'lumenfx.keyframe.mixins.json')
+    }
     exclude 'windows/x64/lumenfx/*.lib', 'windows/x64/lumenfx/*.exp'
+    exclude 'META-INF/licenses/**'
+    if (!isMc262Target) {
+        exclude 'assets/lumenfx/shaders/**'
+        exclude 'assets/photon/**'
+        exclude 'windows/x64/lumenfx/**'
+    }
 }
 tasks.named('sourcesJar', Jar) {
     dependsOn shared.tasks.named('generateBuildInfo')

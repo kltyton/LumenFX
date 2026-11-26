@@ -1,12 +1,11 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
 
-import com.lowdragmc.lowdraglib2.Platform;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.utils.ColorUtils;
-import com.lowdragmc.lowdraglib2.utils.PersistedParser;
-import com.lowdragmc.lowdraglib2.utils.Vector3fHelper;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.Platform;
+import com.kltyton.lumenfx.internal.photon.core.utils.ColorUtils;
+import com.kltyton.lumenfx.internal.photon.core.utils.PersistedParser;
+import com.kltyton.lumenfx.internal.photon.core.utils.Vector3fHelper;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.emitter.aratrail.AraTrailConfig;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.Constant;
@@ -45,38 +44,37 @@ public class TrailsSetting extends ToggleGroup {
     }
     @Setter
     @Getter
-    @Configurable(name = "TrailsSetting.ratio", tips = "photon.emitter.config.trails.ratio")
-    @ConfigNumber(range = {0f, 1f})
+    @Persisted
     protected float ratio = 1f;
     @Setter
     @Getter
-    @Configurable(name = "TrailsSetting.lifetime", tips = "photon.emitter.config.trails.lifetime")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, max = 1, defaultValue = 1, curveConfig = @CurveConfig(xAxis = "lifetime", yAxis = "trail length"))
     protected NumberFunction lifetime = NumberFunction.constant(1f);
     @Setter
     @Getter
-    @Configurable(name = "TrailsSetting.dieWithParticles", tips = "photon.emitter.config.trails.dieWithParticles")
+    @Persisted
     protected boolean dieWithParticles = false;
     @Setter
     @Getter
-    @Configurable(name = "TrailsSetting.sizeAffectsWidth", tips = "photon.emitter.config.trails.sizeAffectsWidth")
+    @Persisted
     protected boolean sizeAffectsWidth = true;
     @Setter
     @Getter
-    @Configurable(name = "TrailsSetting.sizeAffectsLifetime", tips = "photon.emitter.config.trails.sizeAffectsLifetime")
+    @Persisted
     protected boolean sizeAffectsLifetime = false;
     @Setter
     @Getter
-    @Configurable(name = "TrailsSetting.inheritParticleColor", tips = "photon.emitter.config.trails.inheritParticleColor")
+    @Persisted
     protected boolean inheritParticleColor = true;
     @Setter
     @Getter
-    @Configurable(name = "TrailsSetting.colorOverLifetime", tips = "photon.emitter.config.trails.colorOverLifetime")
+    @Persisted
     @NumberFunctionConfig(types = {Color.class, RandomColor.class, Gradient.class, RandomGradient.class}, defaultValue = -1)
     protected NumberFunction colorOverLifetime = new Gradient();
     @Setter
     @Getter
-    @Configurable(name = "TrailsSetting.trailType")
+    @Persisted
     protected TrailType trailType = TrailType.TRAIL;
 
     public final TrailConfig config = new TrailConfig();

@@ -1,0 +1,424 @@
+package com.kltyton.lumenfx.client.compat.keyframe;
+
+import com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
+import javax.annotation.Nullable;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Pure soft-compatibility runtime bridge for GeckoLib 4.x (both 1.20.1 {@code .core.*} and 1.21.1 packages)
+ * and KBR on Minecraft 1.20.1 / 1.21.1. Zero compile-time GeckoLib/KBR dependencies.
+ */
+public final class Gecko4KeyframeBridge {
+    private static final Logger LOGGER = LoggerFactory.getLogger("LumenFX/Gecko4Keyframe");
+    private static final String PROXY_MARKER = "$lumenfx$keyframeProxy4";
+
+    private static final ThreadLocal<Object> CURRENT_RENDER_ANIMATABLE = new ThreadLocal<>();
+    private static final Map<Object, Object> CONTROLLER_HOSTS = Collections.synchronizedMap(new WeakHashMap<>());
+
+    private static final class ReflectionSet {
+        final Field handlerField;
+        final @Nullable Field animatableField;
+        final @Nullable Method getNameMethod;
+        final Class<?> handlerInterface;
+        final Method handlerHandleMethod;
+        final Method eventGetAnimatable;
+        final Method eventGetController;
+        final Method eventGetKeyframeData;
+        final Method dataGetEffect;
+        final @Nullable Method dataGetLocator;
+        final @Nullable Method dataScript;
+
+        ReflectionSet(Class<?> controllerCls, ClassLoader loader, boolean legacy1201) throws ReflectiveOperationException {
+            this.handlerField = controllerCls.getDeclaredField("particleKeyframeHandler");
+            this.handlerField.setAccessible(true);
+
+            Field animField = null;
+            try {
+                animField = controllerCls.getDeclaredField("animatable");
+                animField.setAccessible(true);
+            } catch (NoSuchFieldException ignored) { }
+            this.animatableField = animField;
+
+            Method nameM = null;
+            try {
+                nameM = controllerCls.getMethod("getName");
+            } catch (NoSuchMethodException ignored) { }
+            this.getNameMethod = nameM;
+
+            String pkg = legacy1201
+                    ? "software.bernie.geckolib.core.animation.AnimationController$ParticleKeyframeHandler"
+                    : "software.bernie.geckolib.animation.AnimationController$ParticleKeyframeHandler";
+            String eventPkg = legacy1201
+                    ? "software.bernie.geckolib.core.keyframe.event.ParticleKeyframeEvent"
+                    : "software.bernie.geckolib.animation.keyframe.event.ParticleKeyframeEvent";
+            String dataPkg = legacy1201
+                    ? "software.bernie.geckolib.core.keyframe.event.data.ParticleKeyframeData"
+                    : "software.bernie.geckolib.animation.keyframe.event.data.ParticleKeyframeData";
+
+            this.handlerInterface = Class.forName(pkg, false, loader);
+            Class<?> eventCls = Class.forName(eventPkg, false, loader);
+            this.handlerHandleMethod = handlerInterface.getMethod("handle", eventCls);
+            this.eventGetAnimatable = eventCls.getMethod("getAnimatable");
+            this.eventGetController = eventCls.getMethod("getController");
+            this.eventGetKeyframeData = eventCls.getMethod("getKeyframeData");
+
+            Class<?> dataCls = Class.forName(dataPkg, false, loader);
+            this.dataGetEffect = dataCls.getMethod("getEffect");
+
+            Method locM = null;
+            try { locM = dataCls.getMethod("getLocator"); } catch (NoSuchMethodException ignored) { }
+            this.dataGetLocator = locM;
+
+            Method scriptM = null;
+            try { scriptM = dataCls.getMethod("script"); } catch (NoSuchMethodException ignored) {
+                try { scriptM = dataCls.getMethod("getScript"); } catch (NoSuchMethodException ignored2) { }
+            }
+            this.dataScript = scriptM;
+        }
+    }
+
+    private static volatile @Nullable ReflectionSet reflection1201;
+    private static volatile boolean reflection1201Failed;
+    private static volatile @Nullable ReflectionSet reflection1211;
+    private static volatile boolean reflection1211Failed;
+
+    private static volatile @Nullable Method boneGetNameMethod;
+    private static volatile @Nullable Method kbrGetLocatorsMethod;
+    private static volatile boolean kbrGetLocatorsChecked;
+    private static volatile @Nullable Method locatorOffsetMethod;
+    private static volatile @Nullable Method locatorRotationMethod;
+    private static volatile @Nullable Method kbrKeyframeBindToActorMethod;
+    private static volatile boolean kbrKeyframeBindChecked;
+
+    private Gecko4KeyframeBridge() { }
+
+    public static void ensureParticleHandlerWrapped(@Nullable Object controller, boolean legacy1201) {
+        if (controller == null) return;
+        ReflectionSet ref = resolveReflection(controller.getClass(), legacy1201);
+        if (ref == null) return;
+        try {
+            Object current = ref.handlerField.get(controller);
+            if (isOurProxy(current)) {
+                return;
+            }
+            Object original = current;
+            Object proxy = Proxy.newProxyInstance(
+                    ref.handlerInterface.getClassLoader(),
+                    new Class<?>[] { ref.handlerInterface },
+                    (p, method, args) -> {
+                        String name = method.getName();
+                        if ("toString".equals(name)) return PROXY_MARKER;
+                        if ("equals".equals(name)) return p == (args != null && args.length > 0 ? args[0] : null);
+                        if ("hashCode".equals(name)) return System.identityHashCode(p);
+                        if ("handle".equals(name) && args != null && args.length == 1) {
+                            boolean handled = handleKeyframeEvent(ref, args[0]);
+                            if (!handled && original != null) {
+                                ref.handlerHandleMethod.invoke(original, args[0]);
+                            }
+                            return null;
+                        }
+                        return null;
+                    });
+            ref.handlerField.set(controller, proxy);
+        } catch (Throwable error) {
+            LOGGER.warn("Failed to wrap GeckoLib 4 AnimationController particle handler", error);
+        }
+    }
+
+    public static void onControllerReset(@Nullable Object controller, boolean legacy1201) {
+        if (controller == null) return;
+        Object host = CONTROLLER_HOSTS.get(controller);
+        if (host == null) {
+            ReflectionSet ref = resolveReflection(controller.getClass(), legacy1201);
+            if (ref != null && ref.animatableField != null) {
+                try {
+                    host = ref.animatableField.get(controller);
+                } catch (Throwable ignored) { }
+            }
+        }
+        if (host != null) {
+            KeyframeEffectManager.stopForController(host, controller);
+        }
+    }
+
+    public static void setActiveRenderAnimatable(@Nullable Object animatable) {
+        if (animatable == null) {
+            CURRENT_RENDER_ANIMATABLE.remove();
+        } else {
+            CURRENT_RENDER_ANIMATABLE.set(animatable);
+        }
+    }
+
+    public static boolean shouldTrackBone(@Nullable Object bone) {
+        if (bone == null) return false;
+        Object host = CURRENT_RENDER_ANIMATABLE.get();
+        if (host == null || !KeyframeEffectManager.hasTrackedLocators(host)) {
+            return false;
+        }
+        Set<String> tracked = KeyframeEffectManager.trackedLocators(host);
+        if (tracked.isEmpty()) return false;
+
+        String boneName = readBoneName(bone);
+        if (boneName != null && tracked.contains(boneName)) {
+            return true;
+        }
+        Map<?, ?> locators = readKbrBoneLocators(bone);
+        if (locators != null && !locators.isEmpty()) {
+            for (String name : tracked) {
+                if (locators.containsKey(name)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static void onBoneWorldSpaceMatrix(@Nullable Object bone, @Nullable Matrix4f matrix) {
+        if (bone == null || matrix == null) return;
+        Object host = CURRENT_RENDER_ANIMATABLE.get();
+        if (host == null || !KeyframeEffectManager.hasTrackedLocators(host)) {
+            return;
+        }
+        Set<String> tracked = KeyframeEffectManager.trackedLocators(host);
+        if (tracked.isEmpty()) return;
+
+        Entity entity = resolveEntity(host);
+        Vec3 actorPos = entity != null ? entity.position() : null;
+        Quaternionf boneRot = new Matrix4f(matrix).getNormalizedRotation(new Quaternionf());
+
+        String boneName = readBoneName(bone);
+        if (boneName != null && tracked.contains(boneName)) {
+            KeyframeEffectManager.onLocatorSample(
+                    host, entity, boneName,
+                    matrix.m30(), matrix.m31(), matrix.m32(),
+                    boneRot.x, boneRot.y, boneRot.z, boneRot.w,
+                    actorPos);
+        }
+
+        Map<?, ?> kbrLocators = readKbrBoneLocators(bone);
+        if (kbrLocators != null && !kbrLocators.isEmpty()) {
+            for (String trackedName : tracked) {
+                Object locatorValue = kbrLocators.get(trackedName);
+                if (locatorValue == null) continue;
+                publishKbrSubLocator(host, entity, actorPos, matrix, boneRot, trackedName, locatorValue);
+            }
+        }
+    }
+
+    public static void onKbrAnimationParticleFallback(@Nullable Object actorObj, @Nullable Object positionObj,
+                                                      @Nullable String particle, @Nullable Object expressionObj,
+                                                      boolean bound) {
+        if (!(actorObj instanceof Entity actor) || !(positionObj instanceof Vec3 pos)) return;
+        if (particle == null || particle.isBlank()) return;
+        if (!(actor.level() instanceof ClientLevel level)) return;
+        String script = extractExpressionSource(expressionObj);
+        KeyframeEffectManager.handleKeyframe(
+                level, actor, actor, null, "kbr_animation",
+                particle, null, script, bound,
+                pos.x, pos.y, pos.z, true);
+    }
+
+    private static boolean handleKeyframeEvent(ReflectionSet ref, Object event) {
+        try {
+            Object animatable = ref.eventGetAnimatable.invoke(event);
+            Object controller = ref.eventGetController.invoke(event);
+            Object data = ref.eventGetKeyframeData.invoke(event);
+            if (animatable == null || data == null) return false;
+
+            String effect = (String) ref.dataGetEffect.invoke(data);
+            if (effect == null || effect.isBlank()) return false;
+
+            String locator = ref.dataGetLocator != null ? (String) ref.dataGetLocator.invoke(data) : null;
+            String script = ref.dataScript != null ? (String) ref.dataScript.invoke(data) : null;
+            Boolean bindToActor = readKbrBindToActor(data);
+
+            if (controller != null) {
+                CONTROLLER_HOSTS.put(controller, animatable);
+            }
+            Entity entity = resolveEntity(animatable);
+            ClientLevel level = entity != null && entity.level() instanceof ClientLevel cl
+                    ? cl
+                    : Minecraft.getInstance().level;
+            double fx = entity != null ? entity.getX() : 0.0;
+            double fy = entity != null ? entity.getY() : 0.0;
+            double fz = entity != null ? entity.getZ() : 0.0;
+
+            String controllerName = "";
+            if (controller != null && ref.getNameMethod != null) {
+                Object n = ref.getNameMethod.invoke(controller);
+                if (n instanceof String s) controllerName = s;
+            }
+
+            return KeyframeEffectManager.handleKeyframe(
+                    level, animatable, entity, controller, controllerName,
+                    effect, locator, script, bindToActor,
+                    fx, fy, fz, true);
+        } catch (Throwable error) {
+            LOGGER.warn("Failed to evaluate GeckoLib 4 particle keyframe", error);
+            return false;
+        }
+    }
+
+    private static void publishKbrSubLocator(Object host, @Nullable Entity entity, @Nullable Vec3 actorPos,
+                                             Matrix4f boneWorldMatrix, Quaternionf boneRot,
+                                             String locatorName, Object locatorValue) {
+        try {
+            if (locatorOffsetMethod == null) {
+                locatorOffsetMethod = locatorValue.getClass().getMethod("offset");
+                try {
+                    locatorRotationMethod = locatorValue.getClass().getMethod("rotation");
+                } catch (NoSuchMethodException ignored) { }
+            }
+            double[] offset = (double[]) locatorOffsetMethod.invoke(locatorValue);
+            Vector3f worldPoint = new Vector3f(
+                    offset != null && offset.length >= 3 ? (float) (offset[0] / 16.0) : 0.0F,
+                    offset != null && offset.length >= 3 ? (float) (offset[1] / 16.0) : 0.0F,
+                    offset != null && offset.length >= 3 ? (float) (offset[2] / 16.0) : 0.0F);
+            boneWorldMatrix.transformPosition(worldPoint);
+
+            Quaternionf finalRot = new Quaternionf(boneRot);
+            if (locatorRotationMethod != null) {
+                double[] rotDeg = (double[]) locatorRotationMethod.invoke(locatorValue);
+                if (rotDeg != null && rotDeg.length >= 3) {
+                    finalRot.rotateZYX(
+                            (float) Math.toRadians(rotDeg[2]),
+                            (float) Math.toRadians(rotDeg[1]),
+                            (float) Math.toRadians(rotDeg[0]));
+                }
+            }
+            KeyframeEffectManager.onLocatorSample(
+                    host, entity, locatorName,
+                    worldPoint.x, worldPoint.y, worldPoint.z,
+                    finalRot.x, finalRot.y, finalRot.z, finalRot.w,
+                    actorPos);
+        } catch (Throwable ignored) { }
+    }
+
+    private static @Nullable String readBoneName(Object bone) {
+        try {
+            Method m = boneGetNameMethod;
+            if (m == null) {
+                m = bone.getClass().getMethod("getName");
+                boneGetNameMethod = m;
+            }
+            Object res = m.invoke(bone);
+            return res instanceof String s ? s : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static @Nullable Map<?, ?> readKbrBoneLocators(Object bone) {
+        if (!kbrGetLocatorsChecked) {
+            kbrGetLocatorsChecked = true;
+            try {
+                kbrGetLocatorsMethod = bone.getClass().getMethod("kltyton_bedrock_runtime$getLocators");
+            } catch (NoSuchMethodException ignored) { }
+        }
+        Method m = kbrGetLocatorsMethod;
+        if (m == null) return null;
+        try {
+            Object res = m.invoke(bone);
+            return res instanceof Map<?, ?> map ? map : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static @Nullable Boolean readKbrBindToActor(Object keyframeData) {
+        if (!kbrKeyframeBindChecked) {
+            kbrKeyframeBindChecked = true;
+            try {
+                kbrKeyframeBindToActorMethod = keyframeData.getClass().getMethod("kltyton_bedrock_runtime$getBindToActor");
+            } catch (NoSuchMethodException ignored) { }
+        }
+        Method m = kbrKeyframeBindToActorMethod;
+        if (m == null) return null;
+        try {
+            Object res = m.invoke(keyframeData);
+            return res instanceof Boolean b ? b : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static @Nullable Entity resolveEntity(@Nullable Object animatable) {
+        if (animatable instanceof Entity entity) return entity;
+        if (animatable != null) {
+            try {
+                Method m = animatable.getClass().getMethod("getCurrentEntity");
+                Object res = m.invoke(animatable);
+                if (res instanceof Entity e) return e;
+            } catch (Throwable ignored) { }
+        }
+        return null;
+    }
+
+    private static @Nullable String extractExpressionSource(@Nullable Object expressionObj) {
+        if (expressionObj == null) return null;
+        try {
+            for (String fieldName : new String[] { "raw", "source", "expression", "script" }) {
+                try {
+                    Field f = expressionObj.getClass().getDeclaredField(fieldName);
+                    f.setAccessible(true);
+                    Object v = f.get(expressionObj);
+                    if (v instanceof String s && !s.isBlank()) return s;
+                } catch (NoSuchFieldException ignored) { }
+            }
+        } catch (Throwable ignored) { }
+        return null;
+    }
+
+    private static boolean isOurProxy(@Nullable Object candidate) {
+        return candidate != null && Proxy.isProxyClass(candidate.getClass()) && PROXY_MARKER.equals(candidate.toString());
+    }
+
+    private static @Nullable ReflectionSet resolveReflection(Class<?> controllerCls, boolean legacy1201) {
+        if (legacy1201) {
+            if (reflection1201 != null) return reflection1201;
+            if (reflection1201Failed) return null;
+            synchronized (Gecko4KeyframeBridge.class) {
+                if (reflection1201 != null) return reflection1201;
+                if (reflection1201Failed) return null;
+                try {
+                    reflection1201 = new ReflectionSet(controllerCls, controllerCls.getClassLoader(), true);
+                    return reflection1201;
+                } catch (Throwable error) {
+                    reflection1201Failed = true;
+                    LOGGER.warn("GeckoLib 4 (1.20.1) reflection bridge unavailable: {}", error.toString());
+                    return null;
+                }
+            }
+        } else {
+            if (reflection1211 != null) return reflection1211;
+            if (reflection1211Failed) return null;
+            synchronized (Gecko4KeyframeBridge.class) {
+                if (reflection1211 != null) return reflection1211;
+                if (reflection1211Failed) return null;
+                try {
+                    reflection1211 = new ReflectionSet(controllerCls, controllerCls.getClassLoader(), false);
+                    return reflection1211;
+                } catch (Throwable error) {
+                    reflection1211Failed = true;
+                    LOGGER.warn("GeckoLib 4 (1.21.1) reflection bridge unavailable: {}", error.toString());
+                    return null;
+                }
+            }
+        }
+    }
+}

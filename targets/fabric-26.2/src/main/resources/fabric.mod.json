@@ -27,6 +27,7 @@
     "lumenfx.sodium.mixins.json",
     "lumenfx.photon.mixins.json",
     "lumenfx.collision.mixins.json",
+    "lumenfx.keyframe.mixins.json",
     "lumenfx.fabric.mixins.json"
   ],
   "depends": {

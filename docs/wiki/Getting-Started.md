@@ -8,7 +8,7 @@
 
 1. Download the single unified LumenFX JAR matching your Minecraft version and mod loader (NeoForge, Fabric, or Forge).
 2. Place the JAR into your `.minecraft/mods` directory.
-3. Launch the game normally — LumenFX requires **no shader mod** and has **no mandatory rendering mod dependencies** (Iris, Sodium, and KBR are strictly optional).
+3. Launch the game normally — LumenFX requires **no shader mod** and has **no mandatory external mod dependencies** (`LDLib2`, `KilaGraph`, `Iris`, `Sodium`, `GeckoLib`, and `KBR` are strictly optional).
 
 > On **Minecraft 26.2**, there is no separate "Vulkan edition" or "OpenGL edition". One unified JAR dynamically selects Vulkan when supported and falls back to OpenGL automatically when needed.
 
@@ -20,14 +20,14 @@ All official artifacts are published to **Sighs Maven** (`https://maven.sighs.cc
 
 | Minecraft | Loader | Artifact ID | Version | Java | Backend |
 | :---: | :---: | :--- | :---: | :---: | :--- |
-| **26.2** | NeoForge | `lumenfx-neoforge-26.2` | `0.1.3` | Java 25 | Dynamic Vulkan-first / OpenGL |
-| **26.2** | Fabric | `lumenfx-fabric-26.2` | `0.1.3` | Java 25 | Dynamic Vulkan-first / OpenGL |
-| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | `0.1.3` | Java 25 | OpenGL |
-| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | `0.1.3` | Java 25 | OpenGL |
-| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | `0.1.3` | Java 21 | OpenGL |
-| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | `0.1.3` | Java 21 | OpenGL |
-| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | `0.1.3` | Java 17 | OpenGL |
-| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | `0.1.3` | Java 17 | OpenGL |
+| **26.2** | NeoForge | `lumenfx-neoforge-26.2` | `0.2.0` | Java 25 | Dynamic Vulkan-first / OpenGL |
+| **26.2** | Fabric | `lumenfx-fabric-26.2` | `0.2.0` | Java 25 | Dynamic Vulkan-first / OpenGL |
+| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | `0.2.0` | Java 25 | OpenGL |
+| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | `0.2.0` | Java 25 | OpenGL |
+| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | `0.2.0` | Java 21 | OpenGL |
+| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | `0.2.0` | Java 21 | OpenGL |
+| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | `0.2.0` | Java 17 | OpenGL |
+| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | `0.2.0` | Java 17 | OpenGL |
 
 ---
 
@@ -44,9 +44,9 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.2:0.1.3'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.2:0.2.0'
     // Optional: bundle inside your mod using jarJar
-    // jarJar('com.kltyton.lumenfx:lumenfx-neoforge-26.2:[0.1.3,)')
+    // jarJar('com.kltyton.lumenfx:lumenfx-neoforge-26.2:[0.2.0,)')
 }
 ```
 
@@ -61,7 +61,7 @@ repositories {
 }
 
 dependencies {
-    modImplementation 'com.kltyton.lumenfx:lumenfx-fabric-26.2:0.1.3'
+    modImplementation 'com.kltyton.lumenfx:lumenfx-fabric-26.2:0.2.0'
 }
 ```
 
@@ -69,23 +69,25 @@ dependencies {
 
 ## Java Client API Quick Start
 
-All effect formats (LumenFX JSON, Unity exports, Niagara compilations, and Photon `.fx`) share the same client entry point: `com.kltyton.lumenfx.api.VfxEffects`.
+All effect formats (LumenFX JSON, Unity exports, Niagara compilations, and Photon `.fx`) share the same client entry point: `com.kltyton.lumenfx.api.client.VfxEffects`.
 
 ### Spawning an Effect
 
 ```java
-import com.kltyton.lumenfx.api.EffectHandle;
-import com.kltyton.lumenfx.api.VfxEffects;
+import com.kltyton.lumenfx.api.client.EffectHandle;
+import com.kltyton.lumenfx.api.client.VfxEffects;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.Identifier; // ResourceLocation on 1.20.1 / 1.21.1
 import net.minecraft.world.phys.Vec3;
 
-EffectHandle handle = VfxEffects.spawn(
-        clientLevel,
-        Identifier.parse("my_mod:magic/rune_stream"),
-        new Vec3(x, y, z),
-        seed
-);
+if (VfxEffects.hasEffect(Identifier.parse("my_mod:magic/rune_stream"))) {
+    EffectHandle handle = VfxEffects.spawn(
+            clientLevel,
+            Identifier.parse("my_mod:magic/rune_stream"),
+            new Vec3(x, y, z),
+            seed
+    );
+}
 ```
 
 ### Updating Position, Pose, Color, and Beams

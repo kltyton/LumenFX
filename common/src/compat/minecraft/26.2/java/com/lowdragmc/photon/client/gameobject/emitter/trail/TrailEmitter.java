@@ -2,8 +2,8 @@
 package com.lowdragmc.photon.client.gameobject.emitter.trail;
 
 import com.mojang.blaze3d.PrimitiveTopology;
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.fx.PreloadContext;
 import com.lowdragmc.photon.client.fx.timeline.AnimatedPropertyType;
 import com.lowdragmc.photon.client.fx.timeline.property.ConfigValueType;

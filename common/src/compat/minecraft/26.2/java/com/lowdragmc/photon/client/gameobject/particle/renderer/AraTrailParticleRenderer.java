@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.particle.renderer;
 
-import com.lowdragmc.lowdraglib2.utils.ColorUtils;
+import com.kltyton.lumenfx.internal.photon.core.utils.ColorUtils;
 import com.lowdragmc.photon.client.gameobject.emitter.Emitter;
 import com.lowdragmc.photon.client.gameobject.emitter.aratrail.AraTrailAdditionalGPUDataSetting;
 import com.lowdragmc.photon.client.gameobject.emitter.aratrail.AraTrailConfig;

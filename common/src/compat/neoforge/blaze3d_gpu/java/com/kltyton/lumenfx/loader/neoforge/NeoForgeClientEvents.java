@@ -70,6 +70,7 @@ public final class NeoForgeClientEvents {
 
     @SubscribeEvent
     public static void registerResources(AddClientReloadListenersEvent event) {
+        com.lowdragmc.photon.integration.PhotonLDLibPlugin.ensureLoaded();
         ClientVfxEvents.initializeShaderpackBridge();
         var effects = LumenFx.id("effects");
         var meshes = LumenFx.id("photon_mesh_cache");

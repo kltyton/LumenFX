@@ -1,8 +1,8 @@
 package com.lowdragmc.photon.client.resource;
 
-import com.lowdragmc.lowdraglib2.editor.resource.BuiltinPath;
-import com.lowdragmc.lowdraglib2.editor.resource.FilePath;
-import com.lowdragmc.lowdraglib2.editor.resource.IResourcePath;
+import com.kltyton.lumenfx.internal.photon.core.editor.resource.BuiltinPath;
+import com.kltyton.lumenfx.internal.photon.core.editor.resource.FilePath;
+import com.kltyton.lumenfx.internal.photon.core.editor.resource.IResourcePath;
 import com.lowdragmc.photon.Photon;
 import com.lowdragmc.photon.client.gameobject.emitter.data.material.BlockTextureSheetMaterial;
 import com.lowdragmc.photon.client.gameobject.emitter.data.material.CustomShaderMaterial;

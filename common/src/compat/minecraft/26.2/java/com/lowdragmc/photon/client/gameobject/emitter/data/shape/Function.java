@@ -1,9 +1,8 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.shape;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
-import com.lowdragmc.lowdraglib2.utils.Vector3fHelper;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.utils.Vector3fHelper;
 import com.lowdragmc.photon.client.gameobject.emitter.IParticleEmitter;
 import com.lowdragmc.photon.client.gameobject.particle.TileParticle;
 import expr.Expr;
@@ -18,58 +17,28 @@ import org.joml.Vector3f;
 public class Function implements IShape {
     @Getter
     @Setter
-    @Configurable(tips = {
-            "photon.gui.editor.shape.function.tooltips.0",
-            "photon.gui.editor.shape.function.tooltips.1",
-            "photon.gui.editor.shape.function.tooltips.2",
-            "photon.gui.editor.shape.function.tooltips.3"
-    })
+    @Persisted
     private String x = "0";
     @Getter
     @Setter
-    @Configurable(tips = {
-            "photon.gui.editor.shape.function.tooltips.0",
-            "photon.gui.editor.shape.function.tooltips.1",
-            "photon.gui.editor.shape.function.tooltips.2",
-            "photon.gui.editor.shape.function.tooltips.3"
-    })
+    @Persisted
     private String y = "0";
     @Getter
     @Setter
-    @Configurable(tips = {
-            "photon.gui.editor.shape.function.tooltips.0",
-            "photon.gui.editor.shape.function.tooltips.1",
-            "photon.gui.editor.shape.function.tooltips.2",
-            "photon.gui.editor.shape.function.tooltips.3"
-    })
+    @Persisted
     private String z = "0";
 
     @Getter
     @Setter
-    @Configurable(tips = {
-            "photon.gui.editor.shape.function.tooltips.0",
-            "photon.gui.editor.shape.function.tooltips.1",
-            "photon.gui.editor.shape.function.tooltips.2",
-            "photon.gui.editor.shape.function.tooltips.3"
-    })
+    @Persisted
     private String speedX = "0";
     @Getter
     @Setter
-    @Configurable(tips = {
-            "photon.gui.editor.shape.function.tooltips.0",
-            "photon.gui.editor.shape.function.tooltips.1",
-            "photon.gui.editor.shape.function.tooltips.2",
-            "photon.gui.editor.shape.function.tooltips.3"
-    })
+    @Persisted
     private String speedY = "0";
     @Getter
     @Setter
-    @Configurable(tips = {
-            "photon.gui.editor.shape.function.tooltips.0",
-            "photon.gui.editor.shape.function.tooltips.1",
-            "photon.gui.editor.shape.function.tooltips.2",
-            "photon.gui.editor.shape.function.tooltips.3"
-    })
+    @Persisted
     private String speedZ = "0";
 
     // runtime

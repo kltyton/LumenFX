@@ -37,6 +37,10 @@ import org.jspecify.annotations.Nullable;
 public final class VfxEffects {
     private VfxEffects() { }
 
+    public static boolean hasEffect(Identifier effect) {
+        return VfxEngine.INSTANCE.hasEffect(effect);
+    }
+
     public static EffectHandle spawn(ClientLevel level, Identifier effect, Vec3 position, long seed) {
         return VfxEngine.INSTANCE.spawn(level, effect, position, seed);
     }

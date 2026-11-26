@@ -38,7 +38,11 @@ public final class LumenFxForge1201Mod {
                     event.registerReloadListener((ResourceManagerReloadListener) manager ->
                             DirectVfxEngine.INSTANCE.reloadResources()));
             MinecraftForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent event) -> {
-                if (event.phase == TickEvent.Phase.END) DirectVfxEngine.INSTANCE.tickClient();
+                if (event.phase == TickEvent.Phase.END) {
+                    DirectVfxEngine.INSTANCE.tickClient();
+                    com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onClientTick(
+                            net.minecraft.client.Minecraft.getInstance().level);
+                }
             });
             MinecraftForge.EVENT_BUS.addListener((LevelEvent.Unload event) -> {
                 if (event.getLevel().isClientSide()) DirectVfxEngine.INSTANCE.clearLevel();

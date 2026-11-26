@@ -1,10 +1,8 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.shape;
-
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.registry.ILDLRegisterClient;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
-import com.lowdragmc.lowdraglib2.utils.PersistedParser;
+import com.kltyton.lumenfx.internal.photon.core.registry.ILDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.utils.PersistedParser;
 import com.lowdragmc.photon.PhotonRegistries;
 import com.lowdragmc.photon.client.gameobject.emitter.IParticleEmitter;
 import com.lowdragmc.photon.client.gameobject.particle.TileParticle;
@@ -22,7 +20,7 @@ import java.util.function.Supplier;
  * @date 2023/5/26
  * @implNote IShape
  */
-public interface IShape extends IConfigurable, IPersistedSerializable, ILDLRegisterClient<IShape, Supplier<IShape>> {
+public interface IShape extends IPersistedSerializable, ILDLRegisterClient<IShape, Supplier<IShape>> {
     Codec<IShape> CODEC = PhotonRegistries.SHAPES.optionalCodec().dispatch(ILDLRegisterClient::getRegistryHolderOptional,
             optional -> optional.map(holder -> PersistedParser.createCodec(holder.value()).fieldOf("data"))
                     .orElseGet(() -> MapCodec.unit(new Dot())));

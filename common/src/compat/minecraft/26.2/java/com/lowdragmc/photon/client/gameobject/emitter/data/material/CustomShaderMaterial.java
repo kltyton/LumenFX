@@ -4,11 +4,10 @@ package com.lowdragmc.photon.client.gameobject.emitter.data.material;
 import com.mojang.blaze3d.PrimitiveTopology;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.lowdragmc.lowdraglib2.Platform;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
-import com.lowdragmc.lowdraglib2.utils.PersistedParser;
+import com.kltyton.lumenfx.internal.photon.core.Platform;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.utils.PersistedParser;
 import com.lowdragmc.photon.Photon;
 import com.lowdragmc.photon.client.AutoCloseCleaner;
 import com.lowdragmc.photon.client.gameobject.emitter.data.MaterialSetting;
@@ -16,7 +15,7 @@ import com.lowdragmc.photon.client.render.PhotonCustomUniforms;
 import com.lowdragmc.photon.client.render.PhotonPipelines;
 import com.lowdragmc.photon.client.render.PhotonRenderTypes;
 import com.lowdragmc.photon.client.render.PhotonWorldRenderState;
-import com.lowdragmc.photon.client.shadergraph.PhotonShaderCompiler;
+import com.lowdragmc.photon.client.shadergraph.PhotonShaderConstants;
 import com.mojang.serialization.MapCodec;
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
@@ -74,9 +73,9 @@ public class CustomShaderMaterial extends ShaderInstanceMaterial {
     @Getter
     @Persisted
     private Identifier shaderLocation = Photon.id("circle");
-    @Configurable(name = "SamplerCurve", subConfigurable = true)
+    @Persisted(subPersisted = true)
     public final CurveTexture curveTexture = new CurveTexture(MAX_SAMPLING, MAX_SAMPLER);
-    @Configurable(name = "SamplerGradient", subConfigurable = true)
+    @Persisted(subPersisted = true)
     public final GradientTexture gradientTexture = new GradientTexture(MAX_SAMPLING, MAX_SAMPLER);
     /** 1.21's LDShaderHolder values ("shaderData"): the live uniform and sampler store. */
     private CompoundTag pendingShaderData = new CompoundTag();
@@ -297,7 +296,7 @@ public class CustomShaderMaterial extends ShaderInstanceMaterial {
         // the fade only where the shader imports it and lists SamplerSceneDepth (what the drain binds); its params
         // are the shader's own SoftParticleParams
         var soft = source.contains("#moj_import <" + SoftParticles.INCLUDE + ">")
-                && sceneSamplers.contains(PhotonShaderCompiler.SCENE_DEPTH);
+                && sceneSamplers.contains(PhotonShaderConstants.SCENE_DEPTH);
         return new ShaderMeta(vertex[0], fragment[0],
                 List.copyOf(samplerNames), List.copyOf(sceneSamplers),
                 List.copyOf(layout.values()), legacyDepth[0], lit[0], soft);

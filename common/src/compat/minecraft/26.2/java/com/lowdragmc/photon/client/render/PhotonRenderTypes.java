@@ -248,6 +248,7 @@ public final class PhotonRenderTypes {
     public static void onResourceReload() {
         RELOAD_GENERATION.incrementAndGet();
         FAILED_CUSTOM_SHADERS.clear();
+        com.lowdragmc.photon.client.resource.PhotonProceduralTextures.clear();
         PhotonPipelines.onResourceReload();
     }
 }

@@ -1,7 +1,6 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.Constant;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction;
@@ -26,30 +25,30 @@ import lombok.Setter;
 @Getter
 public class PhysicsSetting extends ToggleGroup {
 
-    @Configurable(name = "PhysicsSetting.hasCollision", tips = "photon.emitter.config.physics.hasCollision")
+    @Persisted
     protected boolean hasCollision = true;
-    @Configurable(name = "PhysicsSetting.removedWhenCollided", tips = "photon.emitter.config.physics.removedWhenCollided")
+    @Persisted
     protected boolean removedWhenCollided = false;
-    @Configurable(name = "PhysicsSetting.friction", tips = "photon.emitter.config.physics.friction")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, max = 1, defaultValue = 1, curveConfig = @CurveConfig(xAxis = "duration", yAxis = "friction"))
     protected NumberFunction friction = NumberFunction.constant(1);
-    @Configurable(name = "PhysicsSetting.collidedFriction", tips = "photon.emitter.config.physics.collidedFriction")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, max = 1, defaultValue = 1, curveConfig = @CurveConfig(xAxis = "duration", yAxis = "friction"))
     protected NumberFunction collidedFriction = NumberFunction.constant(0.7f);
-    @Configurable(name = "PhysicsSetting.gravity", tips = "photon.emitter.config.physics.gravity")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, curveConfig = @CurveConfig(bound = {0, 1}, xAxis = "duration", yAxis = "gravity"))
     protected NumberFunction gravity = NumberFunction.constant(0);
-    @Configurable(name = "PhysicsSetting.bounceChance", tips = "photon.emitter.config.physics.bounceChance")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, max = 1, defaultValue = 1, curveConfig = @CurveConfig(xAxis = "duration", yAxis = "bounce chance"))
     protected NumberFunction bounceChance = NumberFunction.constant(1);
-    @Configurable(name = "PhysicsSetting.bounceRate", tips = "photon.emitter.config.physics.bounceRate")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, defaultValue = 1, curveConfig = @CurveConfig(bound = {0, 1}, xAxis = "duration", yAxis = "bounce rate"))
     protected NumberFunction bounceRate = NumberFunction.constant(1);
-    @Configurable(name = "PhysicsSetting.bounceSpreadRate", tips = "photon.emitter.config.physics.bounceSpreadRate")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, curveConfig = @CurveConfig(bound = {0, 1}, xAxis = "duration", yAxis = "spread"))
     protected NumberFunction bounceSpreadRate = NumberFunction.constant(0);
 
-    @Configurable(name = "PhysicsSetting.collision", subConfigurable = true, tips = "photon.emitter.config.physics.collision")
+    @Persisted(subPersisted = true)
     public final CollisionSetting collision = new CollisionSetting();
 
     /** Create this setting's per-emitter runtime layer. */

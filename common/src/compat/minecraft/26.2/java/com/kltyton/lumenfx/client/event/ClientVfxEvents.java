@@ -359,6 +359,7 @@ public final class ClientVfxEvents {
     public static void onClientTickPost() {
         var level = Minecraft.getInstance().level;
         EntityLocatorAttachments.tickAll(level);
+        com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onClientTick(level);
         if (level == null) {
             VfxEngine.INSTANCE.disconnected();
         } else {

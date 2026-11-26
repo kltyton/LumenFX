@@ -1,7 +1,6 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.aratrail;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.gameobject.emitter.data.ToggleGroup;
 import org.joml.Vector2f;
 
@@ -9,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TrailSection extends ToggleGroup {
-    @Configurable(name = "TrailSection.vertices")
+    @Persisted
     public List<Vector2f> vertices = new ArrayList<>();
 
     public TrailSection() {

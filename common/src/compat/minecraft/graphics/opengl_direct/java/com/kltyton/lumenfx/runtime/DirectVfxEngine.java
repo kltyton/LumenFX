@@ -42,7 +42,14 @@ public final class DirectVfxEngine {
     private final AtomicBoolean rendererResetPending = new AtomicBoolean(false);
     private final DirectGlEffectRenderer renderer = new DirectGlEffectRenderer();
 
-    private DirectVfxEngine() { }
+    private DirectVfxEngine() {
+        com.kltyton.lumenfx.runtime.keyframe.DirectKeyframeAdapter.install();
+    }
+
+    public boolean hasEffect(String rawId) {
+        String id = canonicalId(rawId);
+        return effects.containsKey(id) || photonModels.containsKey(id);
+    }
 
     public void attachBridge(McResourceBridge bridge) {
         this.bridge = bridge;
@@ -104,6 +111,7 @@ public final class DirectVfxEngine {
     public void reloadResources() {
         int gen = resourceGeneration.incrementAndGet();
         clearLevel();
+        com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onResourceReload();
         effects.clear();
         photonModels.clear();
         rendererResetPending.set(true);
@@ -233,6 +241,7 @@ public final class DirectVfxEngine {
     }
 
     public void clearLevel() {
+        com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onLevelUnload();
         for (EffectRuntimeInstance inst : instances) {
             inst.handle().markDead();
             enqueueGpuDisposal(inst);

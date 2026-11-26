@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.number.curve;
 
-import com.lowdragmc.lowdraglib2.math.curve.ExplicitCubicBezierCurve2;
+import com.kltyton.lumenfx.internal.photon.core.math.curve.ExplicitCubicBezierCurve2;
 import com.mojang.serialization.Codec;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

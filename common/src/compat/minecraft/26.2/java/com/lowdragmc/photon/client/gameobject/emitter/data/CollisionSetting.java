@@ -1,12 +1,9 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.editor.ui.sceneeditor.sceneobject.TransformRef;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.ReadOnlyManaged;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.editor.ui.sceneeditor.sceneobject.TransformRef;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.ReadOnlyManaged;
 import com.lowdragmc.photon.client.collision.BlockFilter;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.collider.ColliderObject;
@@ -42,7 +39,7 @@ import java.util.UUID;
 /** What particles collide with and how they respond, beyond {@link PhysicsSetting}'s bounce and friction. */
 @Getter
 @Setter
-public class CollisionSetting implements IConfigurable, IPersistedSerializable {
+public class CollisionSetting implements IPersistedSerializable {
 
     public enum Shape {
         /** the particle's own size, as a box */
@@ -83,89 +80,83 @@ public class CollisionSetting implements IConfigurable, IPersistedSerializable {
         PerGroup
     }
 
-    @Configurable(name = "CollisionSetting.blocks", tips = "photon.emitter.config.physics.collision.blocks")
+    @Persisted
     protected boolean blocks = true;
-    @Configurable(name = "CollisionSetting.fluids", tips = "photon.emitter.config.physics.collision.fluids")
+    @Persisted
     protected boolean fluids = false;
-    @Configurable(name = "CollisionSetting.entities", tips = "photon.emitter.config.physics.collision.entities")
+    @Persisted
     protected boolean entities = false;
-    @Configurable(name = "CollisionSetting.colliders", tips = "photon.emitter.config.physics.collision.colliders")
+    @Persisted
     protected boolean colliders = true;
-    @Configurable(name = "CollisionSetting.shape", tips = "photon.emitter.config.physics.collision.shape")
+    @Persisted
     protected Shape shape = Shape.Box;
-    @Configurable(name = "CollisionSetting.radiusScale", tips = "photon.emitter.config.physics.collision.radiusScale")
-    @ConfigNumber(range = {0, 16}, wheel = 0.1)
+    @Persisted
     protected float radiusScale = 1;
-    @Configurable(name = "CollisionSetting.killOnTriggerEnter", tips = "photon.emitter.config.physics.collision.killOnTriggerEnter")
+    @Persisted
     protected boolean killOnTriggerEnter = false;
 
-    @Configurable(name = "CollisionSetting.response", subConfigurable = true, tips = "photon.emitter.config.physics.collision.response")
+    @Persisted(subPersisted = true)
     public final Response response = new Response();
-    @Configurable(name = "CollisionSetting.filters", subConfigurable = true, tips = "photon.emitter.config.physics.collision.filters")
+    @Persisted(subPersisted = true)
     public final Filters filters = new Filters();
-    @Configurable(name = "CollisionSetting.events", subConfigurable = true, tips = "photon.emitter.config.physics.collision.events")
+    @Persisted(subPersisted = true)
     public final Events events = new Events();
-    @Configurable(name = "CollisionSetting.advanced", subConfigurable = true, tips = "photon.emitter.config.physics.collision.advanced")
+    @Persisted(subPersisted = true)
     public final Advanced advanced = new Advanced();
 
     /** How speed and lifetime change on every impact. */
     @Getter
     @Setter
-    public static class Response implements IConfigurable, IPersistedSerializable {
-        @Configurable(name = "CollisionSetting.dampen", tips = "photon.emitter.config.physics.collision.dampen")
+    public static class Response implements IPersistedSerializable {
+        @Persisted
         @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, max = 1, curveConfig = @CurveConfig(bound = {0, 1}, xAxis = "lifetime", yAxis = "dampen"))
         protected NumberFunction dampen = NumberFunction.constant(0);
-        @Configurable(name = "CollisionSetting.lifetimeLoss", tips = "photon.emitter.config.physics.collision.lifetimeLoss")
+        @Persisted
         @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, max = 1, curveConfig = @CurveConfig(bound = {0, 1}, xAxis = "lifetime", yAxis = "loss"))
         protected NumberFunction lifetimeLoss = NumberFunction.constant(0);
-        @Configurable(name = "CollisionSetting.minKillSpeed", tips = "photon.emitter.config.physics.collision.minKillSpeed")
-        @ConfigNumber(range = {0, 100}, wheel = 0.01)
+        @Persisted
         protected float minKillSpeed = 0;
-        @Configurable(name = "CollisionSetting.maxKillSpeed", tips = "photon.emitter.config.physics.collision.maxKillSpeed")
-        @ConfigNumber(range = {0, 1000}, wheel = 0.1)
+        @Persisted
         protected float maxKillSpeed = 0;
-        @Configurable(name = "CollisionSetting.maxBounces", tips = "photon.emitter.config.physics.collision.maxBounces")
-        @ConfigNumber(range = {0, 1000}, wheel = 1)
+        @Persisted
         protected int maxBounces = 0;
-        @Configurable(name = "CollisionSetting.killAfterImpacts", tips = "photon.emitter.config.physics.collision.killAfterImpacts")
-        @ConfigNumber(range = {0, 1000}, wheel = 1)
+        @Persisted
         protected int killAfterImpacts = 0;
-        @Configurable(name = "CollisionSetting.stick", tips = "photon.emitter.config.physics.collision.stick")
+        @Persisted
         protected boolean stick = false;
     }
 
     /** Which blocks, entities and colliders count. */
     @Getter
     @Setter
-    public static class Filters implements IConfigurable, IPersistedSerializable {
-        @Configurable(name = "CollisionSetting.onlyBlocks", tips = "photon.emitter.config.physics.collision.onlyBlocks")
+    public static class Filters implements IPersistedSerializable {
+        @Persisted
         @ReadOnlyManaged(serializeMethod = "stringsSerialize", deserializeMethod = "stringsDeserialize")
         protected List<String> onlyBlocks = new ArrayList<>();
-        @Configurable(name = "CollisionSetting.exceptBlocks", tips = "photon.emitter.config.physics.collision.exceptBlocks")
+        @Persisted
         @ReadOnlyManaged(serializeMethod = "stringsSerialize", deserializeMethod = "stringsDeserialize")
         protected List<String> exceptBlocks = new ArrayList<>();
-        @Configurable(name = "CollisionSetting.entityResponse", tips = "photon.emitter.config.physics.collision.entityResponse")
+        @Persisted
         protected EntityResponse entityResponse = EntityResponse.Solid;
-        @Configurable(name = "CollisionSetting.entityCategory", tips = "photon.emitter.config.physics.collision.entityCategory")
+        @Persisted
         protected EntityCategory entityCategory = EntityCategory.Living;
-        @Configurable(name = "CollisionSetting.onlyEntities", tips = "photon.emitter.config.physics.collision.onlyEntities")
+        @Persisted
         @ReadOnlyManaged(serializeMethod = "stringsSerialize", deserializeMethod = "stringsDeserialize")
         protected List<String> onlyEntities = new ArrayList<>();
-        @Configurable(name = "CollisionSetting.exceptEntities", tips = "photon.emitter.config.physics.collision.exceptEntities")
+        @Persisted
         @ReadOnlyManaged(serializeMethod = "stringsSerialize", deserializeMethod = "stringsDeserialize")
         protected List<String> exceptEntities = new ArrayList<>();
-        @Configurable(name = "CollisionSetting.ignoreOwner", tips = "photon.emitter.config.physics.collision.ignoreOwner")
+        @Persisted
         protected boolean ignoreOwner = true;
-        @Configurable(name = "CollisionSetting.sourceExclusionRadius", tips = "photon.emitter.config.physics.collision.sourceExclusionRadius")
-        @ConfigNumber(range = {0, 64}, wheel = 0.25)
+        @Persisted
         protected float sourceExclusionRadius = 0;
-        @Configurable(name = "CollisionSetting.ignoreSpectators", tips = "photon.emitter.config.physics.collision.ignoreSpectators")
+        @Persisted
         protected boolean ignoreSpectators = true;
-        @Configurable(name = "CollisionSetting.pickableOnly", tips = "photon.emitter.config.physics.collision.pickableOnly")
+        @Persisted
         protected boolean pickableOnly = false;
-        @Configurable(name = "CollisionSetting.colliderFilter", tips = "photon.emitter.config.physics.collision.colliderFilter")
+        @Persisted
         protected ColliderFilter colliderFilter = ColliderFilter.SceneAll;
-        @Configurable(name = "CollisionSetting.colliderList", tips = "photon.emitter.config.physics.collision.colliderList")
+        @Persisted
         @ReadOnlyManaged(serializeMethod = "refsSerialize", deserializeMethod = "refsDeserialize")
         protected List<TransformRef> colliderList = new ArrayList<>();
 
@@ -216,16 +207,14 @@ public class CollisionSetting implements IConfigurable, IPersistedSerializable {
     /** Which impacts and contact deaths are reported, to sub-emitters and listeners alike; the physics stays the same. */
     @Getter
     @Setter
-    public static class Events implements IConfigurable, IPersistedSerializable {
-        @Configurable(name = "CollisionSetting.minImpactSpeed", tips = "photon.emitter.config.physics.collision.minImpactSpeed")
-        @ConfigNumber(range = {0, 100}, wheel = 0.01)
+    public static class Events implements IPersistedSerializable {
+        @Persisted
         protected float minImpactSpeed = 0;
-        @Configurable(name = "CollisionSetting.dedupe", tips = "photon.emitter.config.physics.collision.dedupe")
+        @Persisted
         protected Dedupe dedupe = Dedupe.Off;
-        @Configurable(name = "CollisionSetting.dedupeCooldown", tips = "photon.emitter.config.physics.collision.dedupeCooldown")
-        @ConfigNumber(range = {0, 1000000}, wheel = 1)
+        @Persisted
         protected int cooldown = 0;
-        @Configurable(name = "CollisionSetting.dedupeGroup", tips = "photon.emitter.config.physics.collision.dedupeGroup")
+        @Persisted
         protected String group = "";
 
         public Dedupe getDedupe() {
@@ -240,14 +229,12 @@ public class CollisionSetting implements IConfigurable, IPersistedSerializable {
     /** Solver limits; the defaults suit almost everything. */
     @Getter
     @Setter
-    public static class Advanced implements IConfigurable, IPersistedSerializable {
-        @Configurable(name = "CollisionSetting.maxContacts", tips = "photon.emitter.config.physics.collision.maxContacts")
-        @ConfigNumber(range = {1, 16}, wheel = 1)
+    public static class Advanced implements IPersistedSerializable {
+        @Persisted
         protected int maxContacts = 4;
-        @Configurable(name = "CollisionSetting.depenetrate", tips = "photon.emitter.config.physics.collision.depenetrate")
+        @Persisted
         protected boolean depenetrate = true;
-        @Configurable(name = "CollisionSetting.maxDepenetration", tips = "photon.emitter.config.physics.collision.maxDepenetration")
-        @ConfigNumber(range = {0, 8}, wheel = 0.05)
+        @Persisted
         protected float maxDepenetration = 0.5f;
     }
 

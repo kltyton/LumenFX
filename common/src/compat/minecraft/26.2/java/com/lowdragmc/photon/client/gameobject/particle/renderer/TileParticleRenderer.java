@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.particle.renderer;
 
-import com.lowdragmc.lowdraglib2.utils.Vector3fHelper;
+import com.kltyton.lumenfx.internal.photon.core.utils.Vector3fHelper;
 import com.lowdragmc.photon.client.AutoCloseCleaner;
 import com.lowdragmc.photon.client.render.PhotonWorldRenderState;
 import com.lowdragmc.photon.client.gameobject.emitter.data.AdditionalGPUDataSetting;

@@ -1,7 +1,5 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter;
-
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
 import com.lowdragmc.photon.client.gameobject.IFXObject;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
@@ -20,7 +18,7 @@ import java.util.function.Function;
  * @date 2023/6/2
  * @implNote IParticleEmitter
  */
-public interface IParticleEmitter extends IFXObject, IConfigurable {
+public interface IParticleEmitter extends IFXObject {
 
     default Emitter self() {
         return (Emitter) this;

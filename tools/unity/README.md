@@ -1,21 +1,31 @@
-# LumenFX Unity ParticleSystem exporter
+# LumenFX Unity ParticleSystem Exporter (UPM Package)
 
-Offline Unity Editor tool that converts a selected Unity ParticleSystem hierarchy (Shuriken) into a
-LumenFX effect JSON, PNG textures and static mesh resources. The exporter runs in the Unity Editor.
+Offline Unity Editor UPM package (`com.kltyton.lumenfx.exporter`) that helps creators author and convert Unity `ParticleSystem` hierarchies (Shuriken, trails, meshes, and URP Shader Graph materials) into Minecraft LumenFX resource-pack files.
 
 ## Install and run
 
-Requires Unity 2020.3 LTS or newer.
+Requires **Unity 2020.3 LTS or newer**.
 
-1. Copy `tools/unity/Editor` into a Unity project, for example `Assets/Editor/LumenFX/`.
-   The folder name `Editor` is required so Unity compiles the scripts into the editor assembly.
-2. Select the root GameObject of the effect hierarchy in the Hierarchy window.
-3. Open `Assets > LumenFX > Export Selected Particle Systems...`.
-4. Set the namespace, effect name and output folder, then use `Validate` or `Export`.
+### Option 1 — Install via Unity Package Manager (Recommended)
 
-`Validate` performs the same complete pass as `Export`. If any enabled module or shader is outside
-the supported set, **all errors are reported in the Console and no file is written**. `Export` never
-skips an enabled module silently.
+1. Open **Window > Package Manager** in Unity.
+2. Click **+** > **Add package from disk...** and select `tools/unity/package.json` (or use **Add package from git URL...** with `https://github.com/kltyton/LumenFX.git?path=/tools/unity`).
+3. Unity automatically compiles the editor assembly (`LumenFx.UnityExport.Editor.asmdef`) without polluting runtime player builds.
+
+### Option 2 — Manual Copy
+
+Copy `tools/unity/Editor` into your Unity project (for example `Assets/Editor/LumenFX/`).
+
+### Authoring & Exporting Workflow
+
+1. Optional creator helpers under **GameObject > LumenFX** (or directly inside the Exporter window):
+   - **Create Sprite Burst Preset**, **Create Ribbon Trail Preset**, **Create Mesh Spark Preset** — creates ready-to-export hierarchies using Minecraft 1-block = 1-unit scale.
+   - **Minecraft 1-Block Grid Guide** (`Tools > LumenFX > Toggle Minecraft 1-Block Grid`) — draws a live 1×1×1 block wireframe, 1.8-block player-height reference, and `+Y` / `-Z` axis indicator in the Scene View.
+2. Select one or more root `GameObject`s in the Hierarchy window.
+3. Open **Tools > LumenFX > Particle Exporter...** (or **Assets > LumenFX > Export Selected Particle Systems...**).
+4. Set the namespace, effect name (or enable **Batch Export** for multiple selected roots), output folder, and optional `pack.mcmeta` generation, then click **Validate** or **Export**.
+
+`Validate` performs the same complete pass as `Export` and displays clickable inline diagnostics (click any item to ping the offending `GameObject` in the Hierarchy). If any enabled module or shader is outside the supported set, **all errors are reported and no file is written**. `Export` never skips an enabled module silently.
 
 The selected root is the LumenFX effect anchor and accepts any finite, positive, unsheared `lossyScale`. Child systems can keep
 their local translation and rotation. Hierarchy uses positive, unsheared cumulative scale,
@@ -475,8 +485,7 @@ Each exported texture slot writes its source filter mode (`point` / `linear` / `
   The coat evaluates the base refraction, dielectric highlight and indirect reflectance using the
   active particle lighting inputs. [URP Clear Coat BRDF](https://github.com/Unity-Technologies/Graphics/blob/2022.3/staging/Packages/com.unity.render-pipelines.universal/ShaderLibrary/BRDF.hlsl#L96-L158)
   Other custom HLSL `CustomFunctionNode`s report an export error.
-* The exporter does not write `pack.mcmeta`; merge the generated `assets` tree into your resource
-  pack.
+* Check **Write pack.mcmeta** in the Exporter window if you want a standalone Minecraft resource pack written directly into the output folder; leave it unchecked to merge the `assets/` tree into an existing mod or resource pack.
 * Newer optional LumenFX fields (`multiply` curve factors, `movement_threshold`,
   `width_segments`, `noise.mode`) are not emitted. The Unity limit module stores its drag
   in `unity_renderer.velocity_limit`, alongside the magnitude or axis limits and drag multipliers.

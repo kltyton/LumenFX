@@ -1,7 +1,6 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.material;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.mojang.blaze3d.pipeline.BlendEquation;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.platform.BlendFactor;
@@ -81,17 +80,17 @@ public class BlendMode {
         }
     }
 
-    @Configurable(name = "BlendMode.enableBlend")
+    @Persisted
     private boolean enableBlend;
-    @Configurable(name = "BlendMode.srcColorFactor")
+    @Persisted
     private BlendFactor srcColorFactor;
-    @Configurable(name = "BlendMode.dstColorFactor")
+    @Persisted
     private BlendFactor dstColorFactor;
-    @Configurable(name = "BlendMode.srcAlphaFactor")
+    @Persisted
     private BlendFactor srcAlphaFactor;
-    @Configurable(name = "BlendMode.dstAlphaFactor")
+    @Persisted
     private BlendFactor dstAlphaFactor;
-    @Configurable(name = "BlendMode.blendFunc")
+    @Persisted
     private BlendFuc blendFunc;
 
     private BlendMode(boolean enableBlend, BlendFactor srcColorFactor, BlendFactor dstColorFactor, BlendFactor srcAlphaFactor, BlendFactor dstAlphaFactor, BlendFuc blendFunc) {

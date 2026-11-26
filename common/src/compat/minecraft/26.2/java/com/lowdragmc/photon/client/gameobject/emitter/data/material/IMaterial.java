@@ -2,11 +2,10 @@
 package com.lowdragmc.photon.client.gameobject.emitter.data.material;
 
 import com.mojang.blaze3d.PrimitiveTopology;
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.registry.ILDLRegisterClient;
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
-import com.lowdragmc.lowdraglib2.utils.PersistedParser;
+import com.kltyton.lumenfx.internal.photon.core.registry.ILDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.utils.PersistedParser;
 import com.lowdragmc.photon.PhotonRegistries;
 import com.lowdragmc.photon.client.fx.PreloadContext;
 import com.lowdragmc.photon.client.gameobject.emitter.data.MaterialSetting;
@@ -28,7 +27,7 @@ import java.util.function.Supplier;
  * @implNote Material
  */
 @ParametersAreNonnullByDefault
-public interface IMaterial extends IConfigurable, IPersistedSerializable, ILDLRegisterClient<IMaterial, Supplier<IMaterial>> {
+public interface IMaterial extends IPersistedSerializable, ILDLRegisterClient<IMaterial, Supplier<IMaterial>> {
     // region builtin material
     @LDLRegisterClient(name = "missing", registry = "photon:material")
     final class MissingMaterial implements IMaterial {

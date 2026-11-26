@@ -35,7 +35,7 @@ public final class LumenFxFabricClientMod implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        new PhotonLDLibPlugin().onLoad();
+        PhotonLDLibPlugin.ensureLoaded();
         WorldFxClientEvents.ensureInitialized();
         ClientVfxEvents.initializeShaderpackBridge();
 

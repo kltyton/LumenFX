@@ -215,7 +215,8 @@ public final class FXPreloader {
 
         @Override
         public void texture(Identifier location) {
-            render(() -> Minecraft.getInstance().getTextureManager().getTexture(location));
+            render(() -> com.lowdragmc.photon.client.resource.PhotonProceduralTextures.resolve(
+                    Minecraft.getInstance().getTextureManager(), location));
         }
 
         @Override
@@ -321,6 +322,10 @@ public final class FXPreloader {
         @Override
         public void texture(Identifier location) {
             var textureManager = Minecraft.getInstance().getTextureManager();
+            if (com.lowdragmc.photon.client.resource.PhotonProceduralTextures.isMissingBuiltin(location)) {
+                render(() -> com.lowdragmc.photon.client.resource.PhotonProceduralTextures.resolve(textureManager, location));
+                return;
+            }
             if (isLoaded(textureManager, location) || !textures.add(location)) return;
             pending.incrementAndGet();
             var resources = Minecraft.getInstance().getResourceManager();

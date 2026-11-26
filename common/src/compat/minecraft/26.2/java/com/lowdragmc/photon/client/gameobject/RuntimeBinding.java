@@ -1,6 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject;
 
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.fx.timeline.property.ConfigValueType;
 
 import java.util.function.Function;
@@ -15,7 +16,7 @@ import java.util.function.Function;
 public class RuntimeBinding {
     /** Config-relative dotted identity (e.g. {@code "physics.friction"}). Also the serialized key. */
     public final String path;
-    /** i18n key for the display label (reuses the field's {@code @Configurable} name). */
+    /** i18n key for the display label (reuses the field's {@code @Persisted} name). */
     public final String labelKey;
     public final ConfigValueType type;
     private final Function<FXObject, RuntimeValue<?>> slot;

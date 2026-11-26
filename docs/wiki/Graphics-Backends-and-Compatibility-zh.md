@@ -41,14 +41,16 @@ Minecraft **1.20.1（Forge / Fabric）**、**1.21.1（NeoForge / Fabric）** 与
 
 ---
 
-## 可选渲染模组兼容
+## 可选模组兼容
 
-LumenFX 完全支持**独立运行**，不强制依赖任何渲染优化或光影模组。
+LumenFX 完全支持**独立运行**，不强制依赖 `LDLib2`、`KilaGraph`、渲染优化、光影或动画模组。
 
 | 模组 | 依赖类型 | 共装表现 |
 | :--- | :---: | :--- |
 | **Iris** | 可选（Optional） | 26.2 下自动选择 OpenGL 后端，并将场景颜色、深度与曝光与活动光影包正确合成。 |
 | **Sodium** | 可选（Optional） | 同时兼容 26.2 Vulkan 与 OpenGL 管线，完整保留区块深度与透明粒子合成。 |
-| **KBR（KltytonBedrockRuntime）** | 可选（Optional） | 共装兼容，共享客户端渲染挂钩。 |
+| **GeckoLib（4.x / 5.x）** | 可选（Optional） | 全 8 目标自动启用 Blockbench `particle_effects` 关键帧播放与 3D 定位点/骨骼姿态跟随（详见 [[GeckoLib 与 KBR 粒子关键帧\|GeckoLib-and-KBR-Keyframes-zh]]）。 |
+| **KBR（KltytonBedrockRuntime）** | 可选（Optional） | 共享渲染兼容，且与 KBR 暴雪/3D 粒子自动分流和平共存，并支持 KBR 原生基岩动画未命中时回落至 LumenFX。 |
+| **KilaGraph** | 可选（NeoForge 26.2） | 当环境中同时安装了 `kilagraph` 与 `ldlib2` 时，自动通过软兼容桥接启用 Photon `.fx` 着色器图材质；未安装时完全零依赖。 |
 
 所有可选依赖均使用开放兼容版本范围声明，不锁死单一发行版本。

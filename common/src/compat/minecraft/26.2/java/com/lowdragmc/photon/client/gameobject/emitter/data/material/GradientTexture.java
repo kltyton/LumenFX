@@ -1,10 +1,8 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.material;
-
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigSetter;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.math.GradientColor;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.PersistedSetter;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.math.GradientColor;
 import com.lowdragmc.photon.Photon;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
@@ -21,10 +19,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class GradientTexture implements AutoCloseable, IConfigurable, PhotonValueSerializable {
+public class GradientTexture implements AutoCloseable, PhotonValueSerializable {
     private final int width;
     private final int height;
-    @Configurable(name = "gradients", canCollapse = false, collapse = false)
+    @Persisted
     private final List<GradientColor> gradients = new ArrayList<>();
     // runtime
     private boolean isDirty = false;
@@ -119,7 +117,7 @@ public class GradientTexture implements AutoCloseable, IConfigurable, PhotonValu
         isDirty = false;
     }
 
-    @ConfigSetter(field = "gradients")
+    @PersistedSetter(field = "gradients")
     private void setGradients(List<GradientColor> gradients) {
         if (gradients != this.gradients) {
             this.gradients.clear();

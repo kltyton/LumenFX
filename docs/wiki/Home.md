@@ -36,6 +36,7 @@ flowchart LR
 | :--- | :--- |
 | **[[Getting Started\|Getting-Started]]** | Mod installation, supported 8-target matrix, Sighs Maven coordinates, and Java API quickstart (`VfxEffects` & `EffectHandle`). |
 | **[[Effect Format Reference\|Effect-Format-Reference]]** | Resource layout, LumenFX JSON v1 schema, curves/ranges, shapes, emitters, renderers, and custom GLSL fragment shaders. |
-| **[[Niagara, Unity & Photon Workflow\|Niagara-and-Unity-Workflow]]** | Exporting from Unity Editor, compiling Unreal Engine Niagara CPU/GPU & SimCache assets, and playing Photon `.fx` files. |
-| **[[Graphics Backends & Compatibility\|Graphics-Backends-and-Compatibility]]** | Minecraft 26.2 dynamic Vulkan-first / OpenGL fallback rules, user overrides, and optional Iris / Sodium / KBR compatibility. |
+| **[[Niagara, Unity & Photon Workflow\|Niagara-and-Unity-Workflow]]** | Using the Unity UPM Editor Plugin, Unreal Engine 5 Editor Plugin & Niagara CLI compiler, and playing Photon `.fx` files. |
+| **[[GeckoLib & KBR Particle Keyframes\|GeckoLib-and-KBR-Keyframes]]** | Triggering LumenFX effects from Blockbench `particle_effects` keyframes on GeckoLib 4.x / 5.x & KBR with 3D locator tracking and `LumenFxKeyframeBridge`. |
+| **[[Graphics Backends & Compatibility\|Graphics-Backends-and-Compatibility]]** | Minecraft 26.2 dynamic Vulkan-first / OpenGL fallback rules, user overrides, and optional Iris / Sodium / GeckoLib / KBR / KilaGraph compatibility. |
 | **[[Fork Lineage & Licensing\|Fork-and-Licensing]]** | Relationship to upstream Photon 26.2, attribution requirements, MIT & CC BY-NC-SA 4.0 licensing breakdown. |

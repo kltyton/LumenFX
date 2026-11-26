@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.fx.timeline.property;
 
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
 import com.lowdragmc.photon.client.fx.timeline.AnimatedProperty;
 import com.lowdragmc.photon.client.fx.timeline.property.RotationAnimatedProperty.InterpMode;
 import com.lowdragmc.photon.client.gameobject.FXObject;

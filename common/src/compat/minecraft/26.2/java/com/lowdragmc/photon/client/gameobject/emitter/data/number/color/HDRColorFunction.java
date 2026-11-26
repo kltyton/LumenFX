@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.number.color;
 
-import com.lowdragmc.lowdraglib2.utils.ColorUtils;
+import com.kltyton.lumenfx.internal.photon.core.utils.ColorUtils;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction;
 import org.joml.Vector4f;
 
@@ -19,7 +19,7 @@ import java.util.function.Supplier;
  * cast.
  *
  * <p>The sampled rgb has the intensity already multiplied in — the same convention as
- * {@link com.lowdragmc.lowdraglib2.math.HDRColor#toVector4f()}.
+ * {@link com.kltyton.lumenfx.internal.photon.core.math.HDRColor#toVector4f()}.
  */
 public interface HDRColorFunction extends NumberFunction {
 

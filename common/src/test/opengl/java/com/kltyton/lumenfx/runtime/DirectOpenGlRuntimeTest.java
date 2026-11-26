@@ -184,6 +184,56 @@ final class DirectOpenGlRuntimeTest {
     }
 
     @Test
+    void keyframeBridgeAutoRoutesLoadedDirectEffectsAndPassesThroughKbrParticles() {
+        DirectVfxEngine engine = DirectVfxEngine.INSTANCE;
+        engine.clearLevel();
+        engine.registerEffect(ProductionEffectParser.parse("my_mod:sword_arc", UNITY_262_DUAL_CURVE_JSON, null));
+        assertTrue(engine.hasEffect("my_mod:sword_arc"));
+        assertFalse(engine.hasEffect("kbr:snowstorm_flame"));
+
+        // DirectKeyframeAdapter is installed automatically by DirectVfxEngine.
+        assertNotNull(com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.adapter());
+        assertTrue(com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.adapter().hasEffect("my_mod:sword_arc"));
+        assertFalse(com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.adapter().hasEffect("kbr:snowstorm_flame"));
+
+        Object host = new Object();
+        Object controller = new Object();
+        // KBR particle not registered in LumenFX passes through (returns false)
+        assertFalse(com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.handleKeyframe(
+                null, host, null, controller, "attack", "kbr:snowstorm_flame", "hand_r", null, true, 0, 0, 0, true));
+
+        // Registered LumenFX effect auto-routes, defers spawn to locator sample, updates 3D pose, and closes on stop
+        assertTrue(com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.handleKeyframe(
+                null, host, null, controller, "attack", "my_mod:sword_arc", "hand_r", "scale=1.5; offset=0,1,0", true, 0, 0, 0, true));
+        assertEquals(0, engine.activeInstanceCount());
+        com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onLocatorSample(
+                host, null, "hand_r", 4.0, 5.0, 6.0, 0.0F, 0.0F, 0.0F, 1.0F, null);
+        assertEquals(1, engine.activeInstanceCount());
+        com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.stopForController(host, controller);
+        engine.tickClient(0.05f);
+        assertEquals(0, engine.activeInstanceCount());
+
+        // Params parser & explicit prefix check
+        var parsed = com.kltyton.lumenfx.api.client.keyframe.LumenFxKeyframeBridge.parseEffectId("lumenfx:my_mod:sword_arc");
+        assertNotNull(parsed);
+        assertTrue(parsed.explicitLumenFx());
+        assertEquals("my_mod:sword_arc", parsed.canonicalId());
+
+        var params = com.kltyton.lumenfx.api.client.keyframe.KeyframeEffectParams.parse(
+                "follow=true; scale=1.5; offset=0,1,0; color=#33CCFF; beam_end=tip", null, true);
+        assertTrue(params.follow());
+        assertEquals(1.5F, params.scale(), 1e-5F);
+        assertTrue(params.hasColor());
+        assertEquals("tip", params.beamEndLocator());
+
+        // Mixin config plugin never loads absent GeckoLib/KBR classes
+        var plugin = new com.kltyton.lumenfx.client.keyframe.LumenFxKeyframeMixinPlugin();
+        assertFalse(plugin.shouldApplyMixin("software.bernie.geckolib.DoesNotExist", "DummyMixin"));
+
+        engine.clearLevel();
+    }
+
+    @Test
     void realQaProductionAssetsParseWith262Parity() throws Exception {
         if (!Files.isDirectory(QA_PACK_ROOT)) return;
         McResourceBridge packBridge = new DirectoryResourceBridge(QA_PACK_ROOT, GAP_PACK_ROOT);

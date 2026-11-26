@@ -1,6 +1,6 @@
 package com.lowdragmc.photon.client.fx.timeline;
 
-import com.lowdragmc.lowdraglib2.registry.LDLRegistry;
+import com.kltyton.lumenfx.internal.photon.core.registry.LDLRegistry;
 import com.lowdragmc.photon.Photon;
 
 /** Runtime factories for the track names stored in Photon effects. */

@@ -10,8 +10,8 @@ import com.lowdragmc.photon.client.gameobject.emitter.data.number.color.Gradient
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.color.HDRConstantColor;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.color.HDRGradient;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.curve.ECBCurves;
-import com.lowdragmc.lowdraglib2.math.GradientColor;
-import com.lowdragmc.lowdraglib2.math.HDRColor;
+import com.kltyton.lumenfx.internal.photon.core.math.GradientColor;
+import com.kltyton.lumenfx.internal.photon.core.math.HDRColor;
 import net.minecraft.util.Mth;
 import org.joml.Vector4f;
 

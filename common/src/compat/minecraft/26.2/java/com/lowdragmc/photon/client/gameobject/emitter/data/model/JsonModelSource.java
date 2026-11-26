@@ -1,10 +1,10 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.model;
 
-import com.lowdragmc.lowdraglib2.LDLib2;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigSetter;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.PersistedSetter;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.LDLib2;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
 import com.lowdragmc.photon.client.gameobject.particle.TileParticle;
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
@@ -28,7 +28,7 @@ import java.util.Objects;
 @LDLRegisterClient(name = "json_model", registry = "photon:model_source")
 public class JsonModelSource implements IModelSource {
     @Getter
-    @Configurable(name = "MeshData.modelLocation")
+    @Persisted
     private Identifier modelLocation = Identifier.withDefaultNamespace("block/stone");
 
     public JsonModelSource() {
@@ -38,7 +38,7 @@ public class JsonModelSource implements IModelSource {
         this.modelLocation = modelLocation;
     }
 
-    @ConfigSetter(field = "modelLocation")
+    @PersistedSetter(field = "modelLocation")
     public void setModelLocation(Identifier modelLocation) {
         invalidate(); // drop the old key's entry before it changes
         this.modelLocation = modelLocation;

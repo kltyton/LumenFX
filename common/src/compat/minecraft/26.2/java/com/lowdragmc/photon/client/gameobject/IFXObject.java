@@ -1,10 +1,8 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject;
-
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.editor.ui.sceneeditor.sceneobject.ISceneObject;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
-import com.lowdragmc.lowdraglib2.utils.LDLibExtraCodecs;
+import com.kltyton.lumenfx.internal.photon.core.editor.ui.sceneeditor.sceneobject.ISceneObject;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.utils.LDLibExtraCodecs;
 import com.lowdragmc.photon.PhotonRegistries;
 import com.lowdragmc.photon.client.fx.FXRuntime;
 import com.lowdragmc.photon.client.fx.IEffectExecutor;
@@ -33,7 +31,7 @@ import java.util.Optional;
  * <br>
  * e.g. {@link Emitter}
  */
-public interface IFXObject extends ISceneObject, IPersistedSerializable, IConfigurable {
+public interface IFXObject extends ISceneObject, IPersistedSerializable {
     // dispatch on the object's FXObjectType; the discriminator is the type's registry name, and each
     // type owns its own (versioned) serialization via FXObjectType#codec().
     Codec<IFXObject> CODEC = PhotonRegistries.FX_OBJECTS.optionalCodec().dispatch(
@@ -93,7 +91,6 @@ public interface IFXObject extends ISceneObject, IPersistedSerializable, IConfig
 
     float getDeltaTime();
 
-    @Override
     default String getConfigurableName() {
         return getName();
     }

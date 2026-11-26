@@ -1,7 +1,6 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.*;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.curve.Curve;
@@ -22,7 +21,7 @@ import lombok.Setter;
 @Getter
 public class SizeOverLifetimeSetting extends ToggleGroup {
 
-    @Configurable(name = "NoiseSetting.size", tips = "photon.emitter.config.sizeOverLifetime.size")
+    @Persisted
     @NumberFunction3Config(common = @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, curveConfig = @CurveConfig(bound = {-1, 1}, xAxis = "lifetime", yAxis = "size")))
     protected NumberFunction3 size = new NumberFunction3(1, 1, 1);
 

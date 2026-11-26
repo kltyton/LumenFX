@@ -8,16 +8,18 @@ LumenFX 将**离线制作/转换工具链**与**游戏运行 JAR**彻底解耦�
 
 ---
 
-## 1. Unity ParticleSystem（Shuriken）导出工作流
+## 1. Unity ParticleSystem（Shuriken）— UPM 编辑器插件
 
-Unity 编辑器导出工具位于仓库 `tools/unity/Editor/` 目录，支持 **Unity 2020.3 LTS 及更高版本**。
+Unity 编辑器导出器已封装为标准 Unity Package Manager（UPM）插件包（`com.kltyton.lumenfx.exporter`），位于仓库 `tools/unity/` 目录，支持 **Unity 2020.3 LTS 及更高版本**。
 
-### 导出步骤
+### 安装与导出步骤
 
-1. 将 `tools/unity/Editor` 复制到你的 Unity 工程中（例如 `Assets/Editor/LumenFX/`）。
-2. 在 Unity Hierarchy 窗口选中粒子层级根物体（Root GameObject）。
-3. 在顶部菜单点击 **Assets → LumenFX → Export Selected Particle Systems...**。
-4. 填写资源命名空间（Namespace）、特效名称与输出目录，点击 **Validate**（校验）或 **Export**（导出）。
+1. 在 Unity 中打开 **Window → Package Manager → + → Add package from disk...** 选择 `tools/unity/package.json`（或选择 **Add package from git URL...** 填入 `https://github.com/kltyton/LumenFX.git?path=/tools/unity`）。
+2. 可选创作辅助工具：
+   - 通过 **GameObject → LumenFX** 一键创建按 Minecraft 1 方块尺度配置的预设模板（`Sprite Burst` / `Ribbon Trail` / `Mesh Spark`）。
+   - 通过 **Tools → LumenFX → Toggle Minecraft 1-Block Grid** 在 Scene 视图中显示 1×1×1 方块网格与 1.8 格玩家身高参照框。
+3. 在 Hierarchy 窗口选中一个或多个粒子层级根物体，打开 **Tools → LumenFX → Particle Exporter...**。
+4. 配置命名空间、特效名（支持多选批量导出 **Batch Export**）、输出目录与可选 `pack.mcmeta` 生成，点击 **Validate**（支持窗口内点击错误直接定位对象）或 **Export**。
 
 ### 已支持的 Unity 模块与特性
 
@@ -30,11 +32,17 @@ Unity 编辑器导出工具位于仓库 `tools/unity/Editor/` 目录，支持 **
 
 ---
 
-## 2. Unreal Engine Niagara 离线编译工作流
+## 2. Unreal Engine Niagara — UE5 编辑器插件与离线编译器
 
-离线 Niagara 编译器位于仓库 `tools/compiler/`（.NET 10），配套导出脚本位于 `tools/unreal/`。
+离线 Niagara 编译器位于仓库 `tools/compiler/`（.NET 10），配套提供 **UE5 编辑器插件**（`tools/unreal/LumenFxExporter/LumenFxExporter.uplugin`）与导出脚本（`tools/unreal/`）。
 
-### 转换步骤
+### 方式 A — UE5 编辑器插件（创作者推荐）
+
+1. 将 `tools/unreal/LumenFxExporter` 复制到 `<你的 UE5 工程>/Plugins/LumenFxExporter`，并在 **Edit → Plugins** 中启用 **LumenFX Niagara Exporter**。
+2. 在 **Project Settings → Plugins → LumenFX Exporter** 中配置 LumenFX 仓库目录与默认输出路径。
+3. 在内容浏览器（Content Browser）中右键任意 `UNiagaraSystem` 资产，点击 **LumenFX → Export to Minecraft LumenFX...** 即可在编辑器内完成前置校验、异步导出编译与日志查看。详见 [`tools/unreal/LumenFxExporter/README_zh.md`](https://github.com/kltyton/LumenFX/blob/main/tools/unreal/LumenFxExporter/README_zh.md)。
+
+### 方式 B — 命令行转换步骤
 
 1. 使用 `tools/unreal/Export-UnrealAssets.ps1` 将目标 Niagara 系统、发射器、材质、函数库与 Texture2D 描述导出为 UAssetAPI JSON，并解码原始分辨率 PNG。
 2. 运行离线编译器生成 LumenFX 资源：

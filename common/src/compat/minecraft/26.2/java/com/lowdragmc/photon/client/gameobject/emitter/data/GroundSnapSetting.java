@@ -1,8 +1,6 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.collision.CollisionQuery;
 import com.lowdragmc.photon.client.collision.CollisionWorld;
 import com.lowdragmc.photon.client.collision.Contact;
@@ -26,22 +24,19 @@ public class GroundSnapSetting extends ToggleGroup {
         EmitterDown
     }
 
-    @Configurable(name = "GroundSnapSetting.direction", tips = "photon.emitter.config.shape.groundSnap.direction")
+    @Persisted
     protected Direction direction = Direction.WorldDown;
-    @Configurable(name = "GroundSnapSetting.maxDistance", tips = "photon.emitter.config.shape.groundSnap.maxDistance")
-    @ConfigNumber(range = {0, 256}, wheel = 0.5)
+    @Persisted
     protected float maxDistance = 8;
-    @Configurable(name = "GroundSnapSetting.searchAbove", tips = "photon.emitter.config.shape.groundSnap.searchAbove")
-    @ConfigNumber(range = {0, 64}, wheel = 0.5)
+    @Persisted
     protected float searchAbove = 1;
-    @Configurable(name = "GroundSnapSetting.offset", tips = "photon.emitter.config.shape.groundSnap.offset")
-    @ConfigNumber(range = {-16, 16}, wheel = 0.05)
+    @Persisted
     protected float offset = 0;
-    @Configurable(name = "GroundSnapSetting.includeFluids", tips = "photon.emitter.config.shape.groundSnap.includeFluids")
+    @Persisted
     protected boolean includeFluids = false;
-    @Configurable(name = "GroundSnapSetting.alignToNormal", tips = "photon.emitter.config.shape.groundSnap.alignToNormal")
+    @Persisted
     protected boolean alignToNormal = false;
-    @Configurable(name = "GroundSnapSetting.discardWithoutGround", tips = "photon.emitter.config.shape.groundSnap.discardWithoutGround")
+    @Persisted
     protected boolean discardWithoutGround = false;
 
     /** Moves a freshly set-up particle onto the ground, or removes it when there is none and it should not live. */

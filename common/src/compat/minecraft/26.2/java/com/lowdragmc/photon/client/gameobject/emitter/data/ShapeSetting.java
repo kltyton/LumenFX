@@ -1,10 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.emitter.IParticleEmitter;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.curve.Curve;
@@ -28,24 +25,24 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-public class ShapeSetting implements IConfigurable, IPersistedSerializable {
+public class ShapeSetting implements IPersistedSerializable {
 
     @Persisted
     private IShape shape = new Cone();
 
-    @Configurable(name = "NoiseSetting.position", tips = "photon.emitter.config.shape.position")
+    @Persisted
     @NumberFunction3Config(allowSeperated = false, isSeperatedDefault = true, common = @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = -1000, max = 1000, curveConfig = @CurveConfig(bound = {-3, 3}, xAxis = "duration", yAxis = "position")))
     private NumberFunction3 position = new NumberFunction3(0 ,0, 0);
 
-    @Configurable(name = "NoiseSetting.rotation", tips = "photon.emitter.config.shape.rotation")
+    @Persisted
     @NumberFunction3Config(allowSeperated = false, isSeperatedDefault = true, common = @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, wheelDur = 10, min = -Float.MAX_VALUE, max = Float.MAX_VALUE, curveConfig = @CurveConfig(bound = {-180, 180}, xAxis = "duration", yAxis = "rotation")))
     private NumberFunction3 rotation = new NumberFunction3(0 ,0, 0);
 
-    @Configurable(name = "ShapeSetting.scale", tips = "photon.emitter.config.shape.scale")
+    @Persisted
     @NumberFunction3Config(allowSeperated = false, isSeperatedDefault = true, common = @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, max = 1000, curveConfig = @CurveConfig(bound = {0, 3}, xAxis = "duration", yAxis = "scale")))
     private NumberFunction3 scale = new NumberFunction3(1, 1, 1);
 
-    /** Not @Configurable: its group is added by hand after the shape selector. */
+    /** Not : its group is added by hand after the shape selector. */
     @Persisted(subPersisted = true)
     private final GroundSnapSetting groundSnap = new GroundSnapSetting();
 

@@ -8,7 +8,7 @@
 
 1. 下载与你当前 Minecraft 版本及模组加载器（NeoForge、Fabric 或 Forge）对应的单一统一 LumenFX JAR 文件。
 2. 将 JAR 文件放入 `.minecraft/mods` 目录。
-3. 正常启动游戏即可——LumenFX **无需光影模组**，且**无任何强制前置渲染模组**（Iris、Sodium、KBR 均为纯可选兼容）。
+3. 正常启动游戏即可——LumenFX **无需光影模组**，且**无任何强制外部前置模组**（`LDLib2`、`KilaGraph`、`Iris`、`Sodium`、`GeckoLib` 与 `KBR` 均为纯可选兼容）。
 
 > 在 **Minecraft 26.2** 上，没有“Vulkan 版”与“OpenGL 版”之分。单一统一 JAR 会在环境支持时自动使用 Vulkan，在需要时自动回退至 OpenGL。
 
@@ -20,14 +20,14 @@
 
 | Minecraft 版本 | 加载器 | Artifact ID | 版本 | Java 版本 | 图形后端策略 |
 | :---: | :---: | :--- | :---: | :---: | :--- |
-| **26.2** | NeoForge | `lumenfx-neoforge-26.2` | `0.1.3` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
-| **26.2** | Fabric | `lumenfx-fabric-26.2` | `0.1.3` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
-| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | `0.1.3` | Java 25 | OpenGL |
-| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | `0.1.3` | Java 25 | OpenGL |
-| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | `0.1.3` | Java 21 | OpenGL |
-| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | `0.1.3` | Java 21 | OpenGL |
-| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | `0.1.3` | Java 17 | OpenGL |
-| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | `0.1.3` | Java 17 | OpenGL |
+| **26.2** | NeoForge | `lumenfx-neoforge-26.2` | `0.2.0` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
+| **26.2** | Fabric | `lumenfx-fabric-26.2` | `0.2.0` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
+| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | `0.2.0` | Java 25 | OpenGL |
+| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | `0.2.0` | Java 25 | OpenGL |
+| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | `0.2.0` | Java 21 | OpenGL |
+| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | `0.2.0` | Java 21 | OpenGL |
+| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | `0.2.0` | Java 17 | OpenGL |
+| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | `0.2.0` | Java 17 | OpenGL |
 
 ---
 
@@ -44,9 +44,9 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.2:0.1.3'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.2:0.2.0'
     // 可选：通过 jarJar 将 LumenFX 内嵌进你的模组
-    // jarJar('com.kltyton.lumenfx:lumenfx-neoforge-26.2:[0.1.3,)')
+    // jarJar('com.kltyton.lumenfx:lumenfx-neoforge-26.2:[0.2.0,)')
 }
 ```
 
@@ -61,7 +61,7 @@ repositories {
 }
 
 dependencies {
-    modImplementation 'com.kltyton.lumenfx:lumenfx-fabric-26.2:0.1.3'
+    modImplementation 'com.kltyton.lumenfx:lumenfx-fabric-26.2:0.2.0'
 }
 ```
 
@@ -69,23 +69,25 @@ dependencies {
 
 ## Java 客户端 API 快速上手
 
-所有受支持的特效格式（LumenFX JSON、Unity 导出资源、UE Niagara 编译资源与 Photon `.fx`）共用同一客户端入口：`com.kltyton.lumenfx.api.VfxEffects`。
+所有受支持的特效格式（LumenFX JSON、Unity 导出资源、UE Niagara 编译资源与 Photon `.fx`）共用同一客户端入口：`com.kltyton.lumenfx.api.client.VfxEffects`。
 
 ### 生成特效实例
 
 ```java
-import com.kltyton.lumenfx.api.EffectHandle;
-import com.kltyton.lumenfx.api.VfxEffects;
+import com.kltyton.lumenfx.api.client.EffectHandle;
+import com.kltyton.lumenfx.api.client.VfxEffects;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.Identifier; // 1.20.1 / 1.21.1 使用 ResourceLocation
 import net.minecraft.world.phys.Vec3;
 
-EffectHandle handle = VfxEffects.spawn(
-        clientLevel,
-        Identifier.parse("my_mod:magic/rune_stream"),
-        new Vec3(x, y, z),
-        seed
-);
+if (VfxEffects.hasEffect(Identifier.parse("my_mod:magic/rune_stream"))) {
+    EffectHandle handle = VfxEffects.spawn(
+            clientLevel,
+            Identifier.parse("my_mod:magic/rune_stream"),
+            new Vec3(x, y, z),
+            seed
+    );
+}
 ```
 
 ### 更新位置、姿态、颜色与光束终点

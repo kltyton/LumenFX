@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.fx.timeline;
 
-import com.lowdragmc.lowdraglib2.Platform;
+import com.kltyton.lumenfx.internal.photon.core.Platform;
 import com.lowdragmc.photon.Photon;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;

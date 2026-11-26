@@ -3,7 +3,7 @@ package com.lowdragmc.photon.client.render;
 
 import com.lowdragmc.photon.Photon;
 import com.lowdragmc.photon.client.gameobject.emitter.data.PhotonGpuChannels;
-import com.lowdragmc.photon.client.shadergraph.PhotonShaderCompiler;
+import com.lowdragmc.photon.client.shadergraph.PhotonShaderConstants;
 import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.pipeline.BindGroupLayout;
@@ -343,7 +343,7 @@ public final class PhotonPipelines {
                                            ParticlePipelineKey key) {
         if (usesSoftParticles(key)) {
             builder.withShaderDefine(SOFT_PARTICLE_DEFINE);
-            layout.sampler(PhotonShaderCompiler.SCENE_DEPTH).uniform(PhotonEngineUniforms.UBO_NAME);
+            layout.sampler(PhotonShaderConstants.SCENE_DEPTH).uniform(PhotonEngineUniforms.UBO_NAME);
         }
     }
 

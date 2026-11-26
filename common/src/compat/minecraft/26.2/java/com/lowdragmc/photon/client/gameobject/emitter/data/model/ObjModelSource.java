@@ -1,10 +1,10 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.model;
 
-import com.lowdragmc.lowdraglib2.LDLib2;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigSetter;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.PersistedSetter;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.LDLib2;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
 import com.lowdragmc.photon.Photon;
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
@@ -25,10 +25,10 @@ import java.util.Objects;
 @LDLRegisterClient(name = "obj_model", registry = "photon:model_source")
 public class ObjModelSource implements IModelSource {
     @Getter
-    @Configurable(name = "ObjModelSource.modelLocation")
+    @Persisted
     private Identifier modelLocation = Photon.id("models/missing.obj");
     @Getter
-    @Configurable(name = "ObjModelSource.flipV", tips = "photon.model_source.obj_model.flipV.tips")
+    @Persisted
     private boolean flipV = true;
 
     public ObjModelSource() {
@@ -38,13 +38,13 @@ public class ObjModelSource implements IModelSource {
         this.modelLocation = modelLocation;
     }
 
-    @ConfigSetter(field = "modelLocation")
+    @PersistedSetter(field = "modelLocation")
     public void setModelLocation(Identifier modelLocation) {
         invalidate(); // drop the old key's entry before it changes
         this.modelLocation = modelLocation;
     }
 
-    @ConfigSetter(field = "flipV")
+    @PersistedSetter(field = "flipV")
     public void setFlipV(boolean flipV) {
         invalidate();
         this.flipV = flipV;

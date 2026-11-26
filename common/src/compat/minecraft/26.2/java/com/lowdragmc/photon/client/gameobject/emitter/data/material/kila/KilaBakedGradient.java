@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.material.kila;
 
-import com.lowdragmc.lowdraglib2.math.GradientColor;
+import com.kltyton.lumenfx.internal.photon.core.math.GradientColor;
 import com.lowdragmc.photon.client.AutoCloseCleaner;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTextureView;

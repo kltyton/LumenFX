@@ -13,13 +13,15 @@ import net.minecraft.world.level.ChunkPos;
 public final class WorldFxClientEvents {
     static {
         CollisionWorld.clientOwnerCheck(() -> Minecraft.getInstance().isSameThread());
+        com.kltyton.lumenfx.client.keyframe.Blaze3dKeyframeAdapter.install();
     }
 
     private WorldFxClientEvents() {
     }
 
     public static void ensureInitialized() {
-        // Triggers static CollisionWorld.clientOwnerCheck registration.
+        // Triggers static CollisionWorld.clientOwnerCheck and keyframe playback adapter registration.
+        com.kltyton.lumenfx.client.keyframe.Blaze3dKeyframeAdapter.install();
     }
 
     public static void onFrameStart() {
@@ -40,6 +42,7 @@ public final class WorldFxClientEvents {
     }
 
     public static void onLevelUnload(ClientLevel level) {
+        com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onLevelUnload();
         CollisionWorld.levelUnloaded(level);
         DynamicLightManager.release(level);
         OpaqueDepthCapture.release();

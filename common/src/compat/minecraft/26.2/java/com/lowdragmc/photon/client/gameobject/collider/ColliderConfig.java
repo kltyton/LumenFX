@@ -1,10 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.collider;
-
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,7 +10,7 @@ import org.joml.Vector3f;
 /** Pure-data collider config; timeline slots live on the co-located {@link Runtime}. */
 @Getter
 @Setter
-public class ColliderConfig implements IConfigurable, IPersistedSerializable {
+public class ColliderConfig implements IPersistedSerializable {
 
     public enum Shape {
         /** an infinite plane through the object, facing its local +Y; solid from the front only */
@@ -22,14 +19,13 @@ public class ColliderConfig implements IConfigurable, IPersistedSerializable {
         Sphere
     }
 
-    @Configurable(name = "ColliderConfig.shape", tips = "photon.collider.shape")
+    @Persisted
     protected Shape shape = Shape.Plane;
-    @Configurable(name = "ColliderConfig.size", tips = "photon.collider.size")
+    @Persisted
     protected Vector3f size = new Vector3f(1, 1, 1);
-    @Configurable(name = "ColliderConfig.radius", tips = "photon.collider.radius")
-    @ConfigNumber(range = {0, 1000}, wheel = 0.1)
+    @Persisted
     protected float radius = 0.5f;
-    @Configurable(name = "ColliderConfig.trigger", tips = "photon.collider.trigger")
+    @Persisted
     protected boolean trigger = false;
 
     public Shape getShape() {

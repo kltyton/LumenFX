@@ -1,12 +1,10 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.model;
 
-import com.lowdragmc.lowdraglib2.LDLib2;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigSetter;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.PersistedSetter;
+import com.kltyton.lumenfx.internal.photon.core.LDLib2;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.Photon;
 import com.lowdragmc.photon.client.gameobject.emitter.data.model.skin.AnimationClip;
 import com.lowdragmc.photon.client.gameobject.emitter.data.model.skin.ClipRetarget;
@@ -42,24 +40,22 @@ import java.util.Objects;
 public class AnimatedGltfModelSource implements IModelSource, IDynamicMesh {
 
     @Getter
-    @Configurable(name = "GltfModelSource.modelLocation")
+    @Persisted
     private Identifier modelLocation = Photon.id("models/missing.glb");
     /** glTF's UV origin is already top-left like Minecraft's, so unlike OBJ this defaults to off. */
     @Getter
-    @Configurable(name = "GltfModelSource.flipV", tips = "photon.model_source.gltf_model.flipV.tips")
+    @Persisted
     private boolean flipV = false;
     /** By name, empty meaning the first; an index would silently follow a reordered export.
-     *  Shown as a selector built from the loaded file's clips, not as a @Configurable text field. */
+     *  Shown as a selector built from the loaded file's clips, not as a  text field. */
     @Getter
     @Persisted
     private String animation = "";
     @Getter
-    @Configurable(name = "AnimatedGltfModelSource.speed",
-            tips = "photon.model_source.animated_gltf_model.speed.tips")
+    @Persisted
     private float speed = 1f;
     @Getter
-    @Configurable(name = "AnimatedGltfModelSource.loop",
-            tips = "photon.model_source.animated_gltf_model.loop.tips")
+    @Persisted
     private boolean loop = true;
 
     /**
@@ -70,8 +66,7 @@ public class AnimatedGltfModelSource implements IModelSource, IDynamicMesh {
      * round-trips.</p>
      */
     @Getter
-    @Configurable(name = "AnimatedGltfModelSource.animationFiles",
-            tips = "photon.model_source.animated_gltf_model.animationFiles.tips")
+    @Persisted
     private List<Identifier> animationFiles = new ArrayList<>();
 
     /**
@@ -82,13 +77,10 @@ public class AnimatedGltfModelSource implements IModelSource, IDynamicMesh {
      * ⚠️ Tangents are not baked, so a normal-mapped model drawn this way keeps the rest pose's frame.</p>
      */
     @Getter
-    @Configurable(name = "AnimatedGltfModelSource.perParticlePhase",
-            tips = "photon.model_source.animated_gltf_model.perParticlePhase.tips")
+    @Persisted
     private boolean perParticlePhase = false;
     @Getter
-    @Configurable(name = "AnimatedGltfModelSource.frames",
-            tips = "photon.model_source.animated_gltf_model.frames.tips")
-    @ConfigNumber(range = {2, 240})
+    @Persisted
     private int frames = 30;
     /**
      * Blend between adjacent baked frames instead of snapping to the nearest.
@@ -100,12 +92,10 @@ public class AnimatedGltfModelSource implements IModelSource, IDynamicMesh {
      * buy smoothness.</p>
      */
     @Getter
-    @Configurable(name = "AnimatedGltfModelSource.interpolate",
-            tips = "photon.model_source.animated_gltf_model.interpolate.tips")
+    @Persisted
     private boolean interpolate = true;
     @Getter
-    @Configurable(name = "AnimatedGltfModelSource.phaseSource",
-            tips = "photon.model_source.animated_gltf_model.phaseSource.tips")
+    @Persisted
     private PhaseSource phaseSource = PhaseSource.Random;
 
     /** Where a particle's place in the clip comes from. */
@@ -139,52 +129,52 @@ public class AnimatedGltfModelSource implements IModelSource, IDynamicMesh {
         this.modelLocation = modelLocation;
     }
 
-    @ConfigSetter(field = "modelLocation")
+    @PersistedSetter(field = "modelLocation")
     public void setModelLocation(Identifier modelLocation) {
         invalidate(); // drop the old key's entry before it changes
         this.modelLocation = modelLocation;
     }
 
-    @ConfigSetter(field = "flipV")
+    @PersistedSetter(field = "flipV")
     public void setFlipV(boolean flipV) {
         invalidate();
         this.flipV = flipV;
     }
 
-    @ConfigSetter(field = "animation")
+    @PersistedSetter(field = "animation")
     public void setAnimation(String animation) {
         this.animation = animation;
         meshCache.invalidate();
     }
 
-    @ConfigSetter(field = "speed")
+    @PersistedSetter(field = "speed")
     public void setSpeed(float speed) {
         this.speed = speed;
     }
 
-    @ConfigSetter(field = "loop")
+    @PersistedSetter(field = "loop")
     public void setLoop(boolean loop) {
         this.loop = loop;
     }
 
-    @ConfigSetter(field = "perParticlePhase")
+    @PersistedSetter(field = "perParticlePhase")
     public void setPerParticlePhase(boolean perParticlePhase) {
         this.perParticlePhase = perParticlePhase;
         dropBake();
     }
 
-    @ConfigSetter(field = "frames")
+    @PersistedSetter(field = "frames")
     public void setFrames(int frames) {
         this.frames = frames;
         dropBake();
     }
 
-    @ConfigSetter(field = "phaseSource")
+    @PersistedSetter(field = "phaseSource")
     public void setPhaseSource(PhaseSource phaseSource) {
         this.phaseSource = phaseSource;
     }
 
-    @ConfigSetter(field = "interpolate")
+    @PersistedSetter(field = "interpolate")
     public void setInterpolate(boolean interpolate) {
         this.interpolate = interpolate;
     }

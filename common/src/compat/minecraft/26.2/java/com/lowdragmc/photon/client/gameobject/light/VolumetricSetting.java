@@ -1,7 +1,6 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.light;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.gameobject.emitter.data.ToggleGroup;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.Constant;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction;
@@ -18,7 +17,7 @@ import lombok.Setter;
 @Setter
 public class VolumetricSetting extends ToggleGroup {
 
-    @Configurable(name = "VolumetricSetting.strength", tips = "photon.light.volumetric.strength")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, defaultValue = 1,
             curveConfig = @CurveConfig(bound = {0, 4}, xAxis = "lifetime", yAxis = "strength"))
     protected NumberFunction strength = NumberFunction.constant(1);

@@ -1,8 +1,6 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.material;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.gameobject.emitter.data.ToggleGroup;
 
 import java.util.Set;
@@ -23,8 +21,7 @@ public class LitParticles extends ToggleGroup {
     public static final Set<String> JSON_UNIFORMS = Set.of("PhotonClusterInfo", "PhotonClusterView",
             "LitParticleParams", "PhotonVisibilityInfo", "PhotonViewInverse");
 
-    @Configurable(name = "TextureMaterial.litParticles.intensity")
-    @ConfigNumber(range = {0, 16})
+    @Persisted
     public float intensity = 1f;
 
     public void copyFrom(LitParticles other) {

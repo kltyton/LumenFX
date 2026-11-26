@@ -1,0 +1,16 @@
+{
+  "name": "LumenFx.UnityExport.Editor",
+  "rootNamespace": "LumenFx.UnityExport",
+  "references": [],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

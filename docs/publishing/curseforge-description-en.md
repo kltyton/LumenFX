@@ -47,10 +47,9 @@ Support for gravity arcs, velocity/force curves, drag, curl noise, and ground sp
 ## ⚡ Why Players & Modpack Makers Love LumenFX
 
 - **One Unified Download — Zero Backend Headaches (26.2):** No separate "Vulkan edition" or "OpenGL edition" to worry about! On Minecraft 26.2, LumenFX automatically uses **Vulkan** when your GPU and mod list support it, and seamlessly falls back to **OpenGL** when needed (such as on older drivers or with OpenGL-only shader mods).
-- **Works Completely Standalone:** Requires no other rendering mods to run.
-- **Iris & Sodium Compatible:** Optional compatibility with **Iris**, **Sodium**, and **KBR** — drop LumenFX into your favorite performance or shader modpack with confidence.
-- **Lightweight Runtime Only:** No heavy in-game editor UI bundled into the JAR, keeping memory usage low and gameplay smooth.
-- **Cross-Engine Power for Mod Authors:** Runs native LumenFX JSON effects, legacy **Photon `.fx`** assets, offline-exported **Unity ParticleSystem (Shuriken)** hierarchies, and offline-compiled **Unreal Engine Niagara** (CPU VectorVM, GPU compute, and SimCache) systems.
+- **Ultra-Lightweight Standalone Runtime (Zero Heavy Dependencies):** No mandatory `LDLib2`, `KilaGraph`, or rendering mod required, and no in-game editor UI or demo bloat inside the JAR. Optional soft-compatibility with **Iris**, **Sodium**, **GeckoLib (4.x / 5.x)**, **KBR**, and **KilaGraph** activates automatically when those mods are present.
+- **GeckoLib & KBR Particle Keyframe Support:** Trigger LumenFX particles, ribbons, and trails directly from Blockbench `particle_effects` animation keyframes across all supported Minecraft versions — with 3D locator position & rotation tracking, `pre_effect_script` controls (`scale`, `color`, `offset`, `rotate`, `beam_end`, `stop`, etc.), and seamless coexistence with KBR Bedrock / SnowStorm particles.
+- **Cross-Engine Power & Official Unity / UE5 Editor Plugins:** Runs native LumenFX JSON effects, **Photon `.fx`** assets, offline-exported **Unity ParticleSystem (Shuriken)** hierarchies (with a dedicated **Unity UPM Editor Plugin** featuring presets, MC 1-block guides, and batch export), and offline-compiled **Unreal Engine Niagara** systems (CPU VectorVM, GPU compute, and SimCache, with a dedicated **UE5 `.uplugin` Editor Plugin** & CLI compiler).
 
 ---
 
@@ -67,9 +66,9 @@ Support for gravity arcs, velocity/force curves, drag, curl noise, and ground sp
 
 ## 🛠️ For Mod Developers & Creators
 
-- **GitHub Source & Offline Exporters (Unity & Unreal Niagara):** [github.com/kltyton/LumenFX](https://github.com/kltyton/LumenFX)
-- **Full Wiki & Java API Documentation:** [github.com/kltyton/LumenFX/wiki](https://github.com/kltyton/LumenFX/wiki)
-- **Maven Repository (Sighs Maven):** `https://maven.sighs.cc/repository/maven-public/` (`com.kltyton.lumenfx:lumenfx-<loader>-<mc_version>:0.1.3`)
+- **GitHub Source, Unity UPM & UE5 Editor Plugins:** [github.com/kltyton/LumenFX](https://github.com/kltyton/LumenFX)
+- **Full Wiki, Keyframe Bridge & Java API Documentation:** [github.com/kltyton/LumenFX/wiki](https://github.com/kltyton/LumenFX/wiki)
+- **Maven Repository (Sighs Maven):** `https://maven.sighs.cc/repository/maven-public/` (`com.kltyton.lumenfx:lumenfx-<loader>-<mc_version>:0.2.0`)
 
 ---
 

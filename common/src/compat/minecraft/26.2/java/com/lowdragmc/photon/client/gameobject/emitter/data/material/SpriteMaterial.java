@@ -2,12 +2,9 @@
 package com.lowdragmc.photon.client.gameobject.emitter.data.material;
 
 import com.mojang.blaze3d.PrimitiveTopology;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigHDR;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.math.HDRColor;
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.math.HDRColor;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.Photon;
 import com.lowdragmc.photon.client.gameobject.emitter.data.MaterialSetting;
 import com.lowdragmc.photon.client.render.PhotonMaterialUniforms;
@@ -26,18 +23,16 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class SpriteMaterial extends ShaderInstanceMaterial {
     @Persisted
     public Identifier spriteLocation = Identifier.parse("");
-    @Configurable(name = "TextureMaterial.discardThreshold")
-    @ConfigNumber(range = {0, 1})
+    @Persisted
     protected float discardThreshold = 0.1f;
-    @Configurable(name = "TextureMaterial.hdr")
-    @ConfigHDR
+    @Persisted
     protected HDRColor hdr = HDRColor.black();
-    @Configurable(name = "TextureMaterial.hdrMode")
+    @Persisted
     protected TextureMaterial.HDRMode hdrMode = TextureMaterial.HDRMode.ADDITIVE;
-    @Configurable(name = "TextureMaterial.softParticles", subConfigurable = true)
+    @Persisted(subPersisted = true)
     @Getter
     protected final SoftParticles softParticles = new SoftParticles();
-    @Configurable(name = "TextureMaterial.litParticles", subConfigurable = true)
+    @Persisted(subPersisted = true)
     @Getter
     protected final LitParticles litParticles = new LitParticles();
 

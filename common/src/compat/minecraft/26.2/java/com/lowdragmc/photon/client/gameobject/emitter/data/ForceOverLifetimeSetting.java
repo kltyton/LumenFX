@@ -1,9 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.editor.ui.sceneeditor.sceneobject.TransformRef;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.editor.ui.sceneeditor.sceneobject.TransformRef;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.*;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.curve.Curve;
@@ -24,14 +22,14 @@ import lombok.Setter;
 @Getter
 public class ForceOverLifetimeSetting extends ToggleGroup {
 
-    @Configurable(name = "ForceOverLifetimeSetting.force", tips = "photon.emitter.config.forceOverLifetime.force")
+    @Persisted
     @NumberFunction3Config(common = @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, curveConfig = @CurveConfig(bound = {-1, 1}, xAxis = "lifetime", yAxis = "force")))
     protected NumberFunction3 force = new NumberFunction3(0, 0, 0);
 
     /** The space the force vector is expressed in. @see ValueSpace */
     @Setter
     @Getter
-    @Configurable(name = "ForceOverLifetimeSetting.simulationSpace", tips = "photon.emitter.config.forceOverLifetime.space")
+    @Persisted
     protected ValueSpace simulationSpace = ValueSpace.Local;
     @Persisted
     public final TransformRef customSpace = new TransformRef();

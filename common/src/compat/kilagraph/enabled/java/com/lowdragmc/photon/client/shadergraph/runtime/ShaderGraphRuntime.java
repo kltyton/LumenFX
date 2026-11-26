@@ -1,10 +1,11 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.shadergraph.runtime;
 
+import com.kltyton.lumenfx.internal.photon.core.editor.resource.BuiltinPath;
+import com.kltyton.lumenfx.internal.photon.core.editor.resource.FilePath;
+import com.kltyton.lumenfx.internal.photon.core.editor.resource.IResourcePath;
 import com.lowdragmc.kilagraph.rendertype.compiler.CompiledShaderGraph;
 import com.lowdragmc.lowdraglib2.Platform;
-import com.lowdragmc.lowdraglib2.editor.resource.BuiltinPath;
-import com.lowdragmc.lowdraglib2.editor.resource.IResourcePath;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.api.graph.Graph;
 import com.lowdragmc.lowdraglib2.nodegraphtookit.editor.IGraphReferenceResolver;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
@@ -24,7 +25,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-/** Compiles each authored particle graph once per pack generation on the render thread. */
+/** Compiles each authored particle graph once per pack generation on the render thread when external KilaGraph is installed. */
 public final class ShaderGraphRuntime {
     private static final Map<IResourcePath, Entry> CACHE = new HashMap<>();
     private static Object generation;
@@ -58,6 +59,16 @@ public final class ShaderGraphRuntime {
         }
     }
 
+    private static IResourcePath toInternal(com.lowdragmc.lowdraglib2.editor.resource.IResourcePath ext) {
+        if (ext instanceof com.lowdragmc.lowdraglib2.editor.resource.BuiltinPath b) {
+            return new BuiltinPath(b.name());
+        }
+        if (ext instanceof com.lowdragmc.lowdraglib2.editor.resource.FilePath f) {
+            return new FilePath(f.location);
+        }
+        return new BuiltinPath(ext.getResourceName());
+    }
+
     @Getter
     public static final class Entry {
         private final @Nullable ShaderGraph graph;
@@ -85,8 +96,9 @@ public final class ShaderGraphRuntime {
         private final Set<IResourcePath> loading = new HashSet<>();
 
         @Override
-        public @Nullable Graph resolve(@Nullable IResourcePath path) {
-            if (path == null) return null;
+        public @Nullable Graph resolve(@Nullable com.lowdragmc.lowdraglib2.editor.resource.IResourcePath extPath) {
+            if (extPath == null) return null;
+            IResourcePath path = toInternal(extPath);
             var existing = references.get(path);
             if (existing != null) return existing;
             if (!loading.add(path)) throw new IllegalArgumentException("Cyclic Photon shader graph: " + path.getResourceName());

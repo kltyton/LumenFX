@@ -54,6 +54,9 @@ config="lumenfx.photon.mixins.json"
 [[mixins]]
 config="lumenfx.collision.mixins.json"
 
+[[mixins]]
+config="lumenfx.keyframe.mixins.json"
+
 [[dependencies.lumenfx]]
 modId="neoforge"
 type="required"
@@ -81,17 +84,3 @@ type="required"
 versionRange="[26.2.0,26.3)"
 ordering="NONE"
 side="BOTH"
-
-[[dependencies.lumenfx]]
-modId="ldlib2"
-type="required"
-versionRange="[${ldlib2_version},26.3)"
-ordering="AFTER"
-side="CLIENT"
-
-[[dependencies.lumenfx]]
-modId="kilagraph"
-type="required"
-versionRange="[${kilagraph_version},26.3)"
-ordering="AFTER"
-side="CLIENT"

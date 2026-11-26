@@ -1,9 +1,8 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.editor.ui.sceneeditor.sceneobject.TransformRef;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.ReadOnlyManaged;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.editor.ui.sceneeditor.sceneobject.TransformRef;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.ReadOnlyManaged;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.Constant;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction;
@@ -40,14 +39,14 @@ public class ExternalForcesSetting extends ToggleGroup {
         List
     }
 
-    @Configurable(name = "ExternalForcesSetting.multiplier", tips = "photon.emitter.config.externalForces.multiplier")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, defaultValue = 1f, curveConfig = @CurveConfig(bound = {0, 2}, xAxis = "lifetime", yAxis = "multiplier"))
     protected NumberFunction multiplier = NumberFunction.constant(1);
 
-    @Configurable(name = "ExternalForcesSetting.influenceFilter", tips = "photon.emitter.config.externalForces.influenceFilter")
+    @Persisted
     protected Filter influenceFilter = Filter.SceneAll;
 
-    @Configurable(name = "ExternalForcesSetting.influenceList", tips = "photon.emitter.config.externalForces.influenceList")
+    @Persisted
     @ReadOnlyManaged(serializeMethod = "refsSerialize", deserializeMethod = "refsDeserialize")
     protected List<TransformRef> influenceList = new ArrayList<>();
 

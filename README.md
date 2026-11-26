@@ -18,12 +18,12 @@
 
 **LumenFX is a fork of [Photon](https://github.com/Low-Drag-MC/Photon) (Photon 26.2 by [KilaBash](https://github.com/KilaBash) / Low-Drag-MC).**
 
-Building upon Photon's particle simulation core, timelines, curves, and `.fx` playback foundation, LumenFX restructures and extends the runtime into a **lightweight, resource-driven client VFX library** with:
+Building upon Photon's particle simulation core, timelines, curves, and `.fx` playback foundation, LumenFX restructures and extends the runtime into a **lightweight, standalone, resource-driven client VFX library** with:
 
-- **No in-game editor bundled in the runtime JAR** — authored effects are shipped cleanly as standard Minecraft resource-pack files (`assets/<namespace>/lumenfx/...`).
-- **Multi-engine asset support** — runs native LumenFX JSON effects, legacy Photon `.fx` effects, offline-exported **Unity ParticleSystem (Shuriken)** assets, and offline-compiled **Unreal Engine Niagara** systems (CPU VectorVM, GPU SPIR-V compute, and SimCache `.lfsc`).
-- **Unified multi-version & multi-loader architecture** — ships a single unified mod JAR per target across Minecraft **1.20.1, 1.21.1, 26.1.2, and 26.2** (Forge, NeoForge, and Fabric).
-- **Dynamic Vulkan-first / OpenGL fallback on Minecraft 26.2** — automatically uses Vulkan when supported and falls back seamlessly to OpenGL when needed.
+- **Zero heavy external dependencies & no in-game editor in the runtime JAR** — runs completely standalone with no required `LDLib2` or `KilaGraph` installation (KilaGraph shader-graph playback remains available as optional soft-compat), and ships no demo assets or editor UI inside runtime JARs.
+- **Multi-engine asset support & creator editor plugins** — runs native LumenFX JSON effects, Photon `.fx` effects, offline-exported **Unity ParticleSystem (Shuriken)** assets (via the included **Unity UPM Editor Plugin**), and offline-compiled **Unreal Engine Niagara** systems (CPU VectorVM, GPU SPIR-V compute, and SimCache `.lfsc`, via the included **UE5 Editor Plugin** & CLI compiler).
+- **GeckoLib (4.x / 5.x) & KBR particle keyframe compatibility** — play LumenFX effects directly from Blockbench `particle_effects` keyframes with 3D locator position & rotation tracking across all 8 targets while peacefully coexisting with KBR SnowStorm / Bedrock particles.
+- **Unified multi-version & multi-loader architecture** — ships a single unified mod JAR per target across Minecraft **1.20.1, 1.21.1, 26.1.2, and 26.2** (Forge, NeoForge, and Fabric), with **dynamic Vulkan-first / OpenGL fallback on 26.2**.
 
 Photon-derived source files retain KilaBash's attribution and are governed by the bundled [Photon License (CC BY-NC-SA 4.0)](licenses/photon/LICENSE). Original LumenFX code and offline authoring tools are licensed under [MIT](LICENSE).
 
@@ -58,7 +58,8 @@ All screenshots below were captured live in-game using LumenFX's native runtime 
   - Defaults to **Vulkan** when the system driver and active rendering mods support it (including standalone and Sodium).
   - Automatically falls back to **OpenGL** when Vulkan is unavailable or when an OpenGL-only rendering mod (such as Iris) is active.
   - Always respects explicit user overrides (`--graphicsBackend`, in-game video settings, and vanilla crash recovery).
-- **Optional Mod Compatibility**: Runs completely standalone with zero required rendering dependencies; offers optional compatibility with **Iris**, **Sodium**, and **KBR**.
+- **Optional Mod Compatibility**: Runs completely standalone with zero required dependencies (no mandatory LDLib2, KilaGraph, Iris, Sodium, GeckoLib, or KBR); offers automatic optional soft-compatibility with **Iris**, **Sodium**, **GeckoLib 4.x / 5.x**, **KBR (KltytonBedrockRuntime)**, and **KilaGraph**.
+- **GeckoLib & KBR Particle Keyframes**: Trigger LumenFX effects straight from Blockbench animation `particle_effects` keyframes with automatic ID routing, 3D locator position/rotation tracking, `pre_effect_script` options (`follow`, `rotate`, `scale`, `color`, `offset`, `beam_end`, `stop`, `restart`, `seed`), and the `LumenFxKeyframeBridge` Java API.
 - **Bounded Multi-Threaded Simulation**: Offloads particle simulation onto a bounded worker pool while keeping resource reloads atomic and the render thread focused on GPU submission.
 
 ---
@@ -94,7 +95,7 @@ repositories {
 
 dependencies {
     // Replace with your target artifact ID from the table above
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.2:0.1.3'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.2:0.2.0'
 }
 ```
 
@@ -130,10 +131,12 @@ Effect ID `my_mod:magic/trail` resolves to `assets/my_mod/lumenfx/effects/magic/
   - [Getting Started & API](docs/wiki/Getting-Started.md)
   - [Effect JSON & GLSL Reference](docs/wiki/Effect-Format-Reference.md)
   - [Niagara, Unity & Photon Workflow](docs/wiki/Niagara-and-Unity-Workflow.md)
+  - [GeckoLib & KBR Particle Keyframes](docs/wiki/GeckoLib-and-KBR-Keyframes.md)
   - [Graphics Backends & Compatibility](docs/wiki/Graphics-Backends-and-Compatibility.md)
   - [Fork Relationship & Licensing](docs/wiki/Fork-and-Licensing.md)
-- **Offline Authoring Tools** (never bundled into runtime mod JARs):
-  - [Unity ParticleSystem Exporter](tools/unity/README.md) — Unity Editor tool exporting Shuriken hierarchies, URP Shader Graph materials, textures, and meshes.
+- **Offline Creator Plugins & Compilers** (never bundled into runtime mod JARs):
+  - [Unity UPM Editor Plugin](tools/unity/README.md) (`com.kltyton.lumenfx.exporter`) — Install via Unity Package Manager; includes creator presets, Minecraft 1-block grid guides, inline validation, batch export, URP Shader Graph compilation, and optional `pack.mcmeta` export.
+  - [Unreal Engine 5 Editor Plugin](tools/unreal/LumenFxExporter/README.md) (`LumenFxExporter.uplugin`) — Content Browser right-click export on `UNiagaraSystem` assets with Project Settings, pre-export validation, and async compiler runner.
   - [Unreal Engine Niagara Compiler](tools/compiler/README.md) — Offline compiler for Niagara CPU VectorVM, GPU compute shaders, materials, vector fields, and SimCaches.
 
 ---

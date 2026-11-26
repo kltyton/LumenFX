@@ -2,11 +2,11 @@
 package com.lowdragmc.photon.client.gameobject.emitter.data.material.kila;
 
 import com.mojang.blaze3d.PrimitiveTopology;
-import com.lowdragmc.lowdraglib2.Platform;
-import com.lowdragmc.lowdraglib2.math.HDRColor;
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
-import com.lowdragmc.lowdraglib2.utils.PersistedParser;
+import com.kltyton.lumenfx.internal.photon.core.Platform;
+import com.kltyton.lumenfx.internal.photon.core.math.HDRColor;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.utils.PersistedParser;
 import com.lowdragmc.photon.client.AutoCloseCleaner;
 import com.lowdragmc.photon.client.fx.PreloadContext;
 import com.lowdragmc.photon.client.gameobject.emitter.data.MaterialSetting;
@@ -412,7 +412,8 @@ public class KilaMaterial extends ShaderInstanceMaterial {
                 var texture = layout.textures.get(i);
                 if (texture.texture() != null) {
                     // the first use of a texture uploads it: here, before the pass opens
-                    views[i] = textureManager.getTexture(texture.texture().getTexture()).getTextureView();
+                    views[i] = com.lowdragmc.photon.client.resource.PhotonProceduralTextures
+                            .resolve(textureManager, texture.texture().getTexture()).getTextureView();
                     samplers[i] = KilaSamplers.of(texture.texture());
                 } else if (texture.dynamic() != null) {
                     views[i] = texture.dynamic().textureView();

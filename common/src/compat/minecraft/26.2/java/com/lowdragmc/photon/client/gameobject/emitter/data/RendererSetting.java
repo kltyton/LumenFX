@@ -1,10 +1,9 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
 
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.mojang.blaze3d.PrimitiveTopology;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.ReadOnlyManaged;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.ReadOnlyManaged;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.emitter.Emitter;
 import com.lowdragmc.photon.client.gameobject.emitter.renderpipeline.PhotonFXRenderPass;
@@ -68,30 +67,30 @@ public class RendererSetting {
         }
     }
 
-    @Configurable(name = "RendererSetting.materials", collapse = false)
+    @Persisted
     @ReadOnlyManaged(serializeMethod = "materialSerialize", deserializeMethod = "materialDeserialize")
     @EqualsAndHashCode.Include
     protected List<MaterialSetting> materials = new ArrayList<>();
 
-    @Configurable(name = "RendererSetting.layer", tips = "photon.emitter.config.renderer.layer")
+    @Persisted
     @EqualsAndHashCode.Include
     protected Layer layer = Layer.Translucent;
 
-    @Configurable(name = "RendererSetting.cull", subConfigurable = true, tips = "photon.emitter.config.renderer.cull")
+    @Persisted(subPersisted = true)
     protected final Cull cull = new Cull();
 
-    @Configurable(name = "photon.emitter.config.renderer.orderInLayer", tips = "photon.emitter.config.renderer.orderInLayer.tips")
+    @Persisted
     @EqualsAndHashCode.Include
     protected int orderInLayer = 0;
 
-    @Configurable(name = "photon.emitter.config.renderer.vertexSortingMode", tips = "photon.emitter.config.renderer.vertexSortingMode.tips")
+    @Persisted
     @EqualsAndHashCode.Include
     protected SortMode vertexSortingMode = SortMode.NONE;
 
     /** When this emitter's FX are merged into the frame — see {@link FXCompositeMode}. INHERIT (the
      *  default) follows {@code PhotonConfig.fxCompositeMode}. Part of the batching key: passes with
      *  different modes accumulate into different targets and must never merge into one draw. */
-    @Configurable(name = "photon.emitter.config.renderer.compositeMode", tips = "photon.emitter.config.renderer.compositeMode.tips")
+    @Persisted
     @EqualsAndHashCode.Include
     protected FXCompositeMode compositeMode = FXCompositeMode.INHERIT;
 
@@ -109,8 +108,7 @@ public class RendererSetting {
     public static class Cull extends ToggleGroup {
         @Setter
         @Getter
-        @Configurable
-        @ConfigNumber(range = {-Float.MAX_VALUE, Float.MAX_VALUE})
+        @Persisted
         protected AABB cullBox = new AABB(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5);
 
         public AABB getCullAABB(Emitter particle, float partialTicks) {

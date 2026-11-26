@@ -2,7 +2,7 @@
 package com.lowdragmc.photon.client.gameobject.emitter.data.material.kila;
 
 import com.lowdragmc.photon.client.render.PhotonPipelines;
-import com.lowdragmc.photon.client.shadergraph.PhotonShaderCompiler;
+import com.lowdragmc.photon.client.shadergraph.PhotonShaderConstants;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -101,7 +101,7 @@ public final class KilaLayout {
 
     /** Whether the variant reads the scene depth, which is what the fade's {@code PHOTON_SOFT} half declares. */
     public boolean readsSceneDepth() {
-        return sceneSamplers.contains(PhotonShaderCompiler.SCENE_DEPTH);
+        return sceneSamplers.contains(PhotonShaderConstants.SCENE_DEPTH);
     }
 
     /** Write every default of this layout into {@code values}. */

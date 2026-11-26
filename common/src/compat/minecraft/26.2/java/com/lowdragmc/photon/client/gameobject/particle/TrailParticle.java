@@ -3,7 +3,7 @@ package com.lowdragmc.photon.client.gameobject.particle;
 
 import com.lowdragmc.photon.client.gameobject.particle.renderer.TrailSpline;
 
-import com.lowdragmc.lowdraglib2.utils.ColorUtils;
+import com.kltyton.lumenfx.internal.photon.core.utils.ColorUtils;
 import com.lowdragmc.photon.client.gameobject.emitter.IParticleEmitter;
 import com.lowdragmc.photon.client.gameobject.emitter.renderpipeline.PhotonFXRenderPass;
 import com.lowdragmc.photon.client.gameobject.emitter.trail.TrailConfig;

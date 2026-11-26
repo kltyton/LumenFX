@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.fx;
 
-import com.lowdragmc.lowdraglib2.Platform;
+import com.kltyton.lumenfx.internal.photon.core.Platform;
 import com.lowdragmc.photon.Photon;
 import com.lowdragmc.photon.client.gameobject.emitter.data.fixer.PhotonFXProjectDataFixer;
 import net.minecraft.nbt.NbtAccounter;

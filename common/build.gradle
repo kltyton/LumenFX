@@ -26,7 +26,6 @@ repositories { mavenCentral() }
 def isMc262 = minecraft == '26.2'
 def usesIdentifier = minecraft in ['26.2', '26.1.2']
 def hasKilaGraph = loader == 'neoforge' && isMc262
-def hasLdlib2 = hasKilaGraph
 
 def layers = [
         new File(commonRoot, 'src/main'),
@@ -37,9 +36,8 @@ def layers = [
         new File(commonRoot, "src/compat/${loader}/${isMc262 ? 'blaze3d_gpu' : 'opengl_direct'}"),
         new File(commonRoot, "src/compat/${loader}/${minecraft}")
 ]
-if (isMc262) {
-    layers.add(new File(commonRoot, "src/compat/ldlib2/${hasLdlib2 ? 'external' : 'embedded'}"))
-    layers.add(new File(commonRoot, "src/compat/kilagraph/${hasKilaGraph ? 'enabled' : 'disabled'}"))
+if (hasKilaGraph) {
+    layers.add(new File(commonRoot, 'src/compat/kilagraph/enabled'))
 }
 layers = layers.findAll { it.isDirectory() }
 
@@ -95,10 +93,16 @@ tasks.named('compileTestJava', JavaCompile) {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = javaVersion
+    options.debugOptions.debugLevel = 'source,lines'
 }
 tasks.named('processResources', ProcessResources) {
     from resourceDirectories
     exclude 'assets/lumenfx/shaders/fog/integrate.comp'
+    exclude 'META-INF/licenses/**'
+    if (!isMc262) {
+        exclude 'assets/lumenfx/shaders/**'
+        exclude 'assets/photon/**'
+    }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 tasks.named('processTestResources', ProcessResources) {

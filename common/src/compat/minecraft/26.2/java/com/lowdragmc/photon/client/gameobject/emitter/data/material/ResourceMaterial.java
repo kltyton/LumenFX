@@ -1,9 +1,9 @@
 package com.lowdragmc.photon.client.gameobject.emitter.data.material;
 
-import com.lowdragmc.lowdraglib2.editor.resource.BuiltinPath;
-import com.lowdragmc.lowdraglib2.editor.resource.IResourcePath;
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.editor.resource.BuiltinPath;
+import com.kltyton.lumenfx.internal.photon.core.editor.resource.IResourcePath;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
 import com.lowdragmc.photon.client.fx.PreloadContext;
 import com.lowdragmc.photon.client.gameobject.emitter.data.MaterialSetting;
 import com.lowdragmc.photon.client.resource.PhotonAssetLibrary;

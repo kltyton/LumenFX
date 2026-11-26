@@ -1,10 +1,10 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.material.kila;
 
-import com.lowdragmc.lowdraglib2.math.GradientColor;
-import com.lowdragmc.lowdraglib2.math.HDRColor;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
-import com.lowdragmc.photon.client.shadergraph.PhotonShaderCompiler;
+import com.kltyton.lumenfx.internal.photon.core.math.GradientColor;
+import com.kltyton.lumenfx.internal.photon.core.math.HDRColor;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.lowdragmc.photon.client.shadergraph.PhotonShaderConstants;
 
 import java.util.function.BiConsumer;
 
@@ -104,7 +104,7 @@ public class KilaDepth extends KilaModule {
                 .vec4("KilaContactShape", 1, 0, 0, 0)
                 // x = pulses per second
                 .vec4("KilaContactPulse")
-                .sampler(PhotonShaderCompiler.SCENE_DEPTH).params(KilaParam.CONTACT_STRENGTH, KilaParam.CONTACT_WIDTH);
+                .sampler(PhotonShaderConstants.SCENE_DEPTH).params(KilaParam.CONTACT_STRENGTH, KilaParam.CONTACT_WIDTH);
         if (measure == Measure.SURFACE) layout.define("KILA_REL_POS");
         if (contactGradient) layout.define("KILA_CONTACT_RAMP").dynamicTexture("CONTACT_RAMP", bakedGradient);
         if (breakup()) {

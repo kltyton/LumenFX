@@ -1,11 +1,8 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data;
-
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
-import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
-import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.ReadOnlyManaged;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.ReadOnlyManaged;
 import com.lowdragmc.photon.client.gameobject.RuntimeValue;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.Constant;
 import com.lowdragmc.photon.client.gameobject.emitter.data.number.NumberFunction;
@@ -32,25 +29,25 @@ import java.util.List;
  */
 @Setter
 @Getter
-public class EmissionSetting implements IConfigurable, IPersistedSerializable {
+public class EmissionSetting implements IPersistedSerializable {
 
     public enum Mode {
         Exacting,
         Random
     }
 
-    @Configurable(name = "EmissionSetting.emissionRate", tips = "photon.emitter.config.emission.emissionRate")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, defaultValue = 0.5f, curveConfig = @CurveConfig(bound = {0, 5}, xAxis = "duration", yAxis = "emission rate"))
     protected NumberFunction emissionRate = NumberFunction.constant(0.5f);
 
-    @Configurable(name = "EmissionSetting.distanceRate", tips = "photon.emitter.config.emission.distanceRate")
+    @Persisted
     @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, defaultValue = 0.5f, curveConfig = @CurveConfig(bound = {0, 5}, xAxis = "duration", yAxis = "emission rate"))
     protected NumberFunction distanceRate = NumberFunction.constant(0);
 
-    @Configurable(name = "EmissionSetting.emissionMode", tips = "photon.emitter.config.emission.emissionMode")
+    @Persisted
     protected Mode emissionMode = Mode.Exacting;
 
-    @Configurable(name = "EmissionSetting.bursts", tips = "photon.emitter.config.emission.bursts")
+    @Persisted
     @ReadOnlyManaged(serializeMethod = "burstsSerialize", deserializeMethod = "burstsDeserialize")
     protected List<Burst> bursts = new ArrayList<>();
 
@@ -168,23 +165,19 @@ public class EmissionSetting implements IConfigurable, IPersistedSerializable {
         return groups;
     }
 
-    public static class Burst implements IConfigurable, IPersistedSerializable{
-        @Configurable(name = "Burst.time", tips = "photon.emitter.config.emission.bursts.time")
-        @ConfigNumber(range = {0, Integer.MAX_VALUE}, wheel = 1)
+    public static class Burst implements IPersistedSerializable{
+        @Persisted
         public int time = 0;
         @Setter
         @Getter
-        @Configurable(name = "Burst.count", tips = "photon.emitter.config.emission.bursts.count")
+        @Persisted
         @NumberFunctionConfig(types = {Constant.class, RandomConstant.class, Curve.class, RandomCurve.class}, min = 0, defaultValue = 50, curveConfig = @CurveConfig(bound = {0, 50}, xAxis = "duration", yAxis = "emit count"))
         protected NumberFunction count = NumberFunction.constant(50);
-        @Configurable(name = "Burst.cycles", tips = "photon.emitter.config.emission.bursts.cycles")
-        @ConfigNumber(range = {0, Integer.MAX_VALUE})
+        @Persisted
         public int cycles = 1;
-        @Configurable(name = "Burst.interval", tips = "photon.emitter.config.emission.bursts.interval")
-        @ConfigNumber(range = {1, Integer.MAX_VALUE}, wheel = 1)
+        @Persisted
         public int interval = 1;
-        @Configurable(name = "Burst.probability", tips = "photon.emitter.config.emission.bursts.probability")
-        @ConfigNumber(range = {0, 1})
+        @Persisted
         public float probability = 1;
     }
 }

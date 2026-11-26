@@ -1,8 +1,8 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.material.kila;
 
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
-import com.lowdragmc.photon.client.shadergraph.PhotonShaderCompiler;
+import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.lowdragmc.photon.client.shadergraph.PhotonShaderConstants;
 
 import java.util.function.BiConsumer;
 
@@ -70,10 +70,10 @@ public class KilaScreenDistortion extends KilaModule {
             layout.define(STACK_DEFINE);
             return;
         }
-        layout.sampler(PhotonShaderCompiler.SCENE_COLOR);
+        layout.sampler(PhotonShaderConstants.SCENE_COLOR);
         if (chromatic != 0) layout.define("KILA_SCREEN_CHROMA");
         if (keepForeground) {
-            layout.define("KILA_SCREEN_DEPTH").sampler(PhotonShaderCompiler.SCENE_DEPTH);
+            layout.define("KILA_SCREEN_DEPTH").sampler(PhotonShaderConstants.SCENE_DEPTH);
         }
     }
 

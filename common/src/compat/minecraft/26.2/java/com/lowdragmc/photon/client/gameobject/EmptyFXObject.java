@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject;
 
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
 import lombok.Getter;
 
 import javax.annotation.ParametersAreNonnullByDefault;

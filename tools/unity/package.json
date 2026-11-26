@@ -1,0 +1,23 @@
+{
+  "name": "com.kltyton.lumenfx.exporter",
+  "version": "0.2.0",
+  "displayName": "LumenFX Particle Exporter",
+  "description": "Author and export Unity ParticleSystem (Shuriken), Trails, Mesh particles, and URP Shader Graph effects directly into Minecraft resource packs for LumenFX.",
+  "unity": "2020.3",
+  "keywords": [
+    "minecraft",
+    "lumenfx",
+    "vfx",
+    "particles",
+    "shuriken",
+    "trails",
+    "ribbon"
+  ],
+  "author": {
+    "name": "kltyton",
+    "url": "https://github.com/kltyton/LumenFX"
+  },
+  "license": "MIT",
+  "documentationUrl": "https://github.com/kltyton/LumenFX/wiki/Niagara-and-Unity-Workflow",
+  "samples": []
+}

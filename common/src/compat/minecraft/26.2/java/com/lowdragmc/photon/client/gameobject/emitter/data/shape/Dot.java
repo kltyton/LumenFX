@@ -1,7 +1,7 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon.client.gameobject.emitter.data.shape;
 
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
 import com.lowdragmc.photon.client.gameobject.emitter.IParticleEmitter;
 import com.lowdragmc.photon.client.gameobject.particle.TileParticle;
 import org.joml.Vector3f;

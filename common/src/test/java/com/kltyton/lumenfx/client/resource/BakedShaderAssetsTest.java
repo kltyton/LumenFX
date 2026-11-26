@@ -133,6 +133,8 @@ public final class BakedShaderAssetsTest {
             String modsToml = new String(readBytesResource("/META-INF/neoforge.mods.toml"), StandardCharsets.UTF_8);
             assertDependency(modsToml, "iris", "optional", "[1.11.4,)");
             assertDependency(modsToml, "sodium", "optional", "[0.9.2,)");
+            assertFalse(modsToml.contains("modId=\"ldlib2\""), "ldlib2 must not be declared as a dependency");
+            assertFalse(modsToml.contains("modId=\"kilagraph\""), "kilagraph must not be declared as a required dependency");
             int search = 0;
             while ((search = modsToml.indexOf("config=\"", search)) >= 0) {
                 int start = search + "config=\"".length();
@@ -140,7 +142,8 @@ public final class BakedShaderAssetsTest {
                 declaredMixinConfigs.add(modsToml.substring(start, end));
                 search = end + 1;
             }
-            assertEquals(15, declaredMixinConfigs.size(), "Expected all 15 LumenFX mixin configs in neoforge.mods.toml");
+            assertEquals(16, declaredMixinConfigs.size(), "Expected all 16 LumenFX mixin configs in neoforge.mods.toml");
+            assertTrue(declaredMixinConfigs.contains("lumenfx.keyframe.mixins.json"));
         } else {
             JsonObject fabricMod = readJsonResource("/fabric.mod.json");
             JsonObject suggests = fabricMod.getAsJsonObject("suggests");
@@ -150,8 +153,22 @@ public final class BakedShaderAssetsTest {
             for (JsonElement entry : fabricMod.getAsJsonArray("mixins")) {
                 declaredMixinConfigs.add(entry.getAsString());
             }
-            assertEquals(15, declaredMixinConfigs.size(), "Expected all 15 LumenFX mixin configs in fabric.mod.json");
+            assertEquals(16, declaredMixinConfigs.size(), "Expected all 16 LumenFX mixin configs in fabric.mod.json");
+            assertTrue(declaredMixinConfigs.contains("lumenfx.keyframe.mixins.json"));
         }
+        // Verify embedded LDLib2 runtime utilities are relocated away from com.lowdragmc.lowdraglib2.* inside LumenFX's own classes
+        var relocatedPlatform = BakedShaderAssetsTest.class.getResource("/com/kltyton/lumenfx/internal/photon/core/Platform.class");
+        assertNotNull(relocatedPlatform, "Relocated Photon runtime core Platform class must exist");
+        var unrelocatedPlatform = BakedShaderAssetsTest.class.getResource("/com/lowdragmc/lowdraglib2/Platform.class");
+        if (unrelocatedPlatform != null) {
+            // Only external compileOnly LDLib2 jars may supply com.lowdragmc.lowdraglib2.*, never LumenFX's own output directory.
+            assertFalse(unrelocatedPlatform.toString().contains("/common/build/"),
+                    "Unrelocated com.lowdragmc.lowdraglib2.* classes must not be built by LumenFX: " + unrelocatedPlatform);
+        }
+        // Verify keyframe mixin config declares pure bytecode-probing plugin
+        JsonObject keyframeMixins = readJsonResource("/lumenfx.keyframe.mixins.json");
+        assertEquals("com.kltyton.lumenfx.client.keyframe.LumenFxKeyframeMixinPlugin",
+                keyframeMixins.get("plugin").getAsString());
         // Every declared mixin config must exist and reference real compiled classes.
         for (String configName : declaredMixinConfigs) {
             JsonObject config = readJsonResource("/" + configName);
@@ -2850,6 +2867,153 @@ public final class BakedShaderAssetsTest {
         }
         org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
                 () -> new com.kltyton.lumenfx.effect.unity.UnityRendererBinding.SortingGroup("   ", 0, 0, origin, 0));
+    }
+
+    @Test
+    void keyframeBridgeParsesDirectivesRoutesLoadedEffectsPassesThroughKbrAndTracksLocators() {
+        // 1. Parse effect ID formats (explicit prefix, Identifier-safe slash prefix, standard, bare)
+        var explicitColon = com.kltyton.lumenfx.api.client.keyframe.LumenFxKeyframeBridge.parseEffectId("lumenfx:my_mod:slash");
+        assertNotNull(explicitColon);
+        assertTrue(explicitColon.explicitLumenFx());
+        assertEquals("my_mod:slash", explicitColon.canonicalId());
+
+        var explicitSlash = com.kltyton.lumenfx.api.client.keyframe.LumenFxKeyframeBridge.parseEffectId("lumenfx/my_mod:slash");
+        assertNotNull(explicitSlash);
+        assertTrue(explicitSlash.explicitLumenFx());
+        assertEquals("my_mod:slash", explicitSlash.canonicalId());
+
+        var standard = com.kltyton.lumenfx.api.client.keyframe.LumenFxKeyframeBridge.parseEffectId("my_mod:slash");
+        assertNotNull(standard);
+        assertFalse(standard.explicitLumenFx());
+        assertEquals("my_mod:slash", standard.canonicalId());
+
+        // 2. Parse pre_effect_script directives including Molang-style prefixes
+        var params = com.kltyton.lumenfx.api.client.keyframe.KeyframeEffectParams.parse(
+                "v.lumenfx_scale=1.75; color=#FF8040CC; offset=0.5,1.25,-0.5; rotate=false; beam_end=target_tip; seed=4242; restart=true",
+                true, true);
+        assertTrue(params.follow());
+        assertFalse(params.rotate());
+        assertEquals(1.75F, params.scale(), 1e-5F);
+        assertTrue(params.hasColor());
+        assertEquals(1.0F, params.red(), 1e-3F);
+        assertEquals(128.0F / 255.0F, params.green(), 1e-3F);
+        assertEquals(64.0F / 255.0F, params.blue(), 1e-3F);
+        assertEquals(204.0F / 255.0F, params.alpha(), 1e-3F);
+        assertEquals(0.5, params.offsetX(), 1e-6);
+        assertEquals(1.25, params.offsetY(), 1e-6);
+        assertEquals(-0.5, params.offsetZ(), 1e-6);
+        assertEquals("target_tip", params.beamEndLocator());
+        assertEquals(4242L, params.seed());
+        assertTrue(params.restart());
+        assertFalse(params.stop());
+
+        // 3. Routing, deferred locator spawn, 3D pose update, beam_end, filter cancellation, stop, and controller reset
+        var prevAdapter = com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.adapter();
+        List<double[]> poseLog = new java.util.ArrayList<>();
+        List<double[]> beamLog = new java.util.ArrayList<>();
+        java.util.concurrent.atomic.AtomicInteger closeCount = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger spawnCount = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.Set<String> loaded = java.util.Set.of("my_mod:fire_slash", "lumenfx:beam_arc");
+
+        com.kltyton.lumenfx.client.keyframe.KeyframeEffectPlaybackAdapter stub =
+                new com.kltyton.lumenfx.client.keyframe.KeyframeEffectPlaybackAdapter() {
+                    @Override public boolean hasEffect(String canonicalId) { return loaded.contains(canonicalId); }
+                    @Override public boolean requiresLevel() { return false; }
+                    @Override public BoundHandle spawn(net.minecraft.client.multiplayer.ClientLevel level, String canonicalId,
+                            double x, double y, double z, long seed,
+                            com.kltyton.lumenfx.api.client.keyframe.KeyframeEffectParams p, boolean trackRenderSamples) {
+                        spawnCount.incrementAndGet();
+                        return new BoundHandle() {
+                            boolean alive = true;
+                            @Override public Object rawHandle() { return this; }
+                            @Override public boolean isAlive() { return alive; }
+                            @Override public void updatePose(double px, double py, double pz, float qx, float qy, float qz, float qw,
+                                    float scale, double[] actorPosition, double[] actorVelocityCmPerSec) {
+                                poseLog.add(new double[] { px, py, pz, qx, qy, qz, qw, scale });
+                            }
+                            @Override public void setBeamEnd(double bx, double by, double bz) {
+                                beamLog.add(new double[] { bx, by, bz });
+                            }
+                            @Override public void close() {
+                                if (alive) { alive = false; closeCount.incrementAndGet(); }
+                            }
+                        };
+                    }
+                };
+
+        com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.clearAll();
+        com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.installAdapter(stub);
+        try {
+            Object host = new Object();
+            Object controller = new Object();
+
+            // Counterexample: unknown KBR/SnowStorm particle must return false so KBR handles it untouched.
+            assertFalse(com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.handleKeyframe(
+                    null, host, null, controller, "attack", "kbr:snowstorm_spark", "right_hand", null, true, 0, 0, 0, true));
+
+            // Explicit lumenfx: prefix for missing effect returns true (claimed) without crashing.
+            assertTrue(com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.handleKeyframe(
+                    null, host, null, controller, "attack", "lumenfx:my_mod:missing_fx", null, null, true, 0, 0, 0, true));
+
+            // Filter can reject a known LumenFX effect and let KBR/custom handler run instead.
+            com.kltyton.lumenfx.api.client.keyframe.LumenFxKeyframeBridge.Filter blockSlash =
+                    req -> !req.resolvedEffectId().equals("my_mod:fire_slash");
+            com.kltyton.lumenfx.api.client.keyframe.LumenFxKeyframeBridge.addFilter(blockSlash);
+            try {
+                assertFalse(com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.handleKeyframe(
+                        null, host, null, controller, "attack", "my_mod:fire_slash", "sword_tip", null, true, 0, 0, 0, true));
+            } finally {
+                com.kltyton.lumenfx.api.client.keyframe.LumenFxKeyframeBridge.removeFilter(blockSlash);
+            }
+
+            // Identifier-safe cross-namespace syntax (lumenfx:my_mod/fire_slash) with deferred locator spawn + beam_end + SpawnListener
+            java.util.concurrent.atomic.AtomicInteger listenerHits = new java.util.concurrent.atomic.AtomicInteger();
+            com.kltyton.lumenfx.api.client.keyframe.LumenFxKeyframeBridge.SpawnListener listener =
+                    (req, handle) -> listenerHits.incrementAndGet();
+            com.kltyton.lumenfx.api.client.keyframe.LumenFxKeyframeBridge.addSpawnListener(listener);
+            try {
+                assertTrue(com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.handleKeyframe(
+                        null, host, null, controller, "attack", "lumenfx:my_mod/fire_slash",
+                        "sword_tip", "scale=2.0; offset=0.5,0,0; beam_end=target_tip", true, 1, 2, 3, true));
+                assertEquals(0, spawnCount.get(), "Deferred locator binding spawns on first locator sample");
+                assertTrue(com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.trackedLocators(host)
+                        .containsAll(java.util.Set.of("sword_tip", "target_tip")));
+
+                // First locator sample spawns handle and pushes 3D pose (position + offset + quaternion + scale)
+                com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onLocatorSample(
+                        host, null, "sword_tip", 10.0, 20.0, 30.0, 0.0F, 0.7071F, 0.0F, 0.7071F, null);
+                assertEquals(1, spawnCount.get());
+                assertEquals(1, listenerHits.get());
+                assertEquals(1, poseLog.size());
+                assertEquals(10.5, poseLog.get(0)[0], 1e-6);
+                assertEquals(20.0, poseLog.get(0)[1], 1e-6);
+                assertEquals(30.0, poseLog.get(0)[2], 1e-6);
+                assertEquals(0.7071F, (float) poseLog.get(0)[4], 1e-4F);
+                assertEquals(2.0F, (float) poseLog.get(0)[7], 1e-4F);
+
+                // Beam end locator drives setBeamEnd
+                com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onLocatorSample(
+                        host, null, "target_tip", 14.0, 22.0, 35.0, 0.0F, 0.0F, 0.0F, 1.0F, null);
+                assertEquals(1, beamLog.size());
+                assertEquals(14.0, beamLog.get(0)[0], 1e-6);
+
+                // Controller reset closes active handle cleanly
+                com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.stopForController(host, controller);
+                assertEquals(1, closeCount.get());
+                assertFalse(com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.hasTrackedLocators(host));
+            } finally {
+                com.kltyton.lumenfx.api.client.keyframe.LumenFxKeyframeBridge.removeSpawnListener(listener);
+            }
+
+            // Plugin bytecode probe returns false for absent classes without classloading them.
+            var plugin = new com.kltyton.lumenfx.client.keyframe.LumenFxKeyframeMixinPlugin();
+            assertFalse(plugin.shouldApplyMixin("com.nonexistent.AbsentGeckoLibClass", "DummyMixin"));
+        } finally {
+            com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.clearAll();
+            if (prevAdapter != null) {
+                com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.installAdapter(prevAdapter);
+            }
+        }
     }
 
     private static Map<String, Object> annotationValues(org.objectweb.asm.tree.AnnotationNode annotation) {

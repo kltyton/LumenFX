@@ -9,6 +9,10 @@ import net.minecraft.world.phys.Vec3;
 public final class VfxEffects {
     private VfxEffects() { }
 
+    public static boolean hasEffect(ResourceLocation effect) {
+        return effect != null && DirectVfxEngine.INSTANCE.hasEffect(effect.toString());
+    }
+
     public static EffectHandle spawn(ClientLevel level, ResourceLocation effect, Vec3 position, long seed) {
         return DirectVfxEngine.INSTANCE.spawn(level, effect.toString(), position, seed);
     }

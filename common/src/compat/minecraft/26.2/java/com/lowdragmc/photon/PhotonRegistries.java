@@ -1,9 +1,9 @@
 /* Photon by KilaBash (2025), CC BY-NC-SA 4.0. See licenses/photon/LICENSE. */
 package com.lowdragmc.photon;
 
-import com.lowdragmc.lowdraglib2.registry.AutoRegistry;
-import com.lowdragmc.lowdraglib2.registry.LDLRegistry;
-import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
+import com.kltyton.lumenfx.internal.photon.core.registry.AutoRegistry;
+import com.kltyton.lumenfx.internal.photon.core.registry.LDLRegistry;
+import com.kltyton.lumenfx.internal.photon.core.registry.annotation.LDLRegisterClient;
 import com.lowdragmc.photon.client.fx.timeline.AnimatedPropertyType;
 import com.lowdragmc.photon.client.fx.timeline.property.ConfigPropertyTypeDispatcher;
 import com.lowdragmc.photon.client.fx.timeline.property.PositionPropertyType;

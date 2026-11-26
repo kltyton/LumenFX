@@ -52,10 +52,9 @@
 ## ⚡ 模组特色
 
 - **单一统一包，26.2 动态 Vulkan 优先 / OpenGL 自动回退**：玩家无需纠结下载“Vulkan 版”还是“OpenGL 版”！在 Minecraft 26.2 中，LumenFX 会在显卡驱动与模组环境支持时**默认启用 Vulkan**，在不支持 Vulkan 或安装了仅支持 OpenGL 的光影模组（如 Iris）时**自动无缝回退至 OpenGL**，同时尊重玩家自己的图形后端设置。
-- **开箱即用，无强制前置**：可完全独立运行，不强制依赖任何渲染优化或光影模组。
-- **可选兼容 Iris / Sodium / KBR**：与常见光影与性能模组和平共处，整合包即装即用。
-- **轻量运行库，无游戏内编辑器**：所有特效通过资源包驱动，运行 JAR 精简干净，不占用多余界面与内存。
-- **跨引擎强大生态**：同时支持 LumenFX JSON、Photon `.fx`、离线导出的 **Unity ParticleSystem** 以及离线编译的 **Unreal Engine Niagara**（CPU VectorVM、GPU 计算着色器与 SimCache）。
+- **极致轻量、零强制外部前置**：完全独立运行，不再强制依赖 `LDLib2`、`KilaGraph` 或任何渲染/光影模组；运行 JAR 剔除游戏内编辑器与冗余资源，与 **Iris、Sodium、GeckoLib（4.x / 5.x）、KBR、KilaGraph** 共装时自动启用纯可选软兼容。
+- **原生兼容 GeckoLib 与 KBR 粒子关键帧**：全版本支持在 Blockbench 动画 `particle_effects` 关键帧中直接触发 LumenFX 粒子与拖尾，支持 3D 定位点位置与旋转跟随、`pre_effect_script` 参数指令，并与 KBR 原生暴雪/3D 粒子自动分流、和平共存。
+- **跨引擎生态与官方 Unity / UE5 编辑器插件**：同时支持 LumenFX JSON、Photon `.fx`、**Unity ParticleSystem（Shuriken）**（仓库提供 **Unity UPM 编辑器插件**，含预设模板、MC 单方块网格参照与批量导出）以及 **Unreal Engine Niagara**（CPU VectorVM、GPU 计算着色器与 SimCache，仓库提供 **UE5 编辑器插件** 与离线编译器）。
 
 ---
 
@@ -72,9 +71,9 @@
 
 ## 🛠️ 模组开发者与创作者资源
 
-- **GitHub 开源仓库（含 Unity / UE Niagara 离线导出工具）：** [https://github.com/kltyton/LumenFX](https://github.com/kltyton/LumenFX)
-- **完整 Wiki 文档与 Java API 教程：** [https://github.com/kltyton/LumenFX/wiki](https://github.com/kltyton/LumenFX/wiki)
-- **Maven 仓库（Sighs Maven）：** `https://maven.sighs.cc/repository/maven-public/`（坐标 `com.kltyton.lumenfx:lumenfx-<加载器>-<MC版本>:0.1.3`）
+- **GitHub 开源仓库（含 Unity UPM / UE5 编辑器插件与离线编译器）：** [https://github.com/kltyton/LumenFX](https://github.com/kltyton/LumenFX)
+- **完整 Wiki 文档、关键帧兼容与 Java API 教程：** [https://github.com/kltyton/LumenFX/wiki](https://github.com/kltyton/LumenFX/wiki)
+- **Maven 仓库（Sighs Maven）：** `https://maven.sighs.cc/repository/maven-public/`（坐标 `com.kltyton.lumenfx:lumenfx-<加载器>-<MC版本>:0.2.0`）
 
 ---
 
