@@ -4,7 +4,7 @@
 
 # GeckoLib 与 KBR 粒子关键帧集成
 
-LumenFX 在全部 8 个目标上原生内置对 **GeckoLib 4.x**（Minecraft 1.20.1 / 1.21.1）、**GeckoLib 5.x**（Minecraft 26.1.2 / 26.2）以及 **KBR（`kltyton_bedrock_runtime`）** 粒子关键帧系统的纯可选软兼容。
+LumenFX 在全部 10 个目标上原生内置对 **GeckoLib 4.x**（Minecraft 1.20.1 / 1.21.1）、**GeckoLib 5.x**（Minecraft 26.1.2 / 26.2 / 26.3）以及 **KBR（`kltyton_bedrock_runtime`）** 粒子关键帧系统的纯可选软兼容。
 
 未安装 GeckoLib 或 KBR 时，LumenFX 不会加载任何对应类，也不会应用关键帧 Mixin，零额外依赖与开销。
 

@@ -22,8 +22,8 @@ Building upon Photon's particle simulation core, timelines, curves, and `.fx` pl
 
 - **Zero heavy external dependencies & no in-game editor in the runtime JAR** — runs completely standalone with no required `LDLib2` or `KilaGraph` installation (KilaGraph shader-graph playback remains available as optional soft-compat), and ships no demo assets or editor UI inside runtime JARs.
 - **Multi-engine asset support & creator editor plugins** — runs native LumenFX JSON effects, Photon `.fx` effects, offline-exported **Unity ParticleSystem (Shuriken)** assets (via the included **Unity UPM Editor Plugin**), and offline-compiled **Unreal Engine Niagara** systems (CPU VectorVM, GPU SPIR-V compute, and SimCache `.lfsc`, via the included **UE5 Editor Plugin** & CLI compiler).
-- **GeckoLib (4.x / 5.x) & KBR particle keyframe compatibility** — play LumenFX effects directly from Blockbench `particle_effects` keyframes with 3D locator position & rotation tracking across all 8 targets while peacefully coexisting with KBR SnowStorm / Bedrock particles.
-- **Unified multi-version & multi-loader architecture** — ships a single unified mod JAR per target across Minecraft **1.20.1, 1.21.1, 26.1.2, and 26.2** (Forge, NeoForge, and Fabric), with **dynamic Vulkan-first / OpenGL fallback on 26.2**.
+- **GeckoLib (4.x / 5.x) & KBR particle keyframe compatibility** — play LumenFX effects directly from Blockbench `particle_effects` keyframes with 3D locator position & rotation tracking across all 10 targets while peacefully coexisting with KBR SnowStorm / Bedrock particles.
+- **Unified multi-version & multi-loader architecture** — ships a single unified mod JAR per target across Minecraft **1.20.1, 1.21.1, 26.1.2, 26.2, and 26.3** (Forge, NeoForge, and Fabric), with **dynamic Vulkan-first / OpenGL fallback on 26.2 & 26.3** and a full-feature native OpenGL runtime on 1.20.1, 1.21.1, and 26.1.2.
 
 Photon-derived source files retain KilaBash's attribution and are governed by the bundled [Photon License (CC BY-NC-SA 4.0)](licenses/photon/LICENSE). Original LumenFX code and offline authoring tools are licensed under [MIT](LICENSE).
 
@@ -51,16 +51,16 @@ All screenshots below were captured live in-game using LumenFX's native runtime 
 ## Key Features
 
 - **Cross-Engine VFX Runtime**: Plays native LumenFX JSON effects, Photon `.fx` files, Unity ParticleSystem exports, and Unreal Engine Niagara CPU/GPU systems & SimCaches through one unified Java API (`VfxEffects`).
-- **Rich Renderers & Built-in Bloom**: Supports Sprites (Billboard, Stretched, Horizontal/Vertical), Ribbons (Catmull–Rom & Hermite curves with adaptive subdivision), Beams, 3D Meshes, and Dynamic Particle Lights — with built-in additive/bloom visuals that shine even without shader mods.
-- **Custom GLSL Materials**: Write custom fragment shaders (`assets/<namespace>/shaders/vfx/*.fsh`) with multi-texture samplers, per-particle age/random/custom attributes, alpha/additive/premultiplied/multiply blending, and full depth control.
-- **Dynamic Graphics Backend (Minecraft 26.2)**:
-  - Each target ships as a **single unified JAR** (no separate Vulkan vs. OpenGL downloads).
+- **Rich Renderers, Built-in HDR Bloom & Full Native OpenGL Parity**: Supports Sprites (Billboard, Stretched, Horizontal/Vertical), Ribbons (Catmull–Rom & Hermite curves with adaptive subdivision), Beams, 3D Meshes, Nanite cluster LOD meshes, 3D Gaussian Splatting, Runtime Virtual Textures (RVT), Groom hair strands, Volumetric Fog/Materials, Deferred Decals, Dynamic Point/Spot Lights, Depth Soft Particles, and 3D OpenAL Spatial Audio — with built-in HDR Bloom across every supported Minecraft version (1.20.1 through 26.3).
+- **Zero-Readback GPU Niagara & Custom GLSL Materials**: Renders GPU-simulated Niagara emitters directly from OpenGL/Vulkan storage buffers with GPU distance sorting and no CPU readback cap, alongside custom GLSL fragment/vertex shaders (`assets/<namespace>/shaders/vfx/*.fsh`) with multi-texture samplers, scene depth/color access, and full blend/depth control.
+- **Dynamic Graphics Backend (Minecraft 26.2 & 26.3)**:
+  - Each target ships as a **single unified JAR** (no separate Vulkan vs. OpenGL downloads) with lossless compute-shader packaging (`compute.lfpack`) that keeps download size compact while preserving resource-pack overrides.
   - Defaults to **Vulkan** when the system driver and active rendering mods support it (including standalone and Sodium).
   - Automatically falls back to **OpenGL** when Vulkan is unavailable or when an OpenGL-only rendering mod (such as Iris) is active.
   - Always respects explicit user overrides (`--graphicsBackend`, in-game video settings, and vanilla crash recovery).
 - **Optional Mod Compatibility**: Runs completely standalone with zero required dependencies (no mandatory LDLib2, KilaGraph, Iris, Sodium, GeckoLib, or KBR); offers automatic optional soft-compatibility with **Iris**, **Sodium**, **GeckoLib 4.x / 5.x**, **KBR (KltytonBedrockRuntime)**, and **KilaGraph**.
 - **GeckoLib & KBR Particle Keyframes**: Trigger LumenFX effects straight from Blockbench animation `particle_effects` keyframes with automatic ID routing, 3D locator position/rotation tracking, `pre_effect_script` options (`follow`, `rotate`, `scale`, `color`, `offset`, `beam_end`, `stop`, `restart`, `seed`), and the `LumenFxKeyframeBridge` Java API.
-- **Bounded Multi-Threaded Simulation**: Offloads particle simulation onto a bounded worker pool while keeping resource reloads atomic and the render thread focused on GPU submission.
+- **Lock-Free Work-Stealing Multi-Threaded Simulation**: Runs emitter simulation on persistent lock-free worker pools with workload-balanced LPT scheduling, owner-thread overlap, pre-compiled Niagara parameter bindings, hoisted VectorVM execution, and ring-buffered GPU uploads.
 
 ---
 
@@ -68,14 +68,16 @@ All screenshots below were captured live in-game using LumenFX's native runtime 
 
 | Minecraft | Loader | Maven Artifact ID | Java | Graphics Backend |
 | :---: | :---: | :--- | :---: | :--- |
+| **26.3** | NeoForge | `lumenfx-neoforge-26.3` | Java 25 | Dynamic Vulkan-first / OpenGL fallback |
+| **26.3** | Fabric | `lumenfx-fabric-26.3` | Java 25 | Dynamic Vulkan-first / OpenGL fallback |
 | **26.2** | NeoForge | `lumenfx-neoforge-26.2` | Java 25 | Dynamic Vulkan-first / OpenGL fallback |
 | **26.2** | Fabric | `lumenfx-fabric-26.2` | Java 25 | Dynamic Vulkan-first / OpenGL fallback |
-| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | Java 25 | OpenGL |
-| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | Java 25 | OpenGL |
-| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | Java 21 | OpenGL |
-| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | Java 21 | OpenGL |
-| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | Java 17 | OpenGL |
-| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | Java 17 | OpenGL |
+| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | Java 25 | Native OpenGL (Full Feature Parity) |
+| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | Java 25 | Native OpenGL (Full Feature Parity) |
+| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | Java 21 | Native OpenGL (Full Feature Parity) |
+| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | Java 21 | Native OpenGL (Full Feature Parity) |
+| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | Java 17 | Native OpenGL (Full Feature Parity) |
+| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | Java 17 | Native OpenGL (Full Feature Parity) |
 
 ---
 
@@ -95,7 +97,7 @@ repositories {
 
 dependencies {
     // Replace with your target artifact ID from the table above
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.2:0.2.0'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.0'
 }
 ```
 

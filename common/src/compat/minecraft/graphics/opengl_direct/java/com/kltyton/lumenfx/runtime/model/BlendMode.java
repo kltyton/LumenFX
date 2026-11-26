@@ -13,6 +13,10 @@ public enum BlendMode {
     SUBTRACT,
     REVERSE_SUBTRACT;
 
+    public boolean isTranslucent() {
+        return this != OPAQUE;
+    }
+
     public static BlendMode parse(String name) {
         if (name == null || name.isBlank()) return ALPHA;
         String norm = name.trim().toLowerCase(Locale.ROOT);

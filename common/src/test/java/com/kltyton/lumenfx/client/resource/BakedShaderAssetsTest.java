@@ -3063,19 +3063,85 @@ public final class BakedShaderAssetsTest {
                 "Expected versionRange " + expectedRange + " for " + modId + ":\n" + block);
     }
 
-    private static JsonObject readJsonResource(String path) throws IOException {
-        try (InputStream stream = BakedShaderAssetsTest.class.getResourceAsStream(path)) {
-            assertNotNull(stream, "Missing classpath resource: " + path);
-            try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                return JsonParser.parseReader(reader).getAsJsonObject();
+    @Test
+    void packedComputeShaderBundleRoundTripsAllVolumeAndFogShadersLosslessly() throws Exception {
+        var pack = com.kltyton.lumenfx.client.resource.shader.ComputeShaderPack.fromClasspath();
+        assertNotNull(pack, "Missing /assets/lumenfx/shaders/compute.lfpack on test classpath");
+        assertTrue(pack.size() >= 390, "Expected packed compute shaders, found " + pack.size());
+        assertFalse(pack.contains("fog/integrate.comp"), "Unused GLSL source should not be packed");
+        assertFalse(pack.contains("volume/preshaded.csh"), "Unused CSH source should not be packed");
+
+        // Verify volume preshading program metadata + all vk/gl SPIR-V pairs inside the pack
+        MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+        JsonObject volProg = readJsonResource("/assets/lumenfx/shaders/compute/volume/preshaded.volume.program.json");
+        int checkedVolumeSpirv = 0;
+        for (String section : List.of("ray", "cache", "bake")) {
+            if (!volProg.has(section)) continue;
+            JsonObject secObj = volProg.getAsJsonObject(section);
+            checkedVolumeSpirv += verifyVolumeArtifactsRecursive(secObj, sha256);
+        }
+        assertTrue(checkedVolumeSpirv >= 50, "Expected >= 50 volume SPIR-V shaders verified, got " + checkedVolumeSpirv);
+
+        // Verify fog integration program metadata + vk/gl SPIR-V inside the pack
+        JsonObject fogProg = readJsonResource("/assets/lumenfx/shaders/compute/fog/integrate/program.json");
+        JsonObject fogArtifacts = fogProg.getAsJsonObject("artifacts");
+        for (String backend : List.of("vulkan", "opengl")) {
+            JsonObject art = fogArtifacts.getAsJsonObject(backend);
+            byte[] bytes = readBytesResource("/assets/lumenfx/shaders/compute/fog/integrate/" + art.get("path").getAsString());
+            assertEquals(art.get("size").getAsInt(), bytes.length);
+            assertEquals(art.get("sha256").getAsString(), HexFormat.of().formatHex(sha256.digest(bytes)));
+        }
+    }
+
+    private static int verifyVolumeArtifactsRecursive(JsonObject node, MessageDigest sha256) throws IOException {
+        if (node.has("artifacts") && node.get("artifacts").isJsonObject()) {
+            JsonObject artifacts = node.getAsJsonObject("artifacts");
+            int count = 0;
+            for (String backend : List.of("vulkan", "opengl")) {
+                if (!artifacts.has(backend)) continue;
+                JsonObject art = artifacts.getAsJsonObject(backend);
+                String path = "/assets/lumenfx/shaders/compute/volume/" + art.get("path").getAsString();
+                byte[] bytes = readBytesResource(path);
+                assertEquals(art.get("size").getAsInt(), bytes.length, path);
+                assertEquals(art.get("sha256").getAsString(), HexFormat.of().formatHex(sha256.digest(bytes)), path);
+                assertEquals((byte) 0x03, bytes[0], path);
+                assertEquals((byte) 0x02, bytes[1], path);
+                assertEquals((byte) 0x23, bytes[2], path);
+                assertEquals((byte) 0x07, bytes[3], path);
+                count++;
             }
+            return count;
+        }
+        int total = 0;
+        for (String key : node.keySet()) {
+            if (node.get(key).isJsonObject()) {
+                total += verifyVolumeArtifactsRecursive(node.getAsJsonObject(key), sha256);
+            }
+        }
+        return total;
+    }
+
+    private static JsonObject readJsonResource(String path) throws IOException {
+        byte[] bytes = readBytesResource(path);
+        try (var reader = new InputStreamReader(new java.io.ByteArrayInputStream(bytes), StandardCharsets.UTF_8)) {
+            return JsonParser.parseReader(reader).getAsJsonObject();
         }
     }
 
     private static byte[] readBytesResource(String path) throws IOException {
         try (InputStream stream = BakedShaderAssetsTest.class.getResourceAsStream(path)) {
-            assertNotNull(stream, "Missing classpath resource: " + path);
-            return stream.readAllBytes();
+            if (stream != null) {
+                return stream.readAllBytes();
+            }
         }
+        String prefix = "/assets/lumenfx/shaders/compute/";
+        if (path.startsWith(prefix)) {
+            var pack = com.kltyton.lumenfx.client.resource.shader.ComputeShaderPack.fromClasspath();
+            assertNotNull(pack, "Missing classpath resource and compute.lfpack for: " + path);
+            byte[] packed = pack.getBytes(path.substring(prefix.length()));
+            assertNotNull(packed, "Missing packed compute shader resource: " + path);
+            return packed;
+        }
+        throw new AssertionError("Missing classpath resource: " + path);
     }
 }

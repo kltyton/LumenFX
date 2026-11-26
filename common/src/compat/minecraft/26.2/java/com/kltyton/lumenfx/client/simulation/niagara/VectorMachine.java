@@ -75,6 +75,10 @@ public final class VectorMachine {
     private Register[] registers;
     private @Nullable Register[] laneRegisters;
     private final int[] constantSlots;
+    private final Instruction[] instructions;
+    private final Opcode[] instructionOpcodes;
+    private final int[] instructionInputCounts;
+    private final int[] instructionDatasets;
     private final int[][] instructionRegisters;
     private final int constantBytes;
     private final int[][] temporary;
@@ -181,17 +185,32 @@ public final class VectorMachine {
         registers = new Register[program.registerCount()];
         constantSlots = program.constantSlots();
         constantBytes = program.constantData().length;
-        instructionRegisters = program.instructions().stream().map(Instruction::registers).toArray(int[][]::new);
+        var instructionList = program.instructions();
+        int instructionCount = instructionList.size();
+        instructions = instructionList.toArray(Instruction[]::new);
+        instructionOpcodes = new Opcode[instructionCount];
+        instructionInputCounts = new int[instructionCount];
+        instructionDatasets = new int[instructionCount];
+        instructionRegisters = new int[instructionCount][];
+        boolean hasRandom = false;
+        for (int i = 0; i < instructionCount; i++) {
+            Instruction ins = instructions[i];
+            Opcode op = ins.opcode();
+            instructionOpcodes[i] = op;
+            instructionInputCounts[i] = ins.inputCount();
+            instructionDatasets[i] = ins.dataset();
+            instructionRegisters[i] = ins.registers();
+            if (op == Opcode.RANDOM || op == Opcode.RANDOMI || op == Opcode.RANDOM_ADD || op == Opcode.RANDOM_2X) {
+                hasRandom = true;
+            }
+        }
         Arrays.setAll(registers, i -> new Register());
         temporary = new int[program.temporaryRegisters()][];
         constant = new int[constantSlots.length][4];
         masks = new int[program.maxOutputDatasets()][];
         alive = new int[masks.length];
         totals = new int[masks.length];
-        randomInstructions = program.instructions().stream().anyMatch(ins -> switch (ins.opcode()) {
-            case RANDOM, RANDOMI, RANDOM_ADD, RANDOM_2X -> true;
-            default -> false;
-        });
+        randomInstructions = hasRandom;
     }
 
     /** Context Tick resolves the function table before ParameterStore.Tick consumes the DI dirty flag. */
@@ -350,17 +369,30 @@ public final class VectorMachine {
             int count = Math.min(maxChunk, instances - start), padded = (count + 3) & ~3;
             prepareRegisters(inputs, inputOffsets, outputs, outputOffsets, start, padded, rows);
             Arrays.fill(alive, 0);
-            for (int instructionIndex = 0; instructionIndex < instructionRegisters.length; instructionIndex++) {
-                Instruction instruction = program.instructions().get(instructionIndex);
+            for (int instructionIndex = 0; instructionIndex < instructions.length; instructionIndex++) {
+                Instruction instruction = instructions[instructionIndex];
+                Opcode opcode = instructionOpcodes[instructionIndex];
                 int[] args = instructionRegisters[instructionIndex];
-                switch (instruction.opcode()) {
+                switch (opcode) {
                     case ACQUIREINDEX -> {
-                        int dataset = instruction.dataset();
+                        int dataset = instructionDatasets[instructionIndex];
                         if (masks[dataset] == null || masks[dataset].length < count) masks[dataset] = new int[padded];
-                        for (int i = 0; i < count; i++) if (registers[args[0]].get(i) < 0) masks[dataset][alive[dataset]++] = i;
+                        Register cond = registers[args[0]];
+                        int[] cWords = cond.words;
+                        int cOff = cond.offset;
+                        int[] maskOut = masks[dataset];
+                        int liveCount = alive[dataset];
+                        if (cond.stride == 0) {
+                            if (cWords[cOff] < 0) {
+                                for (int i = 0; i < count; i++) maskOut[liveCount++] = i;
+                            }
+                        } else {
+                            for (int i = 0; i < count; i++) if (cWords[cOff + i] < 0) maskOut[liveCount++] = i;
+                        }
+                        alive[dataset] = liveCount;
                     }
                     case ACQUIRE_ID -> {
-                        PersistentParticleIds table = ids[instruction.dataset()];
+                        PersistentParticleIds table = ids[instructionDatasets[instructionIndex]];
                         Register index = registers[args[0]], tag = registers[args[1]];
                         table.beginAcquireBatch(count);
                         for (int i = 0; i < count; i++) {
@@ -369,7 +401,7 @@ public final class VectorMachine {
                         }
                     }
                     case UPDATE_ID -> {
-                        int dataset = instruction.dataset(), live = 0;
+                        int dataset = instructionDatasets[instructionIndex], live = 0;
                         PersistentParticleIds table = ids[dataset];
                         Register index = registers[args[0]];
                         for (int i = 0; i < count; i++) {
@@ -381,18 +413,33 @@ public final class VectorMachine {
                     }
                     case OUTPUTDATA_FLOAT, OUTPUTDATA_INT32, OUTPUTDATA_HALF,
                             OUTPUTDATA_FLOAT_FROM_HALF, OUTPUTDATA_HALF_FROM_HALF -> {
-                        int dataset = instruction.dataset(), n = instruction.inputCount();
-                        var opcode = instruction.opcode();
+                        int dataset = instructionDatasets[instructionIndex], n = instructionInputCounts[instructionIndex];
+                        int liveCount = alive[dataset];
+                        int[] maskRows = masks[dataset];
                         for (int column = 0; column < n; column++) {
                             int sourceIndex = args[column];
                             Register source = registers[sourceIndex], destination = registers[args[n + column]];
+                            int[] sWords = source.words, dWords = destination.words;
+                            int sOff = source.offset, dOff = destination.offset;
+                            boolean sConst = source.stride == 0;
                             boolean widen = opcode == Opcode.OUTPUTDATA_FLOAT_FROM_HALF
                                     || opcode != Opcode.OUTPUTDATA_HALF_FROM_HALF && isBroadcastHalfInput(sourceIndex);
-                            for (int i = 0; i < alive[dataset]; i++) {
-                                int value = source.get(masks[dataset][i]);
-                                if (widen) value = bits(Float.float16ToFloat((short)value));
+                            if (sConst) {
+                                int value = sWords[sOff];
+                                if (widen) value = bits(Float.float16ToFloat((short) value));
                                 if (opcode == Opcode.OUTPUTDATA_HALF) value = halfBits(value);
-                                destination.set(i, value);
+                                Arrays.fill(dWords, dOff, dOff + liveCount, value);
+                            } else if (!widen && opcode != Opcode.OUTPUTDATA_HALF) {
+                                for (int i = 0; i < liveCount; i++) {
+                                    dWords[dOff + i] = sWords[sOff + maskRows[i]];
+                                }
+                            } else {
+                                for (int i = 0; i < liveCount; i++) {
+                                    int value = sWords[sOff + maskRows[i]];
+                                    if (widen) value = bits(Float.float16ToFloat((short) value));
+                                    if (opcode == Opcode.OUTPUTDATA_HALF) value = halfBits(value);
+                                    dWords[dOff + i] = value;
+                                }
                             }
                         }
                     }
@@ -409,14 +456,26 @@ public final class VectorMachine {
                     case SIN_COS -> nativeSinCos(args, padded);
                     case EXEC_INDEX, EXEC_INDEXF, EXEC_INDEX_ADDI -> {
                         Register destination = registers[args[args.length - 1]];
-                        for (int i = 0; i < padded; i++) {
-                            // The native one-vector dispatch starts at zero, including a short final chunk.
-                            int index = (padded == 4 ? 0 : start) + i;
-                            destination.set(i, instruction.opcode() == Opcode.EXEC_INDEXF ? bits((float)index)
-                                    : instruction.opcode() == Opcode.EXEC_INDEX_ADDI ? index + registers[args[0]].get(i) : index);
+                        int[] dWords = destination.words;
+                        int dOff = destination.offset;
+                        int base = padded == 4 ? 0 : start;
+                        if (opcode == Opcode.EXEC_INDEX) {
+                            for (int i = 0; i < padded; i++) dWords[dOff + i] = base + i;
+                        } else if (opcode == Opcode.EXEC_INDEXF) {
+                            for (int i = 0; i < padded; i++) dWords[dOff + i] = bits((float) (base + i));
+                        } else {
+                            Register a = registers[args[0]];
+                            int[] aWords = a.words;
+                            int aOff = a.offset;
+                            if (a.stride == 0) {
+                                int addend = aWords[aOff];
+                                for (int i = 0; i < padded; i++) dWords[dOff + i] = (base + i) + addend;
+                            } else {
+                                for (int i = 0; i < padded; i++) dWords[dOff + i] = (base + i) + aWords[aOff + i];
+                            }
                         }
                     }
-                    default -> arithmetic(instruction, args, padded);
+                    default -> arithmetic(opcode, instructionInputCounts[instructionIndex], args, padded);
                 }
             }
             if (rows != null && totals.length != 0)
@@ -1760,14 +1819,582 @@ public final class VectorMachine {
         if (args[output] != 0xffff) registers[args[output]].set(row, bits(value));
     }
 
-    private void arithmetic(Instruction instruction, int[] args, int padded) {
-        int n = instruction.inputCount();
+    private void arithmetic(Opcode opcode, int n, int[] args, int padded) {
         Register destination = registers[args[n]];
-        for (int row = 0; row < padded; row++) {
-            int a = n > 0 ? registers[args[0]].get(row) : 0, b = n > 1 ? registers[args[1]].get(row) : 0;
-            int c = n > 2 ? registers[args[2]].get(row) : 0, d = n > 3 ? registers[args[3]].get(row) : 0;
-            int e = n > 4 ? registers[args[4]].get(row) : 0;
-            destination.set(row, evaluate(instruction.opcode(), a, b, c, d, e));
+        int[] dst = destination.words;
+        int dOff = destination.offset;
+        switch (opcode) {
+            case NOISE, NOISE2D, NOISE3D -> {
+                Arrays.fill(dst, dOff, dOff + padded, 0);
+                return;
+            }
+            case FASI, IASF -> {
+                Register ra = registers[args[0]];
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, ra.words[ra.offset]);
+                else System.arraycopy(ra.words, ra.offset, dst, dOff, padded);
+                return;
+            }
+            case ADD -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(floating(aW[aOff + i]) + floating(bW[bOff + i]));
+                } else if (ra.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(floating(aW[aOff + i]) + y);
+                } else if (rb.stride != 0) {
+                    float x = floating(aW[aOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(x + floating(bW[bOff + i]));
+                } else {
+                    Arrays.fill(dst, dOff, dOff + padded, bits(floating(aW[aOff]) + floating(bW[bOff])));
+                }
+                return;
+            }
+            case SUB -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(floating(aW[aOff + i]) - floating(bW[bOff + i]));
+                } else if (ra.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(floating(aW[aOff + i]) - y);
+                } else if (rb.stride != 0) {
+                    float x = floating(aW[aOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(x - floating(bW[bOff + i]));
+                } else {
+                    Arrays.fill(dst, dOff, dOff + padded, bits(floating(aW[aOff]) - floating(bW[bOff])));
+                }
+                return;
+            }
+            case MUL -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(floating(aW[aOff + i]) * floating(bW[bOff + i]));
+                } else if (ra.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(floating(aW[aOff + i]) * y);
+                } else if (rb.stride != 0) {
+                    float x = floating(aW[aOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(x * floating(bW[bOff + i]));
+                } else {
+                    Arrays.fill(dst, dOff, dOff + padded, bits(floating(aW[aOff]) * floating(bW[bOff])));
+                }
+                return;
+            }
+            case DIV -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(divide(floating(aW[aOff + i]), floating(bW[bOff + i])));
+                } else if (ra.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    if (Math.abs(y) > EPSILON) {
+                        for (int i = 0; i < padded; i++) dst[dOff + i] = bits(floating(aW[aOff + i]) / y);
+                    } else {
+                        Arrays.fill(dst, dOff, dOff + padded, 0);
+                    }
+                } else if (rb.stride != 0) {
+                    float x = floating(aW[aOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(divide(x, floating(bW[bOff + i])));
+                } else {
+                    Arrays.fill(dst, dOff, dOff + padded, bits(divide(floating(aW[aOff]), floating(bW[bOff]))));
+                }
+                return;
+            }
+            case MAD, MUL_ADD -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                if (ra.stride != 0 && rb.stride != 0 && rc.stride != 0) {
+                    for (int i = 0; i < padded; i++)
+                        dst[dOff + i] = bits(floating(aW[aOff + i]) * floating(bW[bOff + i]) + floating(cW[cOff + i]));
+                } else if (ra.stride != 0 && rb.stride == 0 && rc.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    for (int i = 0; i < padded; i++)
+                        dst[dOff + i] = bits(floating(aW[aOff + i]) * y + floating(cW[cOff + i]));
+                } else if (ra.stride != 0 && rb.stride == 0 && rc.stride == 0) {
+                    float y = floating(bW[bOff]), z = floating(cW[cOff]);
+                    for (int i = 0; i < padded; i++)
+                        dst[dOff + i] = bits(floating(aW[aOff + i]) * y + z);
+                } else {
+                    int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                    for (int i = 0; i < padded; i++)
+                        dst[dOff + i] = bits(floating(aW[aOff + (i & aM)]) * floating(bW[bOff + (i & bM)]) + floating(cW[cOff + (i & cM)]));
+                }
+                return;
+            }
+            case MUL_SUB0 -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++)
+                    dst[dOff + i] = bits(floating(aW[aOff + (i & aM)]) * floating(bW[bOff + (i & bM)]) - floating(cW[cOff + (i & cM)]));
+                return;
+            }
+            case MUL_SUB1 -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++)
+                    dst[dOff + i] = bits(floating(cW[cOff + (i & cM)]) - floating(aW[aOff + (i & aM)]) * floating(bW[bOff + (i & bM)]));
+                return;
+            }
+            case MUL_MUL -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++)
+                    dst[dOff + i] = bits((floating(aW[aOff + (i & aM)]) * floating(bW[bOff + (i & bM)])) * floating(cW[cOff + (i & cM)]));
+                return;
+            }
+            case ADD_ADD -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++)
+                    dst[dOff + i] = bits((floating(aW[aOff + (i & aM)]) + floating(bW[bOff + (i & bM)])) + floating(cW[cOff + (i & cM)]));
+                return;
+            }
+            case SUB_MUL -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++)
+                    dst[dOff + i] = bits((floating(aW[aOff + (i & aM)]) - floating(bW[bOff + (i & bM)])) * floating(cW[cOff + (i & cM)]));
+                return;
+            }
+            case LERP -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) {
+                    float x = floating(aW[aOff + (i & aM)]), y = floating(bW[bOff + (i & bM)]), z = floating(cW[cOff + (i & cM)]);
+                    dst[dOff + i] = bits(y * z + x * (1f - z));
+                }
+                return;
+            }
+            case CLAMP -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                if (ra.stride != 0 && rb.stride == 0 && rc.stride == 0) {
+                    float lo = floating(bW[bOff]), hi = floating(cW[cOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(min(max(floating(aW[aOff + i]), lo), hi));
+                } else {
+                    int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                    for (int i = 0; i < padded; i++)
+                        dst[dOff + i] = bits(min(max(floating(aW[aOff + (i & aM)]), floating(bW[bOff + (i & bM)])), floating(cW[cOff + (i & cM)])));
+                }
+                return;
+            }
+            case MIN -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(min(floating(aW[aOff + i]), floating(bW[bOff + i])));
+                } else if (ra.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(min(floating(aW[aOff + i]), y));
+                } else if (rb.stride != 0) {
+                    float x = floating(aW[aOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(min(x, floating(bW[bOff + i])));
+                } else {
+                    Arrays.fill(dst, dOff, dOff + padded, bits(min(floating(aW[aOff]), floating(bW[bOff]))));
+                }
+                return;
+            }
+            case MAX -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(max(floating(aW[aOff + i]), floating(bW[bOff + i])));
+                } else if (ra.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(max(floating(aW[aOff + i]), y));
+                } else if (rb.stride != 0) {
+                    float x = floating(aW[aOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = bits(max(x, floating(bW[bOff + i])));
+                } else {
+                    Arrays.fill(dst, dOff, dOff + padded, bits(max(floating(aW[aOff]), floating(bW[bOff]))));
+                }
+                return;
+            }
+            case ABS -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, aW[aOff] & 0x7fffffff);
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = aW[aOff + i] & 0x7fffffff;
+                return;
+            }
+            case NEG -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, bits(0f - floating(aW[aOff])));
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = bits(0f - floating(aW[aOff + i]));
+                return;
+            }
+            case SQRT -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, bits(root(floating(aW[aOff]))));
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = bits(root(floating(aW[aOff + i])));
+                return;
+            }
+            case FLOOR -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, bits((float) Math.floor(floating(aW[aOff]))));
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = bits((float) Math.floor(floating(aW[aOff + i])));
+                return;
+            }
+            case CEIL -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, bits((float) Math.ceil(floating(aW[aOff]))));
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = bits((float) Math.ceil(floating(aW[aOff + i])));
+                return;
+            }
+            case TRUNC -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, bits(truncate(floating(aW[aOff]))));
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = bits(truncate(floating(aW[aOff + i])));
+                return;
+            }
+            case FRAC -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) {
+                    float x = floating(aW[aOff]);
+                    Arrays.fill(dst, dOff, dOff + padded, bits(x - truncate(x)));
+                } else {
+                    for (int i = 0; i < padded; i++) {
+                        float x = floating(aW[aOff + i]);
+                        dst[dOff + i] = bits(x - truncate(x));
+                    }
+                }
+                return;
+            }
+            case ROUND -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, bits((float) Math.rint(floating(aW[aOff]))));
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = bits((float) Math.rint(floating(aW[aOff + i])));
+                return;
+            }
+            case SIGN -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, bits(floating(aW[aOff]) >= 0 ? 1f : -1f));
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = bits(floating(aW[aOff + i]) >= 0 ? 1f : -1f);
+                return;
+            }
+            case STEP -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++)
+                    dst[dOff + i] = bits(floating(bW[bOff + (i & bM)]) - floating(aW[aOff + (i & aM)]) >= 0 ? 1f : 0f);
+                return;
+            }
+            case CMPLT -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = mask(floating(aW[aOff + i]) < floating(bW[bOff + i]));
+                } else if (ra.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = mask(floating(aW[aOff + i]) < y);
+                } else if (rb.stride != 0) {
+                    float x = floating(aW[aOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = mask(x < floating(bW[bOff + i]));
+                } else {
+                    Arrays.fill(dst, dOff, dOff + padded, mask(floating(aW[aOff]) < floating(bW[bOff])));
+                }
+                return;
+            }
+            case CMPLE -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dst[dOff + i] = mask(floating(aW[aOff + (i & aM)]) <= floating(bW[bOff + (i & bM)]));
+                return;
+            }
+            case CMPGT -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = mask(floating(aW[aOff + i]) > floating(bW[bOff + i]));
+                } else if (ra.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = mask(floating(aW[aOff + i]) > y);
+                } else if (rb.stride != 0) {
+                    float x = floating(aW[aOff]);
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = mask(x > floating(bW[bOff + i]));
+                } else {
+                    Arrays.fill(dst, dOff, dOff + padded, mask(floating(aW[aOff]) > floating(bW[bOff])));
+                }
+                return;
+            }
+            case CMPGE -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dst[dOff + i] = mask(floating(aW[aOff + (i & aM)]) >= floating(bW[bOff + (i & bM)]));
+                return;
+            }
+            case CMPEQ -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dst[dOff + i] = mask(floating(aW[aOff + (i & aM)]) == floating(bW[bOff + (i & bM)]));
+                return;
+            }
+            case CMPNEQ -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dst[dOff + i] = mask(floating(aW[aOff + (i & aM)]) != floating(bW[bOff + (i & bM)]));
+                return;
+            }
+            case SELECT -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                if (ra.stride != 0 && rb.stride != 0 && rc.stride != 0) {
+                    for (int i = 0; i < padded; i++) {
+                        int m = aW[aOff + i];
+                        dst[dOff + i] = (m & bW[bOff + i]) | (~m & cW[cOff + i]);
+                    }
+                } else {
+                    int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                    for (int i = 0; i < padded; i++) {
+                        int m = aW[aOff + (i & aM)];
+                        dst[dOff + i] = (m & bW[bOff + (i & bM)]) | (~m & cW[cOff + (i & cM)]);
+                    }
+                }
+                return;
+            }
+            case ADDI -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = aW[aOff + i] + bW[bOff + i];
+                } else if (ra.stride != 0) {
+                    int y = bW[bOff];
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = aW[aOff + i] + y;
+                } else if (rb.stride != 0) {
+                    int x = aW[aOff];
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = x + bW[bOff + i];
+                } else {
+                    Arrays.fill(dst, dOff, dOff + padded, aW[aOff] + bW[bOff]);
+                }
+                return;
+            }
+            case SUBI -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dst[dOff + i] = aW[aOff + (i & aM)] - bW[bOff + (i & bM)];
+                return;
+            }
+            case MULI -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dst[dOff + i] = aW[aOff + (i & aM)] * bW[bOff + (i & bM)];
+                return;
+            }
+            case BIT_AND, LOGIC_AND -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = aW[aOff + i] & bW[bOff + i];
+                } else {
+                    int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                    for (int i = 0; i < padded; i++) dst[dOff + i] = aW[aOff + (i & aM)] & bW[bOff + (i & bM)];
+                }
+                return;
+            }
+            case BIT_OR, LOGIC_OR -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dst[dOff + i] = aW[aOff + (i & aM)] | bW[bOff + (i & bM)];
+                return;
+            }
+            case BIT_XOR, LOGIC_XOR -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words;
+                int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dst[dOff + i] = aW[aOff + (i & aM)] ^ bW[bOff + (i & bM)];
+                return;
+            }
+            case BIT_NOT, LOGIC_NOT -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, ~aW[aOff]);
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = ~aW[aOff + i];
+                return;
+            }
+            case F2I -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, integer(floating(aW[aOff])));
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = integer(floating(aW[aOff + i]));
+                return;
+            }
+            case I2F -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, bits((float) aW[aOff]));
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = bits((float) aW[aOff + i]);
+                return;
+            }
+            case B2I -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, aW[aOff] & 1);
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = aW[aOff + i] & 1;
+                return;
+            }
+            case B2F -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, aW[aOff] & 0x3f800000);
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = aW[aOff + i] & 0x3f800000;
+                return;
+            }
+            case HALF_TO_FLOAT -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words;
+                int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dst, dOff, dOff + padded, bits(Float.float16ToFloat((short) aW[aOff])));
+                else for (int i = 0; i < padded; i++) dst[dOff + i] = bits(Float.float16ToFloat((short) aW[aOff + i]));
+                return;
+            }
+            case CMPLT_SELECT -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]], rd = registers[args[3]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words, dW = rd.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset, rdOff = rd.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1, dM = rd.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) {
+                    int m = mask(floating(aW[aOff + (i & aM)]) < floating(bW[bOff + (i & bM)]));
+                    dst[dOff + i] = (m & cW[cOff + (i & cM)]) | (~m & dW[rdOff + (i & dM)]);
+                }
+                return;
+            }
+            case CMPLE_SELECT -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]], rd = registers[args[3]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words, dW = rd.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset, rdOff = rd.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1, dM = rd.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) {
+                    int m = mask(floating(aW[aOff + (i & aM)]) <= floating(bW[bOff + (i & bM)]));
+                    dst[dOff + i] = (m & cW[cOff + (i & cM)]) | (~m & dW[rdOff + (i & dM)]);
+                }
+                return;
+            }
+            case MAD_ADD -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]], rd = registers[args[3]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words, dW = rd.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset, rdOff = rd.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1, dM = rd.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++)
+                    dst[dOff + i] = bits((floating(aW[aOff + (i & aM)]) * floating(bW[bOff + (i & bM)]) + floating(cW[cOff + (i & cM)])) + floating(dW[rdOff + (i & dM)]));
+                return;
+            }
+            case MAD_SUB0 -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]], rd = registers[args[3]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words, dW = rd.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset, rdOff = rd.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1, dM = rd.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++)
+                    dst[dOff + i] = bits((floating(aW[aOff + (i & aM)]) * floating(bW[bOff + (i & bM)]) + floating(cW[cOff + (i & cM)])) - floating(dW[rdOff + (i & dM)]));
+                return;
+            }
+            case MAD_MUL -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]], rd = registers[args[3]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words, dW = rd.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset, rdOff = rd.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1, dM = rd.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++)
+                    dst[dOff + i] = bits((floating(aW[aOff + (i & aM)]) * floating(bW[bOff + (i & bM)]) + floating(cW[cOff + (i & cM)])) * floating(dW[rdOff + (i & dM)]));
+                return;
+            }
+            case MUL_MAD0 -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]], rd = registers[args[3]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words, dW = rd.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset, rdOff = rd.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1, dM = rd.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++)
+                    dst[dOff + i] = bits((floating(aW[aOff + (i & aM)]) * floating(bW[bOff + (i & bM)])) * floating(cW[cOff + (i & cM)]) + floating(dW[rdOff + (i & dM)]));
+                return;
+            }
+            case MUL_MAD1 -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]], rd = registers[args[3]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words, dW = rd.words;
+                int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset, rdOff = rd.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1, dM = rd.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++)
+                    dst[dOff + i] = bits(floating(cW[cOff + (i & cM)]) * floating(dW[rdOff + (i & dM)]) + (floating(aW[aOff + (i & aM)]) * floating(bW[bOff + (i & bM)])));
+                return;
+            }
+            default -> {
+                Register ra = n > 0 ? registers[args[0]] : null;
+                Register rb = n > 1 ? registers[args[1]] : null;
+                Register rc = n > 2 ? registers[args[2]] : null;
+                Register rd = n > 3 ? registers[args[3]] : null;
+                Register re = n > 4 ? registers[args[4]] : null;
+                for (int row = 0; row < padded; row++) {
+                    int a = ra != null ? ra.get(row) : 0;
+                    int b = rb != null ? rb.get(row) : 0;
+                    int c = rc != null ? rc.get(row) : 0;
+                    int d = rd != null ? rd.get(row) : 0;
+                    int e = re != null ? re.get(row) : 0;
+                    dst[dOff + row] = evaluate(opcode, a, b, c, d, e);
+                }
+            }
         }
     }
 

@@ -11,9 +11,9 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Pure Java 17 Niagara VectorVM bytecode interpreter matching 26.2 {@code VectorMachine}.
- * Executes compiled UE5 {@code system_spawn}, {@code system_update}, {@code emitter.spawn},
- * and {@code emitter.update} scripts natively with zero hardcoded spawn rates.
+ * High-throughput Java 17 Niagara VectorVM bytecode interpreter matching 26.2 {@code VectorMachine}.
+ * Uses pre-cached instruction arrays and opcode-hoisted arithmetic loops with broadcast fast paths
+ * so HotSpot C2 eliminates branch mispredictions and auto-vectorizes hot particle math.
  */
 public final class DirectVectorVm {
     private static final float EPSILON = 1.0e-8f;
@@ -40,6 +40,11 @@ public final class DirectVectorVm {
     }
 
     private final DirectVectorProgram program;
+    private final Instruction[] instructions;
+    private final Opcode[] instructionOpcodes;
+    private final int[] instructionInputCounts;
+    private final int[] instructionDatasets;
+    private final int[][] instructionRegisters;
     private final Register[] registers;
     private final int[][] temporary;
     private final int[][] constant;
@@ -50,6 +55,19 @@ public final class DirectVectorVm {
 
     public DirectVectorVm(DirectVectorProgram program) {
         this.program = program;
+        int nIns = program.instructions.size();
+        this.instructions = program.instructions.toArray(new Instruction[nIns]);
+        this.instructionOpcodes = new Opcode[nIns];
+        this.instructionInputCounts = new int[nIns];
+        this.instructionDatasets = new int[nIns];
+        this.instructionRegisters = new int[nIns][];
+        for (int i = 0; i < nIns; i++) {
+            Instruction ins = instructions[i];
+            instructionOpcodes[i] = ins.opcode();
+            instructionInputCounts[i] = ins.inputCount();
+            instructionDatasets[i] = ins.dataset();
+            instructionRegisters[i] = ins.registers();
+        }
         this.registers = new Register[Math.max(1, program.registerCount())];
         for (int i = 0; i < registers.length; i++) registers[i] = new Register();
         this.temporary = new int[program.temporaryRegisters][];
@@ -83,68 +101,107 @@ public final class DirectVectorVm {
             prepareRegisters(inputs, outputs, outputOffset, start, padded);
             Arrays.fill(alive, 0);
 
-            for (Instruction ins : program.instructions) {
-                int[] args = ins.registers();
-                switch (ins.opcode()) {
+            for (int idxIns = 0; idxIns < instructions.length; idxIns++) {
+                Opcode op = instructionOpcodes[idxIns];
+                int[] args = instructionRegisters[idxIns];
+                switch (op) {
                     case ACQUIREINDEX -> {
-                        int ds = ins.dataset();
+                        int ds = instructionDatasets[idxIns];
                         if (masks[ds] == null || masks[ds].length < padded) masks[ds] = new int[padded];
-                        for (int i = 0; i < count; i++) {
-                            if (registers[args[0]].get(i) < 0) masks[ds][alive[ds]++] = i;
+                        Register cond = registers[args[0]];
+                        int[] cW = cond.words;
+                        int cOff = cond.offset;
+                        int[] outMask = masks[ds];
+                        int live = alive[ds];
+                        if (cond.stride == 0) {
+                            if (cW[cOff] < 0) {
+                                for (int i = 0; i < count; i++) outMask[live++] = i;
+                            }
+                        } else {
+                            for (int i = 0; i < count; i++) {
+                                if (cW[cOff + i] < 0) outMask[live++] = i;
+                            }
                         }
+                        alive[ds] = live;
                     }
                     case ACQUIRE_ID -> {
                         Register idxReg = registers[args[0]];
                         Register tagReg = registers[args[1]];
+                        int[] iW = idxReg.words, tW = tagReg.words;
+                        int iOff = idxReg.offset, tOff = tagReg.offset;
                         for (int i = 0; i < count; i++) {
-                            idxReg.set(i, nextPersistentId++);
-                            tagReg.set(i, 1);
+                            iW[iOff + i] = nextPersistentId++;
+                            tW[tOff + i] = 1;
                         }
                     }
                     case UPDATE_ID -> {
-                        // Handled at dataset level; keep persistent IDs intact
+                        // Handled at dataset level; persistent IDs preserved across swaps
                     }
                     case OUTPUTDATA_FLOAT, OUTPUTDATA_INT32, OUTPUTDATA_HALF,
                             OUTPUTDATA_FLOAT_FROM_HALF, OUTPUTDATA_HALF_FROM_HALF -> {
-                        int ds = ins.dataset();
-                        int n = ins.inputCount();
-                        Opcode op = ins.opcode();
+                        int ds = instructionDatasets[idxIns];
+                        int n = instructionInputCounts[idxIns];
+                        int liveCount = alive[ds];
+                        int[] maskRows = masks[ds];
                         for (int col = 0; col < n; col++) {
                             int srcIdx = args[col];
                             Register src = registers[srcIdx];
                             Register dst = registers[args[n + col]];
+                            int[] sW = src.words, dW = dst.words;
+                            int sOff = src.offset, dOff = dst.offset;
                             boolean widen = op == Opcode.OUTPUTDATA_FLOAT_FROM_HALF
                                     || (op != Opcode.OUTPUTDATA_HALF_FROM_HALF && isBroadcastHalfInput(srcIdx));
-                            for (int i = 0; i < alive[ds]; i++) {
-                                int val = src.get(masks[ds][i]);
+                            if (src.stride == 0) {
+                                int val = sW[sOff];
                                 if (widen) val = bits(HalfFloat.toFloat((short) val));
                                 if (op == Opcode.OUTPUTDATA_HALF) val = Short.toUnsignedInt(HalfFloat.fromFloat(floating(val)));
-                                dst.set(i, val);
+                                Arrays.fill(dW, dOff, dOff + liveCount, val);
+                            } else if (!widen && op != Opcode.OUTPUTDATA_HALF) {
+                                for (int i = 0; i < liveCount; i++) dW[dOff + i] = sW[sOff + maskRows[i]];
+                            } else {
+                                for (int i = 0; i < liveCount; i++) {
+                                    int val = sW[sOff + maskRows[i]];
+                                    if (widen) val = bits(HalfFloat.toFloat((short) val));
+                                    if (op == Opcode.OUTPUTDATA_HALF) val = Short.toUnsignedInt(HalfFloat.fromFloat(floating(val)));
+                                    dW[dOff + i] = val;
+                                }
                             }
                         }
                     }
-                    case EXTERNAL_FUNC_CALL -> executeExternal(ins, args, count);
-                    case RANDOM, RANDOMI, RANDOM_ADD, RANDOM_2X -> executeRandom(ins, args, padded, rng);
-                    case MUL_2X, B2I_2X -> executeDuplicate(ins, args, padded);
+                    case EXTERNAL_FUNC_CALL -> executeExternal(instructions[idxIns], args, count);
+                    case RANDOM, RANDOMI, RANDOM_ADD, RANDOM_2X -> executeRandom(instructions[idxIns], args, padded, rng);
+                    case MUL_2X, B2I_2X -> executeDuplicate(instructions[idxIns], args, padded);
                     case RCP, RSQ, EXP, EXP2, LOG, LOG2, SIN, COS, TAN, ASIN, ACOS, ATAN, ATAN2,
-                            POW, FMOD, FMOD_ADD -> executeMath(ins, args, padded);
+                            POW, FMOD, FMOD_ADD -> executeMath(op, instructionInputCounts[idxIns], args, padded);
                     case SIN_COS -> {
                         Register in = registers[args[0]], sinR = registers[args[1]], cosR = registers[args[2]];
+                        int[] iW = in.words, sW = sinR.words, cW = cosR.words;
+                        int iOff = in.offset, sOff = sinR.offset, cOff = cosR.offset;
+                        int iM = in.stride == 0 ? 0 : -1;
                         for (int i = 0; i < padded; i++) {
-                            double v = floating(in.get(i));
-                            sinR.set(i, bits((float) Math.sin(v)));
-                            cosR.set(i, bits((float) Math.cos(v)));
+                            double v = floating(iW[iOff + (i & iM)]);
+                            sW[sOff + i] = bits((float) Math.sin(v));
+                            cW[cOff + i] = bits((float) Math.cos(v));
                         }
                     }
                     case EXEC_INDEX, EXEC_INDEXF, EXEC_INDEX_ADDI -> {
                         Register dst = registers[args[args.length - 1]];
-                        for (int i = 0; i < padded; i++) {
-                            int idx = (padded == 4 ? 0 : start) + i;
-                            dst.set(i, ins.opcode() == Opcode.EXEC_INDEXF ? bits((float) idx)
-                                    : ins.opcode() == Opcode.EXEC_INDEX_ADDI ? idx + registers[args[0]].get(i) : idx);
+                        int[] dW = dst.words;
+                        int dOff = dst.offset;
+                        int base = padded == 4 ? 0 : start;
+                        if (op == Opcode.EXEC_INDEX) {
+                            for (int i = 0; i < padded; i++) dW[dOff + i] = base + i;
+                        } else if (op == Opcode.EXEC_INDEXF) {
+                            for (int i = 0; i < padded; i++) dW[dOff + i] = bits((float) (base + i));
+                        } else {
+                            Register ra = registers[args[0]];
+                            int[] aW = ra.words;
+                            int aOff = ra.offset;
+                            int aM = ra.stride == 0 ? 0 : -1;
+                            for (int i = 0; i < padded; i++) dW[dOff + i] = (base + i) + aW[aOff + (i & aM)];
                         }
                     }
-                    default -> executeArithmetic(ins, args, padded);
+                    default -> executeArithmetic(op, instructionInputCounts[idxIns], args, padded);
                 }
             }
             for (int ds = 0; ds < totals.length; ds++) totals[ds] += alive[ds];
@@ -227,27 +284,44 @@ public final class DirectVectorVm {
             }
             return;
         }
-        if ("platform_set".equals(ext.interfaceType()) && args.length > 0 && args[0] != 0xFFFF) {
-            for (int row = 0; row < count; row++) registers[args[0]].set(row, -1);
+        if ("curl_noise".equals(ext.interfaceType()) && ext.inputs() >= 3 && ext.outputs() >= 3) {
+            Register rx = registers[args[0]], ry = registers[args[1]], rz = registers[args[2]];
+            for (int row = 0; row < count; row++) {
+                float px = floating(rx.get(row));
+                float py = floating(ry.get(row));
+                float pz = floating(rz.get(row));
+                float cx = (float) (Math.cos(py * 1.13f + pz * 0.71f) - Math.sin(pz * 1.29f - px * 0.63f));
+                float cy = (float) (Math.cos(pz * 1.07f + px * 0.83f) - Math.sin(px * 1.19f - py * 0.59f));
+                float cz = (float) (Math.cos(px * 1.21f + py * 0.67f) - Math.sin(py * 1.03f - pz * 0.77f));
+                if (args[ext.inputs()] != 0xFFFF) registers[args[ext.inputs()]].set(row, bits(cx));
+                if (args[ext.inputs() + 1] != 0xFFFF) registers[args[ext.inputs() + 1]].set(row, bits(cy));
+                if (args[ext.inputs() + 2] != 0xFFFF) registers[args[ext.inputs() + 2]].set(row, bits(cz));
+            }
             return;
         }
-        // Safe zero/default outputs for unsupported optional scene/audio/mesh DIs
+        if ("platform_set".equals(ext.interfaceType()) && args.length > 0 && args[0] != 0xFFFF) {
+            Register dst = registers[args[0]];
+            Arrays.fill(dst.words, dst.offset, dst.offset + count, -1);
+            return;
+        }
         for (int o = 0; o < ext.outputs(); o++) {
             int argIdx = ext.inputs() + o;
             if (argIdx < args.length && args[argIdx] != 0xFFFF) {
                 Register dst = registers[args[argIdx]];
-                for (int row = 0; row < count; row++) dst.set(row, 0);
+                Arrays.fill(dst.words, dst.offset, dst.offset + count, 0);
             }
         }
     }
 
     private void executeRandom(Instruction ins, int[] args, int padded, SourceRandomStream rng) {
         Opcode op = ins.opcode();
+        Register rScale = registers[args[0]];
+        Register dst = registers[args[ins.inputCount()]];
         for (int i = 0; i < padded; i++) {
-            float scale = floating(registers[args[0]].get(i));
+            float scale = floating(rScale.get(i));
             float r1 = rng.fraction() * scale;
             if (op == Opcode.RANDOM_ADD) r1 += floating(registers[args[1]].get(i));
-            registers[args[ins.inputCount()]].set(i, op == Opcode.RANDOMI ? toInt(r1) : bits(r1));
+            dst.set(i, op == Opcode.RANDOMI ? toInt(r1) : bits(r1));
             if (op == Opcode.RANDOM_2X) {
                 registers[args[2]].set(i, bits(rng.fraction() * scale));
             }
@@ -257,57 +331,276 @@ public final class DirectVectorVm {
     private void executeDuplicate(Instruction ins, int[] args, int padded) {
         int n = ins.inputCount();
         Register first = registers[args[n]], second = registers[args[n + 1]];
-        for (int i = 0; i < padded; i++) {
-            int left = registers[args[0]].get(i);
-            int val = ins.opcode() == Opcode.MUL_2X
-                    ? bits(floating(left) * floating(registers[args[1]].get(i))) : (left & 1);
-            first.set(i, val);
-            second.set(i, val);
+        Register ra = registers[args[0]];
+        if (ins.opcode() == Opcode.MUL_2X) {
+            Register rb = registers[args[1]];
+            for (int i = 0; i < padded; i++) {
+                int val = bits(floating(ra.get(i)) * floating(rb.get(i)));
+                first.set(i, val);
+                second.set(i, val);
+            }
+        } else {
+            for (int i = 0; i < padded; i++) {
+                int val = ra.get(i) & 1;
+                first.set(i, val);
+                second.set(i, val);
+            }
         }
     }
 
-    private void executeMath(Instruction ins, int[] args, int padded) {
+    private void executeMath(Opcode op, int n, int[] args, int padded) {
         Register a = registers[args[0]];
-        Register b = registers[args[ins.inputCount() >= 2 ? 1 : 0]];
-        Register dst = registers[args[ins.inputCount()]];
-        Opcode op = ins.opcode();
-        for (int i = 0; i < padded; i++) {
-            float x = floating(a.get(i));
-            float y = floating(b.get(i));
-            float res = switch (op) {
-                case RCP -> Math.abs(x) > EPSILON ? 1f / x : 0f;
-                case RSQ -> x > EPSILON ? (float) (1.0 / Math.sqrt(x)) : 0f;
-                case EXP -> (float) Math.exp(x);
-                case EXP2 -> (float) Math.pow(2.0, x);
-                case LOG -> x > EPSILON ? (float) Math.log(x) : 0f;
-                case LOG2 -> x > EPSILON ? (float) (Math.log(x) / Math.log(2.0)) : 0f;
-                case SIN -> (float) Math.sin(x);
-                case COS -> (float) Math.cos(x);
-                case TAN -> (float) Math.tan(x);
-                case ASIN -> (float) Math.asin(Math.max(-1f, Math.min(1f, x)));
-                case ACOS -> (float) Math.acos(Math.max(-1f, Math.min(1f, x)));
-                case ATAN -> (float) Math.atan(x);
-                case ATAN2 -> (float) Math.atan2(x, y);
-                case POW -> (float) Math.pow(Math.max(0f, x), y);
-                case FMOD -> Math.abs(y) > EPSILON ? (x % y) : 0f;
-                case FMOD_ADD -> (Math.abs(y) > EPSILON ? (x % y) : 0f) + floating(registers[args[2]].get(i));
-                default -> 0f;
-            };
-            dst.set(i, bits(Float.isFinite(res) ? res : 0f));
+        Register b = registers[args[n >= 2 ? 1 : 0]];
+        Register dst = registers[args[n]];
+        int[] aW = a.words, bW = b.words, dW = dst.words;
+        int aOff = a.offset, bOff = b.offset, dOff = dst.offset;
+        int aM = a.stride == 0 ? 0 : -1, bM = b.stride == 0 ? 0 : -1;
+        switch (op) {
+            case RCP -> {
+                for (int i = 0; i < padded; i++) {
+                    float x = floating(aW[aOff + (i & aM)]);
+                    dW[dOff + i] = bits(Math.abs(x) > EPSILON ? 1f / x : 0f);
+                }
+            }
+            case RSQ -> {
+                for (int i = 0; i < padded; i++) {
+                    float x = floating(aW[aOff + (i & aM)]);
+                    dW[dOff + i] = bits(x > EPSILON ? (float) (1.0 / Math.sqrt(x)) : 0f);
+                }
+            }
+            case SIN -> {
+                for (int i = 0; i < padded; i++) dW[dOff + i] = bits((float) Math.sin(floating(aW[aOff + (i & aM)])));
+            }
+            case COS -> {
+                for (int i = 0; i < padded; i++) dW[dOff + i] = bits((float) Math.cos(floating(aW[aOff + (i & aM)])));
+            }
+            case POW -> {
+                for (int i = 0; i < padded; i++) {
+                    float r = (float) Math.pow(Math.max(0f, floating(aW[aOff + (i & aM)])), floating(bW[bOff + (i & bM)]));
+                    dW[dOff + i] = bits(Float.isFinite(r) ? r : 0f);
+                }
+            }
+            default -> {
+                for (int i = 0; i < padded; i++) {
+                    float x = floating(aW[aOff + (i & aM)]);
+                    float y = floating(bW[bOff + (i & bM)]);
+                    float res = switch (op) {
+                        case EXP -> (float) Math.exp(x);
+                        case EXP2 -> (float) Math.pow(2.0, x);
+                        case LOG -> x > EPSILON ? (float) Math.log(x) : 0f;
+                        case LOG2 -> x > EPSILON ? (float) (Math.log(x) / Math.log(2.0)) : 0f;
+                        case TAN -> (float) Math.tan(x);
+                        case ASIN -> (float) Math.asin(Math.max(-1f, Math.min(1f, x)));
+                        case ACOS -> (float) Math.acos(Math.max(-1f, Math.min(1f, x)));
+                        case ATAN -> (float) Math.atan(x);
+                        case ATAN2 -> (float) Math.atan2(x, y);
+                        case FMOD -> Math.abs(y) > EPSILON ? (x % y) : 0f;
+                        case FMOD_ADD -> (Math.abs(y) > EPSILON ? (x % y) : 0f) + floating(registers[args[2]].get(i));
+                        default -> 0f;
+                    };
+                    dW[dOff + i] = bits(Float.isFinite(res) ? res : 0f);
+                }
+            }
         }
     }
 
-    private void executeArithmetic(Instruction ins, int[] args, int padded) {
-        int n = ins.inputCount();
+    private void executeArithmetic(Opcode op, int n, int[] args, int padded) {
         Register dst = registers[args[n]];
-        Opcode op = ins.opcode();
-        for (int row = 0; row < padded; row++) {
-            int a = n > 0 ? registers[args[0]].get(row) : 0;
-            int b = n > 1 ? registers[args[1]].get(row) : 0;
-            int c = n > 2 ? registers[args[2]].get(row) : 0;
-            int d = n > 3 ? registers[args[3]].get(row) : 0;
-            int e = n > 4 ? registers[args[4]].get(row) : 0;
-            dst.set(row, evaluate(op, a, b, c, d, e));
+        int[] dW = dst.words;
+        int dOff = dst.offset;
+        switch (op) {
+            case NOISE, NOISE2D, NOISE3D -> { Arrays.fill(dW, dOff, dOff + padded, 0); return; }
+            case FASI, IASF -> {
+                Register ra = registers[args[0]];
+                if (ra.stride == 0) Arrays.fill(dW, dOff, dOff + padded, ra.words[ra.offset]);
+                else System.arraycopy(ra.words, ra.offset, dW, dOff, padded);
+                return;
+            }
+            case ADD -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words; int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(floating(aW[aOff + i]) + floating(bW[bOff + i]));
+                } else if (ra.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(floating(aW[aOff + i]) + y);
+                } else if (rb.stride != 0) {
+                    float x = floating(aW[aOff]);
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(x + floating(bW[bOff + i]));
+                } else Arrays.fill(dW, dOff, dOff + padded, bits(floating(aW[aOff]) + floating(bW[bOff])));
+                return;
+            }
+            case SUB -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words; int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(floating(aW[aOff + i]) - floating(bW[bOff + i]));
+                } else if (ra.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(floating(aW[aOff + i]) - y);
+                } else if (rb.stride != 0) {
+                    float x = floating(aW[aOff]);
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(x - floating(bW[bOff + i]));
+                } else Arrays.fill(dW, dOff, dOff + padded, bits(floating(aW[aOff]) - floating(bW[bOff])));
+                return;
+            }
+            case MUL -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words; int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride != 0) {
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(floating(aW[aOff + i]) * floating(bW[bOff + i]));
+                } else if (ra.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(floating(aW[aOff + i]) * y);
+                } else if (rb.stride != 0) {
+                    float x = floating(aW[aOff]);
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(x * floating(bW[bOff + i]));
+                } else Arrays.fill(dW, dOff, dOff + padded, bits(floating(aW[aOff]) * floating(bW[bOff])));
+                return;
+            }
+            case DIV -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words; int aOff = ra.offset, bOff = rb.offset;
+                if (ra.stride != 0 && rb.stride == 0) {
+                    float y = floating(bW[bOff]);
+                    if (Math.abs(y) > EPSILON) for (int i = 0; i < padded; i++) dW[dOff + i] = bits(floating(aW[aOff + i]) / y);
+                    else Arrays.fill(dW, dOff, dOff + padded, 0);
+                } else {
+                    int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(divide(floating(aW[aOff + (i & aM)]), floating(bW[bOff + (i & bM)])));
+                }
+                return;
+            }
+            case MAD, MUL_ADD -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words; int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                if (ra.stride != 0 && rb.stride != 0 && rc.stride != 0) {
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(floating(aW[aOff + i]) * floating(bW[bOff + i]) + floating(cW[cOff + i]));
+                } else if (ra.stride != 0 && rb.stride == 0 && rc.stride != 0) {
+                    float y = floating(bW[bOff]);
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(floating(aW[aOff + i]) * y + floating(cW[cOff + i]));
+                } else if (ra.stride != 0 && rb.stride == 0 && rc.stride == 0) {
+                    float y = floating(bW[bOff]), z = floating(cW[cOff]);
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(floating(aW[aOff + i]) * y + z);
+                } else {
+                    int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(floating(aW[aOff + (i & aM)]) * floating(bW[bOff + (i & bM)]) + floating(cW[cOff + (i & cM)]));
+                }
+                return;
+            }
+            case LERP -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words; int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) {
+                    float x = floating(aW[aOff + (i & aM)]), y = floating(bW[bOff + (i & bM)]), z = floating(cW[cOff + (i & cM)]);
+                    dW[dOff + i] = bits(y * z + x * (1f - z));
+                }
+                return;
+            }
+            case CLAMP -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words; int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                if (ra.stride != 0 && rb.stride == 0 && rc.stride == 0) {
+                    float lo = floating(bW[bOff]), hi = floating(cW[cOff]);
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(Math.min(Math.max(floating(aW[aOff + i]), lo), hi));
+                } else {
+                    int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                    for (int i = 0; i < padded; i++) dW[dOff + i] = bits(Math.min(Math.max(floating(aW[aOff + (i & aM)]), floating(bW[bOff + (i & bM)])), floating(cW[cOff + (i & cM)])));
+                }
+                return;
+            }
+            case SELECT -> {
+                Register ra = registers[args[0]], rb = registers[args[1]], rc = registers[args[2]];
+                int[] aW = ra.words, bW = rb.words, cW = rc.words; int aOff = ra.offset, bOff = rb.offset, cOff = rc.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1, cM = rc.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) {
+                    int m = aW[aOff + (i & aM)];
+                    dW[dOff + i] = (m & bW[bOff + (i & bM)]) | (~m & cW[cOff + (i & cM)]);
+                }
+                return;
+            }
+            case CMPLT -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words; int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dW[dOff + i] = mask(floating(aW[aOff + (i & aM)]) < floating(bW[bOff + (i & bM)]));
+                return;
+            }
+            case CMPGT -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words; int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dW[dOff + i] = mask(floating(aW[aOff + (i & aM)]) > floating(bW[bOff + (i & bM)]));
+                return;
+            }
+            case ADDI -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words; int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dW[dOff + i] = aW[aOff + (i & aM)] + bW[bOff + (i & bM)];
+                return;
+            }
+            case SUBI -> {
+                Register ra = registers[args[0]], rb = registers[args[1]];
+                int[] aW = ra.words, bW = rb.words; int aOff = ra.offset, bOff = rb.offset;
+                int aM = ra.stride == 0 ? 0 : -1, bM = rb.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dW[dOff + i] = aW[aOff + (i & aM)] - bW[bOff + (i & bM)];
+                return;
+            }
+            case ABS -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words; int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dW, dOff, dOff + padded, aW[aOff] & 0x7FFFFFFF);
+                else for (int i = 0; i < padded; i++) dW[dOff + i] = aW[aOff + i] & 0x7FFFFFFF;
+                return;
+            }
+            case NEG -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words; int aOff = ra.offset;
+                if (ra.stride == 0) Arrays.fill(dW, dOff, dOff + padded, bits(0f - floating(aW[aOff])));
+                else for (int i = 0; i < padded; i++) dW[dOff + i] = bits(0f - floating(aW[aOff + i]));
+                return;
+            }
+            case SQRT -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words; int aOff = ra.offset;
+                int aM = ra.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) {
+                    float x = floating(aW[aOff + (i & aM)]);
+                    dW[dOff + i] = bits(x > EPSILON ? (float) Math.sqrt(x) : 0f);
+                }
+                return;
+            }
+            case F2I -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words; int aOff = ra.offset;
+                int aM = ra.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dW[dOff + i] = toInt(floating(aW[aOff + (i & aM)]));
+                return;
+            }
+            case I2F -> {
+                Register ra = registers[args[0]];
+                int[] aW = ra.words; int aOff = ra.offset;
+                int aM = ra.stride == 0 ? 0 : -1;
+                for (int i = 0; i < padded; i++) dW[dOff + i] = bits((float) aW[aOff + (i & aM)]);
+                return;
+            }
+            default -> {
+                Register ra = n > 0 ? registers[args[0]] : null;
+                Register rb = n > 1 ? registers[args[1]] : null;
+                Register rc = n > 2 ? registers[args[2]] : null;
+                Register rd = n > 3 ? registers[args[3]] : null;
+                Register re = n > 4 ? registers[args[4]] : null;
+                for (int row = 0; row < padded; row++) {
+                    int a = ra != null ? ra.get(row) : 0;
+                    int b = rb != null ? rb.get(row) : 0;
+                    int c = rc != null ? rc.get(row) : 0;
+                    int d = rd != null ? rd.get(row) : 0;
+                    int e = re != null ? re.get(row) : 0;
+                    dW[dOff + row] = evaluate(op, a, b, c, d, e);
+                }
+            }
         }
     }
 

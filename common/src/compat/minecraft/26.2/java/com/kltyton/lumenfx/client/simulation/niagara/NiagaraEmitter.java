@@ -84,6 +84,7 @@ public final class NiagaraEmitter implements NiagaraCpuEmitter, NiagaraParticleR
     private final byte[] spawnConstants, updateConstants, defaultSpawnConstants, defaultUpdateConstants;
     private final ByteBuffer spawnWords, updateWords;
     private final NiagaraScriptNumericStore spawnParameters, updateParameters;
+    private @Nullable ParameterBindingPlan spawnParameterPlan, updateParameterPlan;
     private final List<NiagaraScriptNumericStore> parameterStores;
     private @Nullable NiagaraRendererParameterStores rendererParameters;
     private @Nullable NiagaraParameterStore overrideParameters;
@@ -105,6 +106,7 @@ public final class NiagaraEmitter implements NiagaraCpuEmitter, NiagaraParticleR
         final byte[] constants, defaults;
         final ByteBuffer words;
         final @Nullable NiagaraScriptNumericStore parameters;
+        @Nullable ParameterBindingPlan parameterPlan;
         EventContext(NiagaraDefinition.EventHandler definition, NiagaraInterfaces interfaces, String emitterOwner,
                      @Nullable NiagaraParameterStoreSources sources) {
             this.definition = definition;
@@ -533,7 +535,7 @@ public final class NiagaraEmitter implements NiagaraCpuEmitter, NiagaraParticleR
                 if (count <= 0) continue;
                 if (context.machine == null) throw new IllegalStateException("Missing Niagara event script for " + context.definition.sourceEventName());
                 parameters(context.program, context.constants, context.words, system, variables,
-                        new Invocation(count, 0, 0, 0), context.defaults, context.parameters);
+                        new Invocation(count, 0, 0, 0), context.defaults, context.parameters, context);
                 context.machine.execute(count, new VectorDataSet[] {current, event.data()}, new int[] {eventStart, i},
                         new VectorDataSet[] {destination}, new int[] {eventStart}, context.constants, null, persistentIds);
                 eventStart = destination.count();
@@ -552,7 +554,7 @@ public final class NiagaraEmitter implements NiagaraCpuEmitter, NiagaraParticleR
                 if (count == 0) break;
                 destination.count(0);
                 parameters(context.program, context.constants, context.words, system, variables,
-                        new Invocation(count, 0, 0, 0), context.defaults, context.parameters);
+                        new Invocation(count, 0, 0, 0), context.defaults, context.parameters, context);
                 prepareEventParticleRead();
                 if (persistentIds != null) persistentIds[0].resetIdTable();
                 context.machine.execute(count, new VectorDataSet[] {current, event.data()}, new int[] {0, row},
@@ -584,69 +586,164 @@ public final class NiagaraEmitter implements NiagaraCpuEmitter, NiagaraParticleR
         for (var context : eventContexts) {
             if (context.program == null || context.parameters.modern() || !context.program.interpolated()) continue;
             parameters(context.program, context.constants, context.words, system, variables, null,
-                    context.defaults, context.parameters);
+                    context.defaults, context.parameters, context);
             if (first) context.parameters.commit(context.constants);
         }
     }
 
+    private record LegacyParameterBinding(int offset, int kind, int start, int count) { }
+
+    private static final class ParameterBindingPlan {
+        static final int INV_EXECUTION_COUNT = 0;
+        static final int INV_SPAWN_INTERVAL = 1;
+        static final int INV_INTERP_START = 2;
+        static final int INV_SPAWN_GROUP = 3;
+        static final int LEGACY_FLOAT = 0;
+        static final int LEGACY_INT = 1;
+        static final int LEGACY_HALF = 2;
+
+        final Map<String, NiagaraDefinition.Variable> variables;
+        final boolean modern;
+        final int[] invocationBindings;
+        final LegacyParameterBinding[] legacyBindings;
+
+        ParameterBindingPlan(Map<String, NiagaraDefinition.Variable> variables, boolean modern,
+                             int[] invocationBindings, LegacyParameterBinding[] legacyBindings) {
+            this.variables = variables;
+            this.modern = modern;
+            this.invocationBindings = invocationBindings;
+            this.legacyBindings = legacyBindings;
+        }
+    }
+
+    private ParameterBindingPlan compileParameterPlan(VectorProgram program, Map<String, NiagaraDefinition.Variable> variables,
+                                                      NiagaraScriptNumericStore parameterStore, boolean modern) {
+        var params = program.parameters();
+        int[] invTmp = new int[Math.min(params.size(), 8)];
+        int invCount = 0;
+        List<LegacyParameterBinding> legacyList = modern ? List.of() : new ArrayList<>();
+        boolean isSpawnStore = parameterStore == spawnParameters;
+        for (var parameter : params) {
+            int offset = 640 + parameter.offset();
+            String name = parameter.name();
+            int invKind = -1;
+            if (SourceNames.equal(name, "Engine.ExecutionCount")
+                    && (!modern || SourceNames.equal(parameter.sourceType(), "/Script/Niagara.NiagaraInt32"))) {
+                invKind = ParameterBindingPlan.INV_EXECUTION_COUNT;
+            } else if (modern ? isSpawnStore && SourceNames.equal(name, spawnIntervalParameter)
+                    && SourceNames.equal(parameter.sourceType(), "/Script/Niagara.NiagaraFloat") : name.endsWith(".SpawnInterval")) {
+                invKind = ParameterBindingPlan.INV_SPAWN_INTERVAL;
+            } else if (modern ? isSpawnStore && SourceNames.equal(name, interpStartParameter)
+                    && SourceNames.equal(parameter.sourceType(), "/Script/Niagara.NiagaraFloat") : name.endsWith(".InterpSpawnStartDt")) {
+                invKind = ParameterBindingPlan.INV_INTERP_START;
+            } else if (modern ? isSpawnStore && SourceNames.equal(name, spawnGroupParameter)
+                    && SourceNames.equal(parameter.sourceType(), "/Script/Niagara.NiagaraInt32") : name.endsWith(".SpawnGroup")) {
+                invKind = ParameterBindingPlan.INV_SPAWN_GROUP;
+            }
+            if (invKind >= 0) {
+                if (invCount == invTmp.length) invTmp = java.util.Arrays.copyOf(invTmp, Math.max(4, invTmp.length * 2));
+                invTmp[invCount++] = (offset << 2) | invKind;
+            } else if (!modern) {
+                NiagaraDefinition.Variable variable = variables.get(name);
+                if (variable == null || !parameter.sourceType().isEmpty() && !variable.sourceType().isEmpty()
+                        && !parameter.sourceType().equals(variable.sourceType())) {
+                    variable = null;
+                    for (var candidate : variables.values()) {
+                        if (SourceNames.equal(candidate.name(), name) && (parameter.sourceType().isEmpty()
+                                || candidate.sourceType().isEmpty() || parameter.sourceType().equals(candidate.sourceType()))) {
+                            variable = candidate;
+                            break;
+                        }
+                    }
+                }
+                if (variable != null) {
+                    if (variable.floatCount() > 0 && variable.intCount() == 0 && variable.halfCount() == 0
+                            && parameter.bytes() == variable.floatCount() * Float.BYTES) {
+                        legacyList.add(new LegacyParameterBinding(offset, ParameterBindingPlan.LEGACY_FLOAT,
+                                variable.floatStart(), variable.floatCount()));
+                    } else if (variable.intCount() > 0 && variable.floatCount() == 0 && variable.halfCount() == 0
+                            && parameter.bytes() == variable.intCount() * Integer.BYTES) {
+                        legacyList.add(new LegacyParameterBinding(offset, ParameterBindingPlan.LEGACY_INT,
+                                variable.intStart(), variable.intCount()));
+                    } else if (variable.halfCount() > 0 && variable.floatCount() == 0 && variable.intCount() == 0
+                            && parameter.bytes() == variable.halfCount() * Short.BYTES) {
+                        legacyList.add(new LegacyParameterBinding(offset, ParameterBindingPlan.LEGACY_HALF,
+                                variable.halfStart(), variable.halfCount()));
+                    } else {
+                        throw new IllegalArgumentException("Niagara parameter requires a typed component binding: " + name);
+                    }
+                }
+            }
+        }
+        return new ParameterBindingPlan(variables, modern,
+                invCount == 0 ? new int[0] : java.util.Arrays.copyOf(invTmp, invCount),
+                legacyList.isEmpty() ? new LegacyParameterBinding[0] : legacyList.toArray(LegacyParameterBinding[]::new));
+    }
+
     private void parameters(VectorProgram program, byte[] result, ByteBuffer values, VectorDataSet system,
                             Map<String, NiagaraDefinition.Variable> variables, Invocation invocation) {
+        boolean isSpawn = program == source.spawn();
         parameters(program, result, values, system, variables, invocation,
-                program == source.spawn() ? defaultSpawnConstants : defaultUpdateConstants,
-                program == source.spawn() ? spawnParameters : updateParameters);
+                isSpawn ? defaultSpawnConstants : defaultUpdateConstants,
+                isSpawn ? spawnParameters : updateParameters, null);
     }
 
     private void parameters(VectorProgram program, byte[] result, ByteBuffer values, VectorDataSet system,
                             Map<String, NiagaraDefinition.Variable> variables, Invocation invocation,
-                            byte[] defaults, NiagaraScriptNumericStore parameterStore) {
+                            byte[] defaults, NiagaraScriptNumericStore parameterStore, @Nullable EventContext eventContext) {
         System.arraycopy(runtime, 0, result, 0, 640);
         boolean modern = parameterStore.restoreConstants(result);
         if (!modern) NiagaraParameterValues.restore(program, result, defaults);
-        for (var parameter : program.parameters()) {
-            int offset = 640 + parameter.offset();
-            String name = parameter.name();
-            NiagaraDefinition.Variable variable = variables.get(name);
-            if (variable == null || !parameter.sourceType().isEmpty() && !variable.sourceType().isEmpty()
-                    && !parameter.sourceType().equals(variable.sourceType())) {
-                variable = null;
-                for (var candidate : variables.values()) {
-                    if (SourceNames.equal(candidate.name(), name) && (parameter.sourceType().isEmpty()
-                            || candidate.sourceType().isEmpty() || parameter.sourceType().equals(candidate.sourceType()))) {
-                        variable = candidate;
-                        break;
-                    }
-                }
+        ParameterBindingPlan plan;
+        if (eventContext != null) {
+            plan = eventContext.parameterPlan;
+            if (plan == null || plan.variables != variables || plan.modern != modern) {
+                eventContext.parameterPlan = plan = compileParameterPlan(program, variables, parameterStore, modern);
             }
-            if (SourceNames.equal(name, "Engine.ExecutionCount") && (!modern || SourceNames.equal(parameter.sourceType(), "/Script/Niagara.NiagaraInt32"))) {
-                if (invocation != null) values.putInt(offset, invocation.count());
-            } else if (modern ? parameterStore == spawnParameters && SourceNames.equal(name, spawnIntervalParameter)
-                    && SourceNames.equal(parameter.sourceType(), "/Script/Niagara.NiagaraFloat") : name.endsWith(".SpawnInterval")) {
-                if (invocation != null) values.putFloat(offset, invocation.interval());
-            } else if (modern ? parameterStore == spawnParameters && SourceNames.equal(name, interpStartParameter)
-                    && SourceNames.equal(parameter.sourceType(), "/Script/Niagara.NiagaraFloat") : name.endsWith(".InterpSpawnStartDt")) {
-                if (invocation != null) values.putFloat(offset, invocation.start());
-            } else if (modern ? parameterStore == spawnParameters && SourceNames.equal(name, spawnGroupParameter)
-                    && SourceNames.equal(parameter.sourceType(), "/Script/Niagara.NiagaraInt32") : name.endsWith(".SpawnGroup")) {
-                if (invocation != null) values.putInt(offset, invocation.group());
-            } else if (!modern && variable != null) {
-                if (variable.floatCount() > 0 && variable.intCount() == 0 && variable.halfCount() == 0
-                        && parameter.bytes() == variable.floatCount() * Float.BYTES) {
-                    for (int component = 0; component < variable.floatCount(); component++)
-                        values.putFloat(offset + component * Float.BYTES, system.floating(variable.floatStart() + component, 0));
-                } else if (variable.intCount() > 0 && variable.floatCount() == 0 && variable.halfCount() == 0
-                        && parameter.bytes() == variable.intCount() * Integer.BYTES) {
-                    for (int component = 0; component < variable.intCount(); component++)
-                        values.putInt(offset + component * Integer.BYTES, system.integer(variable.intStart() + component, 0));
-                } else if (variable.halfCount() > 0 && variable.floatCount() == 0 && variable.intCount() == 0
-                        && parameter.bytes() == variable.halfCount() * Short.BYTES) {
-                    for (int component = 0; component < variable.halfCount(); component++)
-                        values.putShort(offset + component * Short.BYTES,
-                                (short)system.component(2, variable.halfStart() + component)[0]);
+        } else if (parameterStore == spawnParameters) {
+            plan = spawnParameterPlan;
+            if (plan == null || plan.variables != variables || plan.modern != modern) {
+                spawnParameterPlan = plan = compileParameterPlan(program, variables, parameterStore, modern);
+            }
+        } else {
+            plan = updateParameterPlan;
+            if (plan == null || plan.variables != variables || plan.modern != modern) {
+                updateParameterPlan = plan = compileParameterPlan(program, variables, parameterStore, modern);
+            }
+        }
+        if (invocation != null) {
+            for (int binding : plan.invocationBindings) {
+                int offset = binding >>> 2;
+                switch (binding & 3) {
+                    case ParameterBindingPlan.INV_EXECUTION_COUNT -> values.putInt(offset, invocation.count());
+                    case ParameterBindingPlan.INV_SPAWN_INTERVAL -> values.putFloat(offset, invocation.interval());
+                    case ParameterBindingPlan.INV_INTERP_START -> values.putFloat(offset, invocation.start());
+                    case ParameterBindingPlan.INV_SPAWN_GROUP -> values.putInt(offset, invocation.group());
+                    default -> throw new IllegalStateException();
                 }
-                else throw new IllegalArgumentException("Niagara parameter requires a typed component binding: " + name);
             }
         }
         if (!modern) {
+            for (LegacyParameterBinding binding : plan.legacyBindings) {
+                int offset = binding.offset();
+                int start = binding.start();
+                int count = binding.count();
+                switch (binding.kind()) {
+                    case ParameterBindingPlan.LEGACY_FLOAT -> {
+                        for (int component = 0; component < count; component++)
+                            values.putFloat(offset + component * Float.BYTES, system.floating(start + component, 0));
+                    }
+                    case ParameterBindingPlan.LEGACY_INT -> {
+                        for (int component = 0; component < count; component++)
+                            values.putInt(offset + component * Integer.BYTES, system.integer(start + component, 0));
+                    }
+                    case ParameterBindingPlan.LEGACY_HALF -> {
+                        for (int component = 0; component < count; component++)
+                            values.putShort(offset + component * Short.BYTES, (short) system.component(2, start + component)[0]);
+                    }
+                    default -> throw new IllegalStateException();
+                }
+            }
             NiagaraParameterValues.write(program, result, parameterValues,
                     runtimeWords.getFloat(592) * NiagaraFrame.TILE_SIZE, runtimeWords.getFloat(596) * NiagaraFrame.TILE_SIZE,
                     runtimeWords.getFloat(600) * NiagaraFrame.TILE_SIZE);

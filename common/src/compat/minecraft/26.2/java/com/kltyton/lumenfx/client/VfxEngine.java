@@ -1676,11 +1676,8 @@ public final class VfxEngine {
                 int start = first;
                 int count = end - start;
                 int partitions = Math.min(workers.maximumWorkers(), count);
-                workers.executeRanges(start, end, partitions, (partition, from, to) -> {
-                    for (int index = from; index < to; index++) {
-                        steps.get(index).execute();
-                    }
-                });
+                workers.executeIndexed(count, partitions, null, (partition, offset) ->
+                        steps.get(start + offset).execute());
                 for (int index = start; index < end; index++) steps.get(index).finish();
                 first = end;
             }
@@ -2605,48 +2602,85 @@ public final class VfxEngine {
         return (float) Math.toDegrees(2 * Math.atan(1.0 / Math.abs(projectionScale)));
     }
 
+    private final List<EffectInstance.EmitterFrame> workerEmitters = new ArrayList<>();
+    private final List<EffectInstance.EmitterFrame> ownerEmitters = new ArrayList<>();
+    private static final Comparator<EffectInstance.EmitterFrame> DESCENDING_WORKLOAD =
+            (a, b) -> Integer.compare(b.estimatedWorkload(), a.estimatedWorkload());
+
     private int executeEmitters(boolean pack) {
         int count = frameEmitters.size();
         if (count == 0) return 0;
-        int partitions = workers.partitions(count), maxGroup = 0;
-        boolean hasOwnerWork = false;
-        for (var emitter : frameEmitters) {
-            maxGroup = Math.max(maxGroup, emitter.group());
-            hasOwnerWork |= emitter.requiresOwnerThread();
+        int maxGroup = 0;
+        int totalWorkload = 0;
+        for (int i = 0; i < count; i++) {
+            var emitter = frameEmitters.get(i);
+            int g = emitter.group();
+            if (g > maxGroup) maxGroup = g;
+            totalWorkload += emitter.estimatedWorkload();
         }
-        boolean separateOwnerWork = partitions > 1 && hasOwnerWork;
+        int maxUsedPartitions = 1;
         for (int group = 0; group <= maxGroup; group++) {
-            int currentGroup = group;
+            workerEmitters.clear();
+            ownerEmitters.clear();
+            int groupWork = 0;
+            for (int i = 0; i < count; i++) {
+                var emitter = frameEmitters.get(i);
+                if (emitter.group() != group) continue;
+                int work = emitter.estimatedWorkload();
+                groupWork += work;
+                if (emitter.requiresOwnerThread()) ownerEmitters.add(emitter);
+                else workerEmitters.add(emitter);
+            }
+            int workerItems = workerEmitters.size();
+            int ownerItems = ownerEmitters.size();
+            if (workerItems == 0 && ownerItems == 0) continue;
+            if (workerItems == 0) {
+                for (int i = 0; i < ownerItems; i++) {
+                    var emitter = ownerEmitters.get(i);
+                    if (pack) emitter.updateForStep(builders[0]);
+                    else emitter.updateSimulation();
+                }
+                continue;
+            }
+            int effectiveSlots = workerItems + (ownerItems > 0 ? 1 : 0);
+            int partitions = workers.partitions(effectiveSlots, Math.max(groupWork, totalWorkload));
+            if (partitions > 1 && workerItems > 1) {
+                // Longest-processing-time-first ordering eliminates tail stragglers across workers.
+                workerEmitters.sort(DESCENDING_WORKLOAD);
+            }
+            if (partitions > maxUsedPartitions) maxUsedPartitions = partitions;
             var concurrentTime = niagaraFxBudget.trackingWorkers() ? new LongAdder() : null;
             long start = concurrentTime == null ? 0 : System.nanoTime();
+            Runnable ownerWork = ownerItems == 0 ? null : () -> {
+                long ownerStart = concurrentTime == null ? 0 : System.nanoTime();
+                try {
+                    for (int i = 0; i < ownerItems; i++) {
+                        var emitter = ownerEmitters.get(i);
+                        if (pack) emitter.updateForStep(builders[0]);
+                        else emitter.updateSimulation();
+                    }
+                } finally {
+                    if (concurrentTime != null) concurrentTime.add(System.nanoTime() - ownerStart);
+                }
+            };
             try {
-                workers.executeRanges(0, count, partitions, (partition, from, to) -> {
-                    long partitionStart = concurrentTime == null ? 0 : System.nanoTime();
+                workers.executeIndexed(workerItems, partitions, ownerWork, (partition, index) -> {
+                    long itemStart = concurrentTime == null ? 0 : System.nanoTime();
                     try {
-                        for (int i = from; i < to; i++) {
-                            var emitter = frameEmitters.get(i);
-                            if (emitter.group() != currentGroup) continue;
-                            if (separateOwnerWork && emitter.requiresOwnerThread()) continue;
-                            if (pack) emitter.updateForStep(builders[partition]);
-                            else emitter.updateSimulation();
-                        }
+                        var emitter = workerEmitters.get(index);
+                        if (pack) emitter.updateForStep(builders[partition]);
+                        else emitter.updateSimulation();
                     } finally {
-                        if (concurrentTime != null) concurrentTime.add(System.nanoTime() - partitionStart);
+                        if (concurrentTime != null) concurrentTime.add(System.nanoTime() - itemStart);
                     }
                 });
             } finally {
                 if (concurrentTime != null) niagaraFxBudget.workers(System.nanoTime() - start, concurrentTime.sum());
             }
-            if (separateOwnerWork) for (int partition = 0; partition < partitions; partition++) {
-                for (int i = count * partition / partitions; i < count * (partition + 1) / partitions; i++) {
-                    var emitter = frameEmitters.get(i);
-                    if (emitter.group() != currentGroup || !emitter.requiresOwnerThread()) continue;
-                    if (pack) emitter.updateForStep(builders[partition]);
-                    else emitter.updateSimulation();
-                }
-            }
         }
-        return partitions;
+        workerEmitters.clear();
+        ownerEmitters.clear();
+        return maxUsedPartitions;
     }
 
     private void prepareInstances(ClientLevel level) {

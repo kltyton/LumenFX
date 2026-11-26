@@ -3,7 +3,23 @@ package com.kltyton.lumenfx.runtime.gl;
 import com.kltyton.lumenfx.api.client.EffectHandle;
 import com.kltyton.lumenfx.runtime.bridge.McResourceBridge;
 import com.kltyton.lumenfx.runtime.gl.DirectGlMeshCache.GpuMesh;
+import com.kltyton.lumenfx.runtime.gl.depth.DirectGlSceneDepthCapture;
+import com.kltyton.lumenfx.runtime.gl.groom.DirectGlGroomRenderer;
+import com.kltyton.lumenfx.runtime.gl.hdr.DirectGlHdrBloomPipeline;
+import com.kltyton.lumenfx.runtime.gl.material.DirectGlCustomMaterialCompiler;
+import com.kltyton.lumenfx.runtime.gl.material.DirectGlCustomMaterialCompiler.CompiledMaterial;
+import com.kltyton.lumenfx.runtime.gl.nanite.DirectGlNaniteRenderer;
+import com.kltyton.lumenfx.runtime.gl.niagara.DirectGlNiagaraDirectRenderer;
+import com.kltyton.lumenfx.runtime.gl.rvt.DirectGlRuntimeVirtualTexture;
+import com.kltyton.lumenfx.runtime.gl.splat.DirectGlGaussianSplatRenderer;
+import com.kltyton.lumenfx.runtime.gl.volume.DirectGlVolumeAndLightRenderer;
+import com.kltyton.lumenfx.runtime.gl.volume.DirectGlVolumeAndLightRenderer.DecalSpec;
+import com.kltyton.lumenfx.runtime.gl.volume.DirectGlVolumeAndLightRenderer.LightSpec;
+import com.kltyton.lumenfx.runtime.gl.volume.DirectGlVolumeAndLightRenderer.VolumeSpec;
 import com.kltyton.lumenfx.runtime.model.BlendMode;
+import com.kltyton.lumenfx.runtime.model.EffectModel;
+import com.kltyton.lumenfx.runtime.model.GaussianSplatModel;
+import com.kltyton.lumenfx.runtime.model.GroomAssetModel;
 import com.kltyton.lumenfx.runtime.model.MaterialModel;
 import com.kltyton.lumenfx.runtime.model.NiagaraSystemModel.RendererKind;
 import com.kltyton.lumenfx.runtime.model.PhotonFxModel;
@@ -15,8 +31,10 @@ import com.kltyton.lumenfx.runtime.simulation.ParticleInstance;
 import com.kltyton.lumenfx.runtime.simulation.PhotonFxRuntime;
 import com.kltyton.lumenfx.runtime.simulation.UnityEmitterRuntime;
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11C;
@@ -28,16 +46,33 @@ import org.lwjgl.opengl.GL30C;
 import org.lwjgl.system.MemoryUtil;
 
 /**
- * Direct OpenGL 3.3+ / 4.6 renderer driving Unity Shuriken, Niagara CPU/GPU, and Photon authored-model effects.
+ * Full-parity Direct OpenGL 3.3+ / 4.6 renderer driving:
+ * <ul>
+ *   <li>Unity Shuriken, UE5 Niagara (CPU + zero-readback GPU SSBO direct draw), and Photon {@code .fx} effects</li>
+ *   <li>Offscreen RGBA16F HDR Bloom FBO pipeline + ACES tonemap</li>
+ *   <li>Scene depth &amp; color capture for soft particles, refraction, volumetric fog, deferred decals, and dynamic lights</li>
+ *   <li>Custom GLSL 330 Core material shaders</li>
+ *   <li>Nanite meshlet LOD culling, 3D Gaussian Splatting, Groom hair strands, and Runtime Virtual Texture (RVT)</li>
+ * </ul>
  */
 public final class DirectGlEffectRenderer {
     private static final int FLOATS_PER_VERTEX = 9; // pos(3) + uv(2) + color(4)
     private static final int MAX_BATCH_VERTICES = 65536;
+    private static final int NANITE_AUTO_INDEX_THRESHOLD = 1536; // 512 triangles
 
     private final DirectGlShaderProgram shaders = new DirectGlShaderProgram();
     private final DirectGlTextureCache textures = new DirectGlTextureCache();
     private final DirectGlMeshCache meshes = new DirectGlMeshCache();
     private final DirectGlNiagaraGpuRunner niagaraGpuRunner = new DirectGlNiagaraGpuRunner();
+    private final DirectGlSceneDepthCapture sceneDepthCapture = new DirectGlSceneDepthCapture();
+    private final DirectGlHdrBloomPipeline hdrBloom = new DirectGlHdrBloomPipeline();
+    private final DirectGlCustomMaterialCompiler customMaterials = new DirectGlCustomMaterialCompiler();
+    private final DirectGlNiagaraDirectRenderer niagaraDirectRenderer = new DirectGlNiagaraDirectRenderer();
+    private final DirectGlNaniteRenderer naniteRenderer = new DirectGlNaniteRenderer();
+    private final DirectGlGaussianSplatRenderer splatRenderer = new DirectGlGaussianSplatRenderer();
+    private final DirectGlGroomRenderer groomRenderer = new DirectGlGroomRenderer();
+    private final DirectGlVolumeAndLightRenderer volumeLightRenderer = new DirectGlVolumeAndLightRenderer();
+    private final DirectGlRuntimeVirtualTexture rvt = new DirectGlRuntimeVirtualTexture();
 
     private int quadVao;
     private int quadVbo;
@@ -48,6 +83,16 @@ public final class DirectGlEffectRenderer {
     private final Vector3f camRight = new Vector3f();
     private final Vector3f camUp = new Vector3f();
     private final Vector3f camForward = new Vector3f();
+    private final long startNanos = System.nanoTime();
+
+    // Per-frame cached capture parameters
+    private int activeSceneDepthTex;
+    private int activeSceneColorTex;
+    private int activeVpWidth = 1;
+    private int activeVpHeight = 1;
+    private float activeNear = 0.05f;
+    private float activeFar = 256.0f;
+    private float frameTimeSeconds;
 
     private void ensureBuffers() {
         shaders.ensureCompiled();
@@ -70,9 +115,11 @@ public final class DirectGlEffectRenderer {
         }
     }
 
-    public DirectGlNiagaraGpuRunner gpuRunner() {
-        return niagaraGpuRunner;
-    }
+    public DirectGlNiagaraGpuRunner gpuRunner() { return niagaraGpuRunner; }
+    public DirectGlRuntimeVirtualTexture rvt() { return rvt; }
+    public DirectGlHdrBloomPipeline hdrBloom() { return hdrBloom; }
+    public DirectGlNaniteRenderer naniteRenderer() { return naniteRenderer; }
+    public DirectGlNiagaraDirectRenderer niagaraDirectRenderer() { return niagaraDirectRenderer; }
 
     public void render(List<EffectRuntimeInstance> instances, Matrix4f projection, Matrix4f modelView,
                        double camX, double camY, double camZ, float partialTick,
@@ -81,30 +128,161 @@ public final class DirectGlEffectRenderer {
             DirectGlNiagaraGpuRunner.refreshDeviceLimits();
         }
         if (instances.isEmpty()) return;
+
         // Execute pending Niagara GPU SPIR-V compute dispatches on the render thread first
         niagaraGpuRunner.stepPending(instances);
 
-        try (GlStateGuard ignored = new GlStateGuard()) {
+        boolean needsDepth = false;
+        boolean needsColor = false;
+        boolean hasHdr = false;
+        boolean usesRvt = false;
+        for (EffectRuntimeInstance inst : instances) {
+            EffectModel em = inst.model();
+            if (!em.volumes().isEmpty() || !em.decals().isEmpty() || !em.lights().isEmpty()) {
+                needsDepth = true;
+            }
+            if (!em.rvtMaterials().isEmpty()) usesRvt = true;
+            for (UnityEmitterRuntime u : inst.unityEmitters()) {
+                MaterialModel m = u.spec.material();
+                if (m.hdr()) hasHdr = true;
+                if (m.softParticles() || m.hasCustomShader()) needsDepth = true;
+                if (m.refraction() || m.hasCustomShader()) needsColor = true;
+                if (m.rvt()) usesRvt = true;
+            }
+            NiagaraSystemRuntime nr = inst.niagaraRuntime();
+            if (nr != null) {
+                for (NiagaraSystemRuntime.EmitterState e : nr.emitters()) {
+                    MaterialModel m = e.material;
+                    if (m.hdr()) hasHdr = true;
+                    if (m.softParticles() || m.hasCustomShader()) needsDepth = true;
+                    if (m.refraction() || m.hasCustomShader()) needsColor = true;
+                    if (m.rvt()) usesRvt = true;
+                    RendererKind rk = e.primaryRenderer.kind();
+                    if (rk == RendererKind.VOLUME || rk == RendererKind.DECAL || rk == RendererKind.LIGHT) {
+                        needsDepth = true;
+                    }
+                }
+            }
+            PhotonFxRuntime pr = inst.photonRuntime();
+            if (pr != null) {
+                for (PhotonFxRuntime.ObjectRuntime o : pr.objects()) {
+                    PhotonFxModel.PhysicsExtras ex = o.spec.extras();
+                    if (ex != null) {
+                        if (ex.hdr()) hasHdr = true;
+                        if (ex.softParticles()) needsDepth = true;
+                    }
+                }
+            }
+        }
+
+        frameTimeSeconds = (float) (((System.nanoTime() - startNanos) * 1e-9) % 10000.0);
+
+        try (GlStateGuard guard = new GlStateGuard()) {
             ensureBuffers();
+            activeVpWidth = Math.max(1, guard.viewportWidth());
+            activeVpHeight = Math.max(1, guard.viewportHeight());
             viewProj.set(projection).mul(modelView);
             camRight.set(modelView.m00(), modelView.m10(), modelView.m20()).normalize();
             camUp.set(modelView.m01(), modelView.m11(), modelView.m21()).normalize();
             camForward.set(-modelView.m02(), -modelView.m12(), -modelView.m22()).normalize();
 
+            if (needsDepth) {
+                sceneDepthCapture.captureFromActiveFbo(guard.drawFramebuffer(), activeVpWidth, activeVpHeight,
+                        projection, needsColor);
+                activeSceneDepthTex = sceneDepthCapture.depthTextureId();
+                activeSceneColorTex = needsColor ? sceneDepthCapture.colorTextureId() : 0;
+                activeNear = sceneDepthCapture.nearPlane();
+                activeFar = sceneDepthCapture.farPlane();
+            } else {
+                activeSceneDepthTex = 0;
+                activeSceneColorTex = 0;
+            }
+            if (usesRvt) {
+                rvt.syncPageTableToGpu();
+            }
+
+            // Pass 1: Standard (non-HDR) effects + attachments (Volumes, Decals, Lights, Groom, 3D Gaussian Splats)
             GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
-            for (EffectRuntimeInstance inst : instances) {
-                EffectHandle.Snapshot snap = inst.handle().snapshot();
-                for (UnityEmitterRuntime u : inst.unityEmitters()) {
-                    renderUnityEmitter(u, camX, camY, camZ, partialTick, bridge);
+            renderInstancesPass(instances, false, projection, modelView, camX, camY, camZ, partialTick, bridge);
+            renderAttachments(instances, projection, modelView, camX, camY, camZ, bridge);
+
+            // Pass 2: Offscreen RGBA16F HDR Bloom pass + ACES composite
+            if (hasHdr) {
+                boolean inHdrFbo = hdrBloom.beginHdrPass(guard.drawFramebuffer(), activeVpWidth, activeVpHeight);
+                GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
+                renderInstancesPass(instances, true, projection, modelView, camX, camY, camZ, partialTick, bridge);
+                if (inHdrFbo) {
+                    hdrBloom.endAndComposite();
                 }
-                NiagaraSystemRuntime niagara = inst.niagaraRuntime();
-                if (niagara != null) {
-                    renderNiagara(niagara, camX, camY, camZ, partialTick, bridge);
-                }
-                PhotonFxRuntime photon = inst.photonRuntime();
-                if (photon != null) {
-                    renderPhoton(photon, snap, camX, camY, camZ, partialTick, bridge);
-                }
+            }
+        }
+    }
+
+    private void renderInstancesPass(List<EffectRuntimeInstance> instances, boolean hdrPass,
+                                     Matrix4f projection, Matrix4f modelView,
+                                     double camX, double camY, double camZ, float partialTick,
+                                     @Nullable McResourceBridge bridge) {
+        for (EffectRuntimeInstance inst : instances) {
+            EffectHandle.Snapshot snap = inst.handle().snapshot();
+            for (UnityEmitterRuntime u : inst.unityEmitters()) {
+                if (u.spec.material().hdr() != hdrPass) continue;
+                renderUnityEmitter(u, camX, camY, camZ, partialTick, bridge);
+            }
+            NiagaraSystemRuntime niagara = inst.niagaraRuntime();
+            if (niagara != null) {
+                renderNiagara(niagara, snap, hdrPass, projection, modelView, camX, camY, camZ, partialTick, bridge);
+            }
+            PhotonFxRuntime photon = inst.photonRuntime();
+            if (photon != null) {
+                renderPhoton(photon, snap, hdrPass, camX, camY, camZ, partialTick, bridge);
+            }
+        }
+    }
+
+    private void renderAttachments(List<EffectRuntimeInstance> instances, Matrix4f projection, Matrix4f modelView,
+                                   double camX, double camY, double camZ, @Nullable McResourceBridge bridge) {
+        for (EffectRuntimeInstance inst : instances) {
+            EffectModel em = inst.model();
+            if (!em.hasVisualAttachments()) continue;
+            EffectHandle.Snapshot snap = inst.handle().snapshot();
+            EffectHandle.Pose pose = snap.pose();
+            Vec3 origin = pose.position();
+            float scale = pose.scaleX();
+
+            for (GaussianSplatModel splat : em.gaussianSplats()) {
+                splatRenderer.renderSplats(splat.splats(), origin.x, origin.y, origin.z, scale,
+                        snap.red(), snap.green(), snap.blue(), snap.alpha(), false,
+                        projection, modelView, camX, camY, camZ, activeVpWidth, activeVpHeight);
+            }
+            for (GroomAssetModel groom : em.grooms()) {
+                groomRenderer.renderGroom(groom, origin.x, origin.y, origin.z, scale, frameTimeSeconds,
+                        viewProj, camForward, camRight, camX, camY, camZ);
+            }
+            for (VolumeSpec v : em.volumes()) {
+                Vec3 wp = pose.transformPosition(new Vec3(v.x(), v.y(), v.z()));
+                VolumeSpec worldVol = new VolumeSpec(wp.x, wp.y, wp.z,
+                        v.sx() * scale, v.sy() * scale, v.sz() * scale,
+                        v.r() * snap.red(), v.g() * snap.green(), v.b() * snap.blue(),
+                        v.density() * snap.alpha(), v.anisotropy());
+                volumeLightRenderer.renderVolume(worldVol, viewProj, camX, camY, camZ,
+                        activeSceneDepthTex, activeVpWidth, activeVpHeight, frameTimeSeconds);
+            }
+            for (EffectModel.DecalAssetSpec d : em.decals()) {
+                Vec3 wp = pose.transformPosition(new Vec3(d.x(), d.y(), d.z()));
+                int tex = textures.resolve(d.textureId(), bridge);
+                DecalSpec worldDecal = new DecalSpec(wp.x, wp.y, wp.z,
+                        d.sx() * scale, d.sy() * scale, d.sz() * scale,
+                        d.r() * snap.red(), d.g() * snap.green(), d.b() * snap.blue(), d.a() * snap.alpha(), tex);
+                volumeLightRenderer.renderDecal(worldDecal, viewProj, camX, camY, camZ,
+                        activeSceneDepthTex, activeVpWidth, activeVpHeight);
+            }
+            for (LightSpec l : em.lights()) {
+                Vec3 wp = pose.transformPosition(new Vec3(l.x(), l.y(), l.z()));
+                LightSpec worldLight = new LightSpec(wp.x, wp.y, wp.z, l.radius() * scale,
+                        l.r() * snap.red(), l.g() * snap.green(), l.b() * snap.blue(),
+                        l.intensity() * snap.alpha(), l.spot(), l.dirX(), l.dirY(), l.dirZ(), l.cosOuterCone());
+                volumeLightRenderer.renderLight(worldLight, viewProj, camX, camY, camZ,
+                        activeSceneDepthTex, activeVpWidth, activeVpHeight);
             }
         }
     }
@@ -115,11 +293,12 @@ public final class DirectGlEffectRenderer {
         MaterialModel mat = u.spec.material();
         applyMaterialState(mat);
         int tex = textures.resolve(mat.primaryTexture(), bridge);
+        GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
         GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, tex);
 
         if (u.spec.renderer() == UnityEmitterModel.RendererKind.MESH
                 && u.spec.meshEntry() != null && u.spec.meshEntry().mesh() != null) {
-            renderMeshParticles(u.particles, u.spec.meshEntry().mesh(), mat, camX, camY, camZ, pt);
+            renderMeshParticles(u.particles, u.spec.meshEntry().mesh(), mat, tex, camX, camY, camZ, pt);
             return;
         }
 
@@ -132,53 +311,125 @@ public final class DirectGlEffectRenderer {
             verts = appendRibbonChain(u.particles, camX, camY, camZ, pt, verts);
         } else {
             for (ParticleInstance p : u.particles) {
-                verts = appendBillboard(p, stretched, camX, camY, camZ, pt, verts);
+                verts = appendBillboard(p, stretched, mat, camX, camY, camZ, pt, verts);
                 if (u.spec.trail().enabled() && p.trailCount >= 2) {
                     verts = appendParticleTrail(p, camX, camY, camZ, verts);
                 }
             }
         }
-        flushParticles(verts, mat.hdr() ? 1.5f : 1.0f);
+        flushParticles(verts, mat, bridge);
     }
 
-    private void renderNiagara(NiagaraSystemRuntime niagara, double camX, double camY, double camZ,
-                               float pt, @Nullable McResourceBridge bridge) {
+    private void renderNiagara(NiagaraSystemRuntime niagara, EffectHandle.Snapshot snap, boolean hdrPass,
+                               Matrix4f projection, Matrix4f modelView,
+                               double camX, double camY, double camZ, float pt,
+                               @Nullable McResourceBridge bridge) {
         for (NiagaraSystemRuntime.EmitterState e : niagara.emitters()) {
+            MaterialModel mat = e.material;
+            if (mat.hdr() != hdrPass) continue;
+
+            // Zero-readback GPU SSBO direct rendering (no 2,048 cap!)
+            if (e.spec.isGpu() && !e.isCacheActiveLastTick()) {
+                DirectGlNiagaraDirectRenderer.GpuDrawDescriptor desc = niagaraGpuRunner.directDrawDescriptor(e);
+                if (desc != null) {
+                    RendererKind rk = e.primaryRenderer.kind();
+                    if (rk == RendererKind.SPRITE || rk == RendererKind.RIBBON || rk == RendererKind.MESH) {
+                        applyMaterialState(mat);
+                        int tex = textures.resolve(mat.primaryTexture(), bridge);
+                        if (niagaraDirectRenderer.drawDirect(desc, viewProj, camRight, camUp, camForward,
+                                camX, camY, camZ, tex, activeSceneDepthTex, activeNear, activeFar,
+                                activeVpWidth, activeVpHeight, meshes,
+                                snap.red(), snap.green(), snap.blue(), snap.alpha())) {
+                            continue;
+                        }
+                    }
+                }
+            }
+
             List<ParticleInstance> list = e.renderableParticles();
             if (list.isEmpty()) continue;
-            applyMaterialState(e.material);
-            int tex = textures.resolve(e.material.primaryTexture(), bridge);
+
+            RendererKind rk = e.primaryRenderer.kind();
+            if (rk == RendererKind.SPLAT) {
+                List<GaussianSplatModel.Splat> dynamicSplats = new ArrayList<>(list.size());
+                for (ParticleInstance p : list) {
+                    float sz = Math.max(0.02f, p.width * 0.5f);
+                    dynamicSplats.add(new GaussianSplatModel.Splat(
+                            (float) p.lerpX(pt), (float) p.lerpY(pt), (float) p.lerpZ(pt),
+                            sz, sz, sz, 0f, 0f, 0f, 1f, p.r, p.g, p.b, p.a));
+                }
+                splatRenderer.renderSplats(dynamicSplats, 0.0, 0.0, 0.0, 1.0f, 1f, 1f, 1f, 1f, mat.hdr(),
+                        projection, modelView, camX, camY, camZ, activeVpWidth, activeVpHeight);
+                continue;
+            }
+            if (rk == RendererKind.VOLUME) {
+                for (ParticleInstance p : list) {
+                    volumeLightRenderer.renderVolume(new VolumeSpec(
+                            p.lerpX(pt), p.lerpY(pt), p.lerpZ(pt), p.width, p.height, p.width,
+                            p.r, p.g, p.b, p.a, 0.3f), viewProj, camX, camY, camZ,
+                            activeSceneDepthTex, activeVpWidth, activeVpHeight, frameTimeSeconds);
+                }
+                continue;
+            }
+            if (rk == RendererKind.DECAL) {
+                int tex = textures.resolve(mat.primaryTexture(), bridge);
+                for (ParticleInstance p : list) {
+                    volumeLightRenderer.renderDecal(new DecalSpec(
+                            p.lerpX(pt), p.lerpY(pt), p.lerpZ(pt), p.width, p.height, p.width,
+                            p.r, p.g, p.b, p.a, tex), viewProj, camX, camY, camZ,
+                            activeSceneDepthTex, activeVpWidth, activeVpHeight);
+                }
+                continue;
+            }
+            if (rk == RendererKind.LIGHT) {
+                for (ParticleInstance p : list) {
+                    volumeLightRenderer.renderLight(new LightSpec(
+                            p.lerpX(pt), p.lerpY(pt), p.lerpZ(pt), Math.max(1.0f, p.width * 4.0f),
+                            p.r, p.g, p.b, p.a * (mat.hdr() ? mat.emissiveScale() : 1.0f),
+                            false, 0f, -1f, 0f, -1f), viewProj, camX, camY, camZ,
+                            activeSceneDepthTex, activeVpWidth, activeVpHeight);
+                }
+                continue;
+            }
+
+            applyMaterialState(mat);
+            int tex = textures.resolve(mat.primaryTexture(), bridge);
+            GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
             GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, tex);
 
-            if (e.primaryRenderer.kind() == RendererKind.MESH && e.primaryRenderer.meshModel() != null) {
-                renderMeshParticles(list, e.primaryRenderer.meshModel(), e.material, camX, camY, camZ, pt);
+            if (rk == RendererKind.MESH && e.primaryRenderer.meshModel() != null) {
+                renderMeshParticles(list, e.primaryRenderer.meshModel(), mat, tex, camX, camY, camZ, pt);
                 continue;
             }
             vertexBuf.clear();
             int verts = 0;
-            if (e.primaryRenderer.kind() == RendererKind.RIBBON) {
+            if (rk == RendererKind.RIBBON) {
                 verts = appendRibbonChain(list, camX, camY, camZ, pt, verts);
             } else {
                 for (ParticleInstance p : list) {
-                    verts = appendBillboard(p, false, camX, camY, camZ, pt, verts);
+                    verts = appendBillboard(p, false, mat, camX, camY, camZ, pt, verts);
                 }
             }
-            flushParticles(verts, e.material.hdr() ? 1.5f : 1.0f);
+            flushParticles(verts, mat, bridge);
         }
     }
 
-    private void renderPhoton(PhotonFxRuntime photon, EffectHandle.Snapshot snap,
+    private void renderPhoton(PhotonFxRuntime photon, EffectHandle.Snapshot snap, boolean hdrPass,
                               double camX, double camY, double camZ, float pt, @Nullable McResourceBridge bridge) {
         for (PhotonFxRuntime.ObjectRuntime obj : photon.objects()) {
             if (obj.particles.isEmpty()) continue;
             PhotonFxModel.FxObjectSpec spec = obj.spec;
-            applyMaterialState(spec.material());
-            int tex = textures.resolve(spec.material().primaryTexture(), bridge);
+            MaterialModel mat = spec.material();
+            if (mat.hdr() != hdrPass) continue;
+
+            applyMaterialState(mat);
+            int tex = textures.resolve(mat.primaryTexture(), bridge);
+            GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
             GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, tex);
 
             if ((spec.renderMode() == PhotonFxModel.RenderMode.MODEL || spec.renderMode() == PhotonFxModel.RenderMode.MESH)
                     && spec.authoredModel() != null) {
-                renderPhotonAuthoredModel(obj, spec.authoredModel(), snap, camX, camY, camZ);
+                renderPhotonAuthoredModel(obj, spec.authoredModel(), mat, tex, snap, camX, camY, camZ);
                 continue;
             }
             vertexBuf.clear();
@@ -192,27 +443,46 @@ public final class DirectGlEffectRenderer {
                 }
             } else {
                 for (ParticleInstance p : obj.particles) {
-                    verts = appendBillboard(p, stretched, camX, camY, camZ, pt, verts);
+                    verts = appendBillboard(p, stretched, mat, camX, camY, camZ, pt, verts);
                 }
             }
-            flushParticles(verts, spec.material().hdr() ? 1.5f : 1.0f);
+            flushParticles(verts, mat, bridge);
         }
     }
 
     private void renderPhotonAuthoredModel(PhotonFxRuntime.ObjectRuntime obj, StaticMeshModel mesh,
+                                           MaterialModel mat, int tex,
                                            EffectHandle.Snapshot snap, double camX, double camY, double camZ) {
         GpuMesh gpu = meshes.resolve(mesh);
         if (gpu.vao() == 0 || gpu.indexCount() <= 0) return;
+        boolean useNanite = mat.nanite() || mesh.indexCount() >= NANITE_AUTO_INDEX_THRESHOLD;
+        EffectHandle.Pose pose = snap.pose();
+
+        if (useNanite) {
+            for (ParticleInstance p : obj.particles) {
+                float rx = (float) (pose.position().x - camX);
+                float ry = (float) (pose.position().y - camY);
+                float rz = (float) (pose.position().z - camZ);
+                modelMat.identity().translate(rx, ry, rz)
+                        .rotate(new org.joml.Quaternionf(pose.x(), pose.y(), pose.z(), pose.w()))
+                        .scale(pose.scaleX(), pose.scaleY(), pose.scaleZ())
+                        .mul(obj.localToEffectMatrix)
+                        .scale(gpu.unitScale());
+                naniteRenderer.drawInstance(mesh, mat, viewProj, modelMat, rx, ry, rz,
+                        pose.scaleX() * gpu.unitScale(), activeVpHeight, tex, meshes, p.r, p.g, p.b, p.a);
+            }
+            return;
+        }
+
         GL20C.glUseProgram(shaders.meshProgram);
         matBuf.clear();
         viewProj.get(matBuf);
         GL20C.glUniformMatrix4fv(shaders.meshViewProjLoc, false, matBuf);
         GL20C.glUniform1i(shaders.meshTexLoc, 0);
-        GL20C.glUniform1f(shaders.meshHdrLoc, obj.spec.material().hdr() ? 1.5f : 1.0f);
+        GL20C.glUniform1f(shaders.meshHdrLoc, mat.hdr() ? Math.max(1.5f, mat.emissiveScale()) : 1.0f);
         GL30C.glBindVertexArray(gpu.vao());
         GL15C.glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, gpu.ebo());
 
-        EffectHandle.Pose pose = snap.pose();
         for (ParticleInstance p : obj.particles) {
             modelMat.identity()
                     .translate((float) (pose.position().x - camX), (float) (pose.position().y - camY),
@@ -231,15 +501,30 @@ public final class DirectGlEffectRenderer {
     }
 
     private void renderMeshParticles(List<ParticleInstance> particles, StaticMeshModel mesh, MaterialModel mat,
-                                     double camX, double camY, double camZ, float pt) {
+                                     int tex, double camX, double camY, double camZ, float pt) {
         GpuMesh gpu = meshes.resolve(mesh);
         if (gpu.vao() == 0 || gpu.indexCount() <= 0) return;
+        boolean useNanite = mat.nanite() || mesh.indexCount() >= NANITE_AUTO_INDEX_THRESHOLD;
+        if (useNanite) {
+            for (ParticleInstance p : particles) {
+                float x = (float) (p.lerpX(pt) - camX);
+                float y = (float) (p.lerpY(pt) - camY);
+                float z = (float) (p.lerpZ(pt) - camZ);
+                float sx = Math.max(0.01f, p.width) * gpu.unitScale();
+                float sy = Math.max(0.01f, p.height) * gpu.unitScale();
+                modelMat.identity().translate(x, y, z).rotateZ((float) Math.toRadians(p.rotationDeg)).scale(sx, sy, sx);
+                naniteRenderer.drawInstance(mesh, mat, viewProj, modelMat, x, y, z,
+                        Math.max(sx, sy), activeVpHeight, tex, meshes, p.r, p.g, p.b, p.a);
+            }
+            return;
+        }
+
         GL20C.glUseProgram(shaders.meshProgram);
         matBuf.clear();
         viewProj.get(matBuf);
         GL20C.glUniformMatrix4fv(shaders.meshViewProjLoc, false, matBuf);
         GL20C.glUniform1i(shaders.meshTexLoc, 0);
-        GL20C.glUniform1f(shaders.meshHdrLoc, mat.hdr() ? 1.5f : 1.0f);
+        GL20C.glUniform1f(shaders.meshHdrLoc, mat.hdr() ? Math.max(1.5f, mat.emissiveScale()) : 1.0f);
         GL30C.glBindVertexArray(gpu.vao());
         GL15C.glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, gpu.ebo());
 
@@ -259,7 +544,7 @@ public final class DirectGlEffectRenderer {
         GL30C.glBindVertexArray(0);
     }
 
-    private int appendBillboard(ParticleInstance p, boolean stretched,
+    private int appendBillboard(ParticleInstance p, boolean stretched, MaterialModel mat,
                                 double camX, double camY, double camZ, float pt, int verts) {
         if (verts + 6 > MAX_BATCH_VERTICES) return verts;
         float cx = (float) (p.lerpX(pt) - camX);
@@ -299,19 +584,33 @@ public final class DirectGlEffectRenderer {
         float rX = rx * hw, rY = ry * hw, rZ = rz * hw;
         float uX = ux * hh, uY = uy * hh, uZ = uz * hh;
 
-        putVert(cx - rX - uX, cy - rY - uY, cz - rZ - uZ, 0f, 1f, p.r, p.g, p.b, p.a);
-        putVert(cx + rX - uX, cy + rY - uY, cz + rZ - uZ, 1f, 1f, p.r, p.g, p.b, p.a);
-        putVert(cx + rX + uX, cy + rY + uY, cz + rZ + uZ, 1f, 0f, p.r, p.g, p.b, p.a);
-        putVert(cx - rX - uX, cy - rY - uY, cz - rZ - uZ, 0f, 1f, p.r, p.g, p.b, p.a);
-        putVert(cx + rX + uX, cy + rY + uY, cz + rZ + uZ, 1f, 0f, p.r, p.g, p.b, p.a);
-        putVert(cx - rX + uX, cy - rY + uY, cz - rZ + uZ, 0f, 0f, p.r, p.g, p.b, p.a);
+        float u0 = 0f, v0 = 0f, u1 = 1f, v1 = 1f;
+        int rows = mat.subUvRows();
+        int cols = mat.subUvCols();
+        if (rows > 1 || cols > 1) {
+            int total = rows * cols;
+            int frame = Math.min(total - 1, Math.max(0, (int) (p.normalizedAge() * total)));
+            int col = frame % cols;
+            int row = frame / cols;
+            u0 = (float) col / cols;
+            u1 = (float) (col + 1) / cols;
+            v0 = (float) row / rows;
+            v1 = (float) (row + 1) / rows;
+        }
+
+        putVert(cx - rX - uX, cy - rY - uY, cz - rZ - uZ, u0, v1, p.r, p.g, p.b, p.a);
+        putVert(cx + rX - uX, cy + rY - uY, cz + rZ - uZ, u1, v1, p.r, p.g, p.b, p.a);
+        putVert(cx + rX + uX, cy + rY + uY, cz + rZ + uZ, u1, v0, p.r, p.g, p.b, p.a);
+        putVert(cx - rX - uX, cy - rY - uY, cz - rZ - uZ, u0, v1, p.r, p.g, p.b, p.a);
+        putVert(cx + rX + uX, cy + rY + uY, cz + rZ + uZ, u1, v0, p.r, p.g, p.b, p.a);
+        putVert(cx - rX + uX, cy - rY + uY, cz - rZ + uZ, u0, v0, p.r, p.g, p.b, p.a);
         return verts + 6;
     }
 
     private int appendRibbonChain(List<ParticleInstance> list, double camX, double camY, double camZ,
                                   float pt, int verts) {
         if (list.size() < 2) {
-            if (list.size() == 1) return appendBillboard(list.get(0), false, camX, camY, camZ, pt, verts);
+            if (list.size() == 1) return appendBillboard(list.get(0), false, MaterialModel.defaultMaterial("ribbon"), camX, camY, camZ, pt, verts);
             return verts;
         }
         int n = list.size();
@@ -336,10 +635,10 @@ public final class DirectGlEffectRenderer {
             float bx = (float) (p.trailX[i + 1] - camX), by = (float) (p.trailY[i + 1] - camY), bz = (float) (p.trailZ[i + 1] - camZ);
             float t0 = (float) i / (n - 1);
             float t1 = (float) (i + 1) / (n - 1);
-            float w0 = Math.max(0.01f, p.width * 0.35f * (1f - t0));
-            float w1 = Math.max(0.01f, p.width * 0.35f * (1f - t1));
+            float w0 = Math.max(0.01f, p.width * 0.35f * (1f - t0 * 0.85f));
+            float w1 = Math.max(0.01f, p.width * 0.35f * (1f - t1 * 0.85f));
             verts = appendSegmentQuad(ax, ay, az, bx, by, bz, w0, w1, t0, t1,
-                    p.r, p.g, p.b, p.a * (1f - t0), p.r, p.g, p.b, p.a * (1f - t1), verts);
+                    p.r, p.g, p.b, p.a * (1f - t0 * 0.7f), p.r, p.g, p.b, p.a * (1f - t1 * 0.7f), verts);
         }
         return verts;
     }
@@ -369,15 +668,61 @@ public final class DirectGlEffectRenderer {
         vertexBuf.put(x).put(y).put(z).put(u).put(v).put(r).put(g).put(b).put(a);
     }
 
-    private void flushParticles(int verts, float hdr) {
+    private void flushParticles(int verts, MaterialModel mat, @Nullable McResourceBridge bridge) {
         if (verts <= 0) return;
         vertexBuf.flip();
-        GL20C.glUseProgram(shaders.particleProgram);
-        matBuf.clear();
-        viewProj.get(matBuf);
-        GL20C.glUniformMatrix4fv(shaders.particleViewProjLoc, false, matBuf);
-        GL20C.glUniform1i(shaders.particleTexLoc, 0);
-        GL20C.glUniform1f(shaders.particleHdrLoc, hdr);
+
+        float hdr = mat.hdr() ? Math.max(1.5f, mat.emissiveScale()) : 1.0f;
+        float softFade = (activeSceneDepthTex != 0 && mat.softParticles()) ? mat.softFadeDistance() : 0f;
+
+        if (activeSceneDepthTex != 0) {
+            GL13C.glActiveTexture(GL13C.GL_TEXTURE1);
+            GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, activeSceneDepthTex);
+        }
+        if (activeSceneColorTex != 0) {
+            GL13C.glActiveTexture(GL13C.GL_TEXTURE2);
+            GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, activeSceneColorTex);
+        }
+
+        CompiledMaterial custom = mat.hasCustomShader() ? customMaterials.resolve(mat, bridge) : null;
+        if (custom != null) {
+            String tex1Id = mat.secondaryTexture();
+            if (tex1Id != null) {
+                GL13C.glActiveTexture(GL13C.GL_TEXTURE3);
+                GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, textures.resolve(tex1Id, bridge));
+            }
+            GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
+            GL20C.glUseProgram(custom.program());
+            matBuf.clear();
+            viewProj.get(matBuf);
+            if (custom.viewProjLoc() >= 0) GL20C.glUniformMatrix4fv(custom.viewProjLoc(), false, matBuf);
+            if (custom.timeLoc() >= 0) GL20C.glUniform1f(custom.timeLoc(), frameTimeSeconds);
+            if (custom.hdrLoc() >= 0) GL20C.glUniform1f(custom.hdrLoc(), hdr);
+            if (custom.softFadeLoc() >= 0) GL20C.glUniform1f(custom.softFadeLoc(), softFade);
+            if (custom.nearFarLoc() >= 0) GL20C.glUniform2f(custom.nearFarLoc(), activeNear, activeFar);
+            if (custom.invViewportLoc() >= 0) GL20C.glUniform2f(custom.invViewportLoc(), 1f / activeVpWidth, 1f / activeVpHeight);
+            if (custom.paramsLoc() >= 0) {
+                float[] p = mat.parameters();
+                GL20C.glUniform4f(custom.paramsLoc(), p[0], p[1], p[2], p[3]);
+            }
+            if (custom.tintLoc() >= 0) GL20C.glUniform4f(custom.tintLoc(), 1f, 1f, 1f, 1f);
+            if (custom.tex0Loc() >= 0) GL20C.glUniform1i(custom.tex0Loc(), 0);
+            if (custom.sceneDepthLoc() >= 0) GL20C.glUniform1i(custom.sceneDepthLoc(), 1);
+            if (custom.sceneColorLoc() >= 0) GL20C.glUniform1i(custom.sceneColorLoc(), 2);
+            if (custom.tex1Loc() >= 0) GL20C.glUniform1i(custom.tex1Loc(), 3);
+        } else {
+            GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
+            GL20C.glUseProgram(shaders.particleProgram);
+            matBuf.clear();
+            viewProj.get(matBuf);
+            GL20C.glUniformMatrix4fv(shaders.particleViewProjLoc, false, matBuf);
+            GL20C.glUniform1i(shaders.particleTexLoc, 0);
+            GL20C.glUniform1i(shaders.particleSceneDepthLoc, 1);
+            GL20C.glUniform1f(shaders.particleHdrLoc, hdr);
+            GL20C.glUniform1f(shaders.particleSoftFadeLoc, softFade);
+            GL20C.glUniform2f(shaders.particleNearFarLoc, activeNear, activeFar);
+            GL20C.glUniform2f(shaders.particleInvViewportLoc, 1f / activeVpWidth, 1f / activeVpHeight);
+        }
 
         GL30C.glBindVertexArray(quadVao);
         GL15C.glBindBuffer(GL15C.GL_ARRAY_BUFFER, quadVbo);
@@ -418,12 +763,24 @@ public final class DirectGlEffectRenderer {
     public void onResourcesReloaded() {
         textures.clear();
         meshes.clear();
+        customMaterials.clear();
+        naniteRenderer.clear();
+        rvt.clear();
         niagaraGpuRunner.clear();
     }
 
     public void dispose() {
         onResourcesReloaded();
         shaders.dispose();
+        sceneDepthCapture.dispose();
+        hdrBloom.dispose();
+        niagaraDirectRenderer.shutdown();
+        naniteRenderer.dispose();
+        splatRenderer.dispose();
+        groomRenderer.dispose();
+        volumeLightRenderer.dispose();
+        rvt.dispose();
+        niagaraGpuRunner.shutdown();
         if (quadVao != 0) {
             GL30C.glDeleteVertexArrays(quadVao);
             quadVao = 0;

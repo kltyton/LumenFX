@@ -1,6 +1,8 @@
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.bundling.Jar
 
+apply from: new File(file('../..'), 'gradle/target-conventions/shader-pack.gradle')
+
 def templeRoot = file('../..')
 def commonRoot = new File(templeRoot, 'common')
 def shared = project(':common')
@@ -9,6 +11,7 @@ def mappedMixin = loader == 'forge' || (loader == 'fabric' && javaVersion < 25)
 def refmapName = "${mod_id}.refmap.json"
 def extrasVersion = '0.4.1'
 def lombok = 'org.projectlombok:lombok:1.18.46'
+def usesBlaze3dGpu = minecraft_version in ['26.2', '26.3']
 
 repositories {
     mavenLocal()
@@ -45,7 +48,7 @@ if (irisCoord) {
     dependencies.add(loader == 'fabric' && javaVersion < 25 ? 'modCompileOnly' : 'compileOnly', irisCoord)
 }
 if (sodiumCoord) {
-    if (loader == 'neoforge' && minecraft_version in ['26.2', '26.1.2']) {
+    if (loader == 'neoforge' && minecraft_version in ['26.3', '26.2', '26.1.2']) {
         def sodiumBundle = configurations.create('sodiumBundle') {
             canBeConsumed = false
             canBeResolved = true
@@ -78,10 +81,11 @@ if (loader == 'neoforge') {
     def atCandidates = [
             new File(commonRoot, "src/compat/neoforge/${minecraft_version}/resources/META-INF/accesstransformer.cfg"),
             new File(commonRoot, "src/compat/minecraft/${minecraft_version}/resources/META-INF/accesstransformer.cfg"),
+            usesBlaze3dGpu ? new File(commonRoot, 'src/compat/neoforge/26.2/resources/META-INF/accesstransformer.cfg') : null,
             new File(commonRoot, 'src/main/resources/META-INF/accesstransformer.cfg')
-    ].findAll { it.isFile() }
+    ].findAll { it != null && it.isFile() }.unique { it.canonicalPath }
     if (!atCandidates.isEmpty()) {
-        neoForge.accessTransformers.from(atCandidates)
+        neoForge.accessTransformers.from(atCandidates.first())
     }
 } else if (loader == 'forge') {
     def atCandidates = [
@@ -94,18 +98,28 @@ if (loader == 'neoforge') {
 } else if (loader == 'fabric') {
     def awCandidates = [
             new File(commonRoot, "src/compat/fabric/${minecraft_version}/resources/lumenfx.accesswidener"),
-            new File(commonRoot, "src/compat/fabric/resources/lumenfx.accesswidener")
-    ].findAll { it.isFile() }
+            usesBlaze3dGpu ? new File(commonRoot, 'src/compat/fabric/26.2/resources/lumenfx.accesswidener') : null,
+            new File(commonRoot, 'src/compat/fabric/resources/lumenfx.accesswidener')
+    ].findAll { it != null && it.isFile() }
     if (!awCandidates.isEmpty()) {
         loom.accessWidenerPath = awCandidates.first()
     }
 }
 
-// Native Windows x64 JNI math & audio DLLs (26.2 runtime only)
-def isMc262Target = minecraft_version == '26.2'
+// Native Windows x64 JNI math & audio DLLs (26.2+ Blaze3D GPU runtime only)
 def nativeOutDir = new File(commonRoot, 'build/generated/nativeResources')
 def nativeMathDll = new File(nativeOutDir, 'windows/x64/lumenfx/lumenfx_math.dll')
 def nativeAudioDll = new File(nativeOutDir, 'windows/x64/lumenfx/lumenfx_audio.dll')
+def packedShadersDir = layout.buildDirectory.dir('generated/packedShaders')
+def packedShadersFile = layout.buildDirectory.file('generated/packedShaders/assets/lumenfx/shaders/compute.lfpack')
+def computeShadersSrcDir = new File(commonRoot, 'src/main/resources/assets/lumenfx/shaders/compute')
+def packComputeShaders = tasks.register('packComputeShaders') {
+    inputs.dir(computeShadersSrcDir)
+    outputs.file(packedShadersFile)
+    doLast {
+        lumenfxPackComputeShaders(computeShadersSrcDir, packedShadersFile.get().asFile)
+    }
+}
 def nativeMath = tasks.register('compileNativeMath', Exec) {
     inputs.files(fileTree(new File(commonRoot, 'native/math')) { include '**/*.cpp', '**/*.h', '*.vcxproj' },
             new File(templeRoot, 'tools/native/Build-NativeMath.ps1'))
@@ -135,16 +149,19 @@ def nativeAudio = tasks.register('compileNativeAudio', Exec) {
 
 // Mixin compatibility level & refmap filtering
 tasks.named('processResources', ProcessResources) {
-    if (isMc262Target) {
-        dependsOn nativeMath, nativeAudio
+    if (usesBlaze3dGpu) {
+        dependsOn nativeMath, nativeAudio, packComputeShaders
         from(nativeOutDir) {
             exclude 'windows/x64/lumenfx/*.lib', 'windows/x64/lumenfx/*.exp'
         }
+        from(packedShadersDir)
+        exclude 'assets/lumenfx/shaders/compute/**'
     } else {
         exclude 'assets/lumenfx/shaders/**'
         exclude 'assets/photon/**'
     }
     exclude 'assets/lumenfx/shaders/fog/integrate.comp'
+    exclude 'assets/lumenfx/shaders/compute/volume/preshaded.csh'
     exclude 'META-INF/licenses/**'
     inputs.property('mixinJavaVersion', java_version)
     inputs.property('mixinNeedsRefmap', mappedMixin)
@@ -163,10 +180,21 @@ tasks.named('jar', Jar) {
     }
     exclude 'windows/x64/lumenfx/*.lib', 'windows/x64/lumenfx/*.exp'
     exclude 'META-INF/licenses/**'
-    if (!isMc262Target) {
+    if (usesBlaze3dGpu) {
+        exclude 'assets/lumenfx/shaders/compute/**'
+    } else {
         exclude 'assets/lumenfx/shaders/**'
         exclude 'assets/photon/**'
         exclude 'windows/x64/lumenfx/**'
+    }
+    doLast {
+        lumenfxOptimizeJarLossless(archiveFile.get().asFile)
+    }
+}
+tasks.matching { it.name in ['remapJar', 'reobfJar'] }.configureEach {
+    doLast {
+        def out = it.outputs.files.files.find { f -> f.isFile() && f.name.endsWith('.jar') }
+        if (out != null) lumenfxOptimizeJarLossless(out)
     }
 }
 tasks.named('sourcesJar', Jar) {

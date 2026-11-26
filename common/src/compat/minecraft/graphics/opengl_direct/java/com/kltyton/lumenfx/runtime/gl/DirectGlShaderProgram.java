@@ -2,7 +2,7 @@ package com.kltyton.lumenfx.runtime.gl;
 
 import org.lwjgl.opengl.GL20C;
 
-/** Compiles and owns the GLSL 330 Core graphics programs for particles/ribbons and 3D static meshes. */
+/** Compiles and owns the GLSL 330 Core graphics programs for soft particles/ribbons and 3D static meshes. */
 public final class DirectGlShaderProgram {
     private static final String PARTICLE_VERT = """
             #version 330 core
@@ -24,11 +24,24 @@ public final class DirectGlShaderProgram {
             in vec2 vUv;
             in vec4 vColor;
             uniform sampler2D uTex;
+            uniform sampler2D uSceneDepth;
             uniform float uHdr;
+            uniform float uSoftFade;
+            uniform vec2 uNearFar;
+            uniform vec2 uInvViewport;
             out vec4 fragColor;
+            float linearDepth(float d) {
+                float z = d * 2.0 - 1.0;
+                return (2.0 * uNearFar.x * uNearFar.y) / max(uNearFar.y + uNearFar.x - z * (uNearFar.y - uNearFar.x), 0.0001);
+            }
             void main() {
                 vec4 sampled = texture(uTex, vUv);
                 vec4 outCol = sampled * vColor;
+                if (uSoftFade > 0.0001) {
+                    float sceneZ = linearDepth(texture(uSceneDepth, gl_FragCoord.xy * uInvViewport).r);
+                    float fragZ = linearDepth(gl_FragCoord.z);
+                    outCol.a *= clamp((sceneZ - fragZ) / uSoftFade, 0.0, 1.0);
+                }
                 outCol.rgb *= uHdr;
                 if (outCol.a <= 0.002) discard;
                 fragColor = outCol;
@@ -78,7 +91,11 @@ public final class DirectGlShaderProgram {
     public int particleProgram;
     public int particleViewProjLoc;
     public int particleTexLoc;
+    public int particleSceneDepthLoc;
     public int particleHdrLoc;
+    public int particleSoftFadeLoc;
+    public int particleNearFarLoc;
+    public int particleInvViewportLoc;
 
     public int meshProgram;
     public int meshViewProjLoc;
@@ -92,7 +109,11 @@ public final class DirectGlShaderProgram {
         particleProgram = link(PARTICLE_VERT, PARTICLE_FRAG);
         particleViewProjLoc = GL20C.glGetUniformLocation(particleProgram, "uViewProj");
         particleTexLoc = GL20C.glGetUniformLocation(particleProgram, "uTex");
+        particleSceneDepthLoc = GL20C.glGetUniformLocation(particleProgram, "uSceneDepth");
         particleHdrLoc = GL20C.glGetUniformLocation(particleProgram, "uHdr");
+        particleSoftFadeLoc = GL20C.glGetUniformLocation(particleProgram, "uSoftFade");
+        particleNearFarLoc = GL20C.glGetUniformLocation(particleProgram, "uNearFar");
+        particleInvViewportLoc = GL20C.glGetUniformLocation(particleProgram, "uInvViewport");
 
         meshProgram = link(MESH_VERT, MESH_FRAG);
         meshViewProjLoc = GL20C.glGetUniformLocation(meshProgram, "uViewProj");

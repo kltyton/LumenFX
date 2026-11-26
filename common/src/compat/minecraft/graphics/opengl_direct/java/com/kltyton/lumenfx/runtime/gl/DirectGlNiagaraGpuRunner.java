@@ -1,9 +1,11 @@
 package com.kltyton.lumenfx.runtime.gl;
 
+import com.kltyton.lumenfx.runtime.gl.niagara.DirectGlNiagaraDirectRenderer;
 import com.kltyton.lumenfx.runtime.model.NiagaraSystemModel.AttributeSpec;
 import com.kltyton.lumenfx.runtime.model.NiagaraSystemModel.ComputeStageSpec;
 import com.kltyton.lumenfx.runtime.model.NiagaraSystemModel.EmitterSpec;
 import com.kltyton.lumenfx.runtime.model.NiagaraSystemModel.GpuProgramSpec;
+import com.kltyton.lumenfx.runtime.model.NiagaraSystemModel.RendererKind;
 import com.kltyton.lumenfx.runtime.model.NiagaraSystemModel.UniformBlockSpec;
 import com.kltyton.lumenfx.runtime.niagara.DirectVectorDataSet;
 import com.kltyton.lumenfx.runtime.niagara.HalfFloat;
@@ -205,13 +207,23 @@ public final class DirectGlNiagaraGpuRunner {
         int acquireTag;
         int freeIdCount;
         boolean failed;
+        double lastOriginX, lastOriginY, lastOriginZ;
+        final int posComp, colComp, sizeComp, widthComp, rotComp, velComp, ageComp, lifeComp;
 
-        EmitterGpuBuffers(int initialParticles, int maxAllowedParticles,
+        EmitterGpuBuffers(EmitterSpec spec, int initialParticles, int maxAllowedParticles,
                           int floatComponents, int intComponents, int halfComponents) {
             this.maxAllowedParticles = Math.max(0, maxAllowedParticles);
             this.floatComponents = Math.max(0, floatComponents);
             this.intComponents = Math.max(0, intComponents);
             this.halfComponents = Math.max(0, halfComponents);
+            this.posComp = findFloatComponent(spec.attributes(), "Position");
+            this.colComp = findFloatComponent(spec.attributes(), "Color");
+            this.sizeComp = findFloatComponent(spec.attributes(), "SpriteSize");
+            this.widthComp = findFloatComponent(spec.attributes(), "RibbonWidth");
+            this.rotComp = findFloatComponent(spec.attributes(), "SpriteRotation");
+            this.velComp = findFloatComponent(spec.attributes(), "Velocity");
+            this.ageComp = findFloatComponent(spec.attributes(), "Age");
+            this.lifeComp = findFloatComponent(spec.attributes(), "Lifetime");
             this.freeIdSizesBuf = createZeroBuffer(16L);
             this.indirectArgsBuf = createZeroBuffer(64L);
             this.instanceCountsBuf = createZeroBuffer(64L);
@@ -327,7 +339,29 @@ public final class DirectGlNiagaraGpuRunner {
     private final Map<String, List<DirectGlComputeKernel>> kernelCache = new HashMap<>();
     private final Map<EmitterState, EmitterGpuBuffers> emitterBuffers = new IdentityHashMap<>();
     private final Map<Integer, Integer> texelTextures = new HashMap<>();
+    private final IntBuffer scratchCounts = MemoryUtil.memAllocInt(4);
+    private ByteBuffer scratchUbo = MemoryUtil.memAlloc(4096);
     private int globalAcquireTag;
+
+    /**
+     * Returns a zero-readback GPU draw descriptor pointing directly to the emitter's live compute SSBOs
+     * so {@link DirectGlNiagaraDirectRenderer} can draw unlimited particles without any 2,048 CPU readback cap.
+     */
+    public @Nullable DirectGlNiagaraDirectRenderer.GpuDrawDescriptor directDrawDescriptor(EmitterState state) {
+        EmitterGpuBuffers bufs = emitterBuffers.get(state);
+        if (bufs == null || bufs.failed || bufs.currentCount <= 0 || bufs.floatComponents <= 0) return null;
+        int activeFloat = bufs.ping ? bufs.floatBufB : bufs.floatBufA;
+        if (activeFloat == 0) return null;
+        int activeInt = bufs.ping ? bufs.intBufB : bufs.intBufA;
+        int activeHalf = bufs.ping ? bufs.halfBufB : bufs.halfBufA;
+        return new DirectGlNiagaraDirectRenderer.GpuDrawDescriptor(
+                activeFloat, activeInt, activeHalf,
+                bufs.stride, bufs.currentCount,
+                bufs.posComp, bufs.colComp, bufs.sizeComp, bufs.widthComp,
+                bufs.rotComp, bufs.velComp, bufs.ageComp, bufs.lifeComp,
+                state.spec.localSpace(), bufs.lastOriginX, bufs.lastOriginY, bufs.lastOriginZ,
+                state.primaryRenderer.kind(), state.material, state.primaryRenderer.meshModel());
+    }
 
     /** Monotonically advances the runner's unsigned AcquireTag past any cached particle AcquireTag (26.2 parity). */
     public void observeCachedParticleTag(int tag) {
@@ -453,6 +487,9 @@ public final class DirectGlNiagaraGpuRunner {
                     kernel.dispatch(threadCount, ubos, ssbos, texelTextures);
                 }
 
+                bufs.lastOriginX = tick.origin().x;
+                bufs.lastOriginY = tick.origin().y;
+                bufs.lastOriginZ = tick.origin().z;
                 int written = readCount(bufs.instanceCountsBuf, writeOffset);
                 bufs.currentCount = Math.max(0, Math.min(bufs.capacity, written));
                 bufs.ping = !bufs.ping;
@@ -461,7 +498,10 @@ public final class DirectGlNiagaraGpuRunner {
                 state.liveGpuTotalSpawned.set(bufs.totalSpawned);
                 state.syncGpuAcquireTag(dispatchTag);
 
-                if (bufs.currentCount > 0 && bufs.floatComponents > 0) {
+                RendererKind rk = state.primaryRenderer.kind();
+                boolean canDirectDraw = DirectGlNiagaraDirectRenderer.isGl43Supported()
+                        && (rk == RendererKind.SPRITE || rk == RendererKind.RIBBON || rk == RendererKind.MESH);
+                if (!canDirectDraw && bufs.currentCount > 0 && bufs.floatComponents > 0) {
                     readbackParticles(state, writeFloat, bufs.stride, bufs.floatComponents, bufs.currentCount, tick);
                 } else {
                     state.gpuReadbackParticles = List.of();
@@ -654,7 +694,7 @@ public final class DirectGlNiagaraGpuRunner {
                 cachedMaxStorageBufferBytes, cachedMaxTexelBufferElements);
         int maxAllowed = Math.max(0, Math.min(spec.declaredMaxParticles(), deviceCap));
         int initialParticles = Math.min(maxAllowed, 63);
-        return new EmitterGpuBuffers(initialParticles, maxAllowed, floatComps, intComps, halfComps);
+        return new EmitterGpuBuffers(spec, initialParticles, maxAllowed, floatComps, intComps, halfComps);
     }
 
     private static Map<String, Object> buildGlobalsMap(EmitterGpuBuffers bufs, GpuTickRequest tick,
@@ -843,17 +883,17 @@ public final class DirectGlNiagaraGpuRunner {
         return -1;
     }
 
-    private static int uploadUbo(EmitterGpuBuffers bufs, String name, byte[] data) {
+    private int uploadUbo(EmitterGpuBuffers bufs, String name, byte[] data) {
         int ubo = bufs.uboHandles.computeIfAbsent(name, k -> GL15C.glGenBuffers());
-        ByteBuffer tmp = MemoryUtil.memAlloc(data.length);
-        try {
-            tmp.put(data).flip();
-            GL15C.glBindBuffer(GL31C.GL_UNIFORM_BUFFER, ubo);
-            GL15C.glBufferData(GL31C.GL_UNIFORM_BUFFER, tmp, GL15C.GL_DYNAMIC_DRAW);
-            GL15C.glBindBuffer(GL31C.GL_UNIFORM_BUFFER, 0);
-        } finally {
-            MemoryUtil.memFree(tmp);
+        if (scratchUbo.capacity() < data.length) {
+            MemoryUtil.memFree(scratchUbo);
+            scratchUbo = MemoryUtil.memAlloc(Math.max(data.length, scratchUbo.capacity() * 2));
         }
+        scratchUbo.clear();
+        scratchUbo.put(data).flip();
+        GL15C.glBindBuffer(GL31C.GL_UNIFORM_BUFFER, ubo);
+        GL15C.glBufferData(GL31C.GL_UNIFORM_BUFFER, scratchUbo, GL15C.GL_DYNAMIC_DRAW);
+        GL15C.glBindBuffer(GL31C.GL_UNIFORM_BUFFER, 0);
         return ubo;
     }
 
@@ -945,28 +985,28 @@ public final class DirectGlNiagaraGpuRunner {
         }
     }
 
-    private static void writeCounts(int ssbo, int c0, int c1) {
-        IntBuffer buf = MemoryUtil.memAllocInt(4);
-        try {
-            buf.put(c0).put(c1).put(0).put(0).flip();
-            GL15C.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, ssbo);
-            GL15C.glBufferSubData(GL43C.GL_SHADER_STORAGE_BUFFER, 0L, buf);
-            GL15C.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, 0);
-        } finally {
-            MemoryUtil.memFree(buf);
-        }
+    private void writeCounts(int ssbo, int c0, int c1) {
+        scratchCounts.clear();
+        scratchCounts.put(c0).put(c1).put(0).put(0).flip();
+        GL15C.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, ssbo);
+        GL15C.glBufferSubData(GL43C.GL_SHADER_STORAGE_BUFFER, 0L, scratchCounts);
+        GL15C.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, 0);
     }
 
-    private static int readCount(int ssbo, int index) {
-        IntBuffer buf = MemoryUtil.memAllocInt(1);
-        try {
-            GL15C.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, ssbo);
-            GL15C.glGetBufferSubData(GL43C.GL_SHADER_STORAGE_BUFFER, (long) index * Integer.BYTES, buf);
-            GL15C.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, 0);
-            return buf.get(0);
-        } finally {
-            MemoryUtil.memFree(buf);
-        }
+    private int readCount(int ssbo, int index) {
+        scratchCounts.clear().limit(1);
+        GL15C.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, ssbo);
+        GL15C.glGetBufferSubData(GL43C.GL_SHADER_STORAGE_BUFFER, (long) index * Integer.BYTES, scratchCounts);
+        GL15C.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, 0);
+        int val = scratchCounts.get(0);
+        scratchCounts.clear();
+        return val;
+    }
+
+    public void shutdown() {
+        clear();
+        MemoryUtil.memFree(scratchCounts);
+        MemoryUtil.memFree(scratchUbo);
     }
 
     private static float clamp01(float v) { return Math.max(0f, Math.min(1f, v)); }

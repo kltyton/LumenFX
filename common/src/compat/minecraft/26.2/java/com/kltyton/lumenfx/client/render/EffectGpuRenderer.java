@@ -339,7 +339,7 @@ public final class EffectGpuRenderer implements AutoCloseable {
                     dbufferLookup, receivesDecals, meshScene, meshSceneCulling, dynamicMesh, false, gamma);
         }
     }
-    private static final class Batch {
+    static final class Batch {
         final EffectMesh.Key key;
         final List<EffectMesh> parts = new ArrayList<>();
         int bytes, instances, offset, uniformOffset;
@@ -732,6 +732,7 @@ public final class EffectGpuRenderer implements AutoCloseable {
     private long generation = Long.MIN_VALUE;
     private int nextPipeline;
     private final NiagaraMaterialExtras materialExtras = new NiagaraMaterialExtras();
+    private final VertexStreamRing vertexStreamRing = new VertexStreamRing();
     private MotionShaderAdapter motionShaders;
     private GpuBufferSlice motionUniforms;
     private @Nullable GpuTexture opaqueMotionDepthTexture;
@@ -1208,17 +1209,8 @@ public final class EffectGpuRenderer implements AutoCloseable {
                 ? com.kltyton.lumenfx.client.VfxEngine.INSTANCE.meshScenePrograms() : null;
         if (meshScenePrograms != null) meshScenePrograms.beginDraw();
         if (bytes > 0) {
-            int extraUsage = meshScenePrograms == null ? 0 : ComputeUsage.storageBuffer(0);
-            long alignment = meshScenePrograms == null ? 4 : Math.max(4, meshScenePrograms.storageAlignment());
-            vertices = PhotonUploads.records(encoder, bytes, alignment, extraUsage, floats -> {
-                for (int i = 0, n = drawing.size(); i < n; i++) {
-                    var parts = drawing.get(i).parts;
-                    for (int j = 0, m = parts.size(); j < m; j++) {
-                        var mesh = parts.get(j);
-                        floats.put(mesh.values(), 0, mesh.floatCount());
-                    }
-                }
-            });
+            vertexStreamRing.beginDraw(frame);
+            vertices = vertexStreamRing.upload(encoder, bytes, meshScenePrograms != null, drawing);
         }
         if (hasExtraCpuData) {
             materialExtras.beginFrame();
@@ -3746,5 +3738,6 @@ public final class EffectGpuRenderer implements AutoCloseable {
         isolatedSceneColor.close();
         materialViewUniforms = null;
         materialExtras.close();
+        vertexStreamRing.close();
     }
 }

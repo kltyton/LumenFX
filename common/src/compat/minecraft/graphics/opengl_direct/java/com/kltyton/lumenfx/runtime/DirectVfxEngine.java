@@ -1,7 +1,9 @@
 package com.kltyton.lumenfx.runtime;
 
 import com.kltyton.lumenfx.api.client.EffectHandle;
+import com.kltyton.lumenfx.runtime.audio.DirectSpatialAudioEngine;
 import com.kltyton.lumenfx.runtime.bridge.McResourceBridge;
+import com.kltyton.lumenfx.runtime.concurrent.DirectFrameExecutor;
 import com.kltyton.lumenfx.runtime.gl.DirectGlEffectRenderer;
 import com.kltyton.lumenfx.runtime.model.EffectModel;
 import com.kltyton.lumenfx.runtime.model.PhotonFxModel;
@@ -26,8 +28,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Unified direct OpenGL 3.3+ / 4.6 VFX runtime for Minecraft 1.20.1, 1.21.1, and 26.1.2.
- * Supports 26.2-format Unity Shuriken effects, UE5 Niagara CPU/GPU SPIR-V effects,
- * real {@code .lfmesh} static meshes, and Photon 26.2 {@code .fx} authored-model assets.
+ * Features lock-free LPT work-stealing simulation, HDR Bloom, depth soft particles, custom GLSL materials,
+ * zero-readback GPU Niagara rendering, full Photon {@code .fx} simulation, Nanite, 3D Gaussian Splatting,
+ * RVT, Groom hair strands, volumetric fog/decals/lights, and 3D OpenAL spatial audio.
  */
 public final class DirectVfxEngine {
     public static final DirectVfxEngine INSTANCE = new DirectVfxEngine();
@@ -41,6 +44,7 @@ public final class DirectVfxEngine {
     private final AtomicInteger resourceGeneration = new AtomicInteger(1);
     private final AtomicBoolean rendererResetPending = new AtomicBoolean(false);
     private final DirectGlEffectRenderer renderer = new DirectGlEffectRenderer();
+    private final DirectSpatialAudioEngine spatialAudio = new DirectSpatialAudioEngine();
 
     private DirectVfxEngine() {
         com.kltyton.lumenfx.runtime.keyframe.DirectKeyframeAdapter.install();
@@ -51,25 +55,13 @@ public final class DirectVfxEngine {
         return effects.containsKey(id) || photonModels.containsKey(id);
     }
 
-    public void attachBridge(McResourceBridge bridge) {
-        this.bridge = bridge;
-    }
-
-    public @Nullable McResourceBridge bridge() {
-        return bridge;
-    }
-
-    public int resourceGeneration() {
-        return resourceGeneration.get();
-    }
-
-    public int loadedEffectCount() {
-        return effects.size();
-    }
-
-    public int activeInstanceCount() {
-        return instances.size();
-    }
+    public void attachBridge(McResourceBridge bridge) { this.bridge = bridge; }
+    public @Nullable McResourceBridge bridge() { return bridge; }
+    public int resourceGeneration() { return resourceGeneration.get(); }
+    public int loadedEffectCount() { return effects.size(); }
+    public int activeInstanceCount() { return instances.size(); }
+    public DirectGlEffectRenderer renderer() { return renderer; }
+    public DirectSpatialAudioEngine spatialAudio() { return spatialAudio; }
 
     public int liveGpuParticleCount() {
         int sum = 0;
@@ -83,10 +75,6 @@ public final class DirectVfxEngine {
         return sum;
     }
 
-    public DirectGlEffectRenderer renderer() {
-        return renderer;
-    }
-
     public @Nullable EffectRuntimeInstance runtimeFor(EffectHandle handle) {
         for (EffectRuntimeInstance inst : instances) {
             if (inst.handle() == handle) return inst;
@@ -94,13 +82,8 @@ public final class DirectVfxEngine {
         return null;
     }
 
-    public @Nullable EffectModel effectModel(String rawId) {
-        return effects.get(canonicalId(rawId));
-    }
-
-    public @Nullable PhotonFxModel photonModel(String rawId) {
-        return photonModels.get(canonicalId(rawId));
-    }
+    public @Nullable EffectModel effectModel(String rawId) { return effects.get(canonicalId(rawId)); }
+    public @Nullable PhotonFxModel photonModel(String rawId) { return photonModels.get(canonicalId(rawId)); }
 
     public void registerEffect(EffectModel model) {
         String id = canonicalId(model.id());
@@ -142,9 +125,11 @@ public final class DirectVfxEngine {
             String fxId = stripPrefixAndSuffix(entry.getKey(), "fx/", ".fx");
             try {
                 PhotonFxModel photon = PhotonFxModel.parseNbt(fxId, entry.getValue(), b);
-                photonModels.put(fxId, photon);
-                effects.putIfAbsent(fxId, EffectModel.fromPhoton(photon));
-                photonCount++;
+                if (photon != null) {
+                    photonModels.put(fxId, photon);
+                    effects.putIfAbsent(fxId, EffectModel.fromPhoton(photon));
+                    photonCount++;
+                }
             } catch (RuntimeException ex) {
                 LOGGER.warn("LumenFX failed to parse Photon FX {}: {}", fxId, ex.getMessage());
             }
@@ -192,10 +177,12 @@ public final class DirectVfxEngine {
         if (fxBytes != null) {
             try {
                 PhotonFxModel photon = PhotonFxModel.parseNbt(id, fxBytes, b);
-                photonModels.put(id, photon);
-                EffectModel wrapped = EffectModel.fromPhoton(photon);
-                effects.put(id, wrapped);
-                return wrapped;
+                if (photon != null) {
+                    photonModels.put(id, photon);
+                    EffectModel wrapped = EffectModel.fromPhoton(photon);
+                    effects.put(id, wrapped);
+                    return wrapped;
+                }
             } catch (RuntimeException ex) {
                 LOGGER.warn("LumenFX failed on-demand parse of Photon {}: {}", id, ex.getMessage());
             }
@@ -208,20 +195,89 @@ public final class DirectVfxEngine {
     }
 
     public void tickClient(float dtSeconds) {
+        if (instances.isEmpty()) return;
         int gen = resourceGeneration.get();
         McResourceBridge b = this.bridge;
-        List<EffectRuntimeInstance> dead = null;
-        for (EffectRuntimeInstance inst : instances) {
-            if (!inst.tick(dtSeconds, gen, b)) {
-                if (dead == null) dead = new ArrayList<>();
-                dead.add(inst);
+        List<EffectRuntimeInstance> snapshot = new ArrayList<>(instances);
+
+        List<EffectRuntimeInstance> ownerOnly = null;
+        List<EffectRuntimeInstance> workerSafe = null;
+        int workerEstimatedWork = 0;
+
+        for (EffectRuntimeInstance inst : snapshot) {
+            if (inst.requiresOwnerThread(b)) {
+                if (ownerOnly == null) ownerOnly = new ArrayList<>();
+                ownerOnly.add(inst);
+            } else {
+                if (workerSafe == null) workerSafe = new ArrayList<>();
+                workerSafe.add(inst);
+                workerEstimatedWork += inst.estimatedWorkload();
             }
         }
+
+        List<EffectRuntimeInstance> dead = null;
+        int workerCount = workerSafe != null ? workerSafe.size() : 0;
+        int partitions = workerCount > 0
+                ? DirectFrameExecutor.INSTANCE.partitions(workerCount, workerEstimatedWork) : 1;
+
+        if (workerCount > 0 && (partitions > 1 || (ownerOnly != null && !ownerOnly.isEmpty() && DirectFrameExecutor.INSTANCE.maximumWorkers() > 1))) {
+            // LPT order: heaviest worker-safe instances first so stragglers never tail-stall frame sync
+            if (workerCount > 1) {
+                workerSafe.sort((x, y) -> Integer.compare(y.estimatedWorkload(), x.estimatedWorkload()));
+            }
+            final List<EffectRuntimeInstance> ws = workerSafe;
+            final boolean[] wsAlive = new boolean[workerCount];
+            final List<EffectRuntimeInstance> oo = ownerOnly;
+            final boolean[] ooAlive = oo != null ? new boolean[oo.size()] : null;
+            int effPartitions = Math.max(partitions, oo != null && !oo.isEmpty() ? Math.min(DirectFrameExecutor.INSTANCE.maximumWorkers(), workerCount + 1) : 1);
+
+            Runnable ownerWork = oo == null ? null : () -> {
+                for (int i = 0; i < oo.size(); i++) {
+                    ooAlive[i] = oo.get(i).tick(dtSeconds, gen, b);
+                }
+            };
+            DirectFrameExecutor.INSTANCE.executeIndexed(workerCount, effPartitions, ownerWork,
+                    (part, idx) -> wsAlive[idx] = ws.get(idx).tick(dtSeconds, gen, b));
+
+            for (int i = 0; i < workerCount; i++) {
+                if (!wsAlive[i]) {
+                    if (dead == null) dead = new ArrayList<>();
+                    dead.add(ws.get(i));
+                }
+            }
+            if (oo != null) {
+                for (int i = 0; i < oo.size(); i++) {
+                    if (!ooAlive[i]) {
+                        if (dead == null) dead = new ArrayList<>();
+                        dead.add(oo.get(i));
+                    }
+                }
+            }
+        } else {
+            for (EffectRuntimeInstance inst : snapshot) {
+                if (!inst.tick(dtSeconds, gen, b)) {
+                    if (dead == null) dead = new ArrayList<>();
+                    dead.add(inst);
+                }
+            }
+        }
+
         if (dead != null) {
             instances.removeAll(dead);
             for (EffectRuntimeInstance inst : dead) {
+                inst.stopAudio(spatialAudio);
                 enqueueGpuDisposal(inst);
             }
+        }
+        boolean anyAudio = false;
+        for (EffectRuntimeInstance inst : instances) {
+            if (!inst.model().audioCues().isEmpty()) {
+                inst.updateAudio(spatialAudio, dtSeconds, b);
+                anyAudio = true;
+            }
+        }
+        if (anyAudio || spatialAudio.activeVoiceCount() > 0) {
+            spatialAudio.reapFinishedVoices();
         }
     }
 
@@ -244,9 +300,11 @@ public final class DirectVfxEngine {
         com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager.onLevelUnload();
         for (EffectRuntimeInstance inst : instances) {
             inst.handle().markDead();
+            inst.stopAudio(spatialAudio);
             enqueueGpuDisposal(inst);
         }
         instances.clear();
+        spatialAudio.stopAll();
     }
 
     private void enqueueGpuDisposal(EffectRuntimeInstance inst) {
@@ -259,6 +317,8 @@ public final class DirectVfxEngine {
 
     public void shutdown() {
         clearLevel();
+        spatialAudio.dispose();
+        DirectFrameExecutor.INSTANCE.close();
         renderer.dispose();
     }
 

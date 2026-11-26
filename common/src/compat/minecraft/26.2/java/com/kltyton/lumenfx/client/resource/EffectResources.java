@@ -197,7 +197,7 @@ public final class EffectResources extends SimplePreparableReloadListener<Effect
                     var materialId = material.fragmentShader();
                     Identifier volumeShader = Identifier.fromNamespaceAndPath(materialId.getNamespace(),
                             "shaders/" + materialId.getPath() + ".volume.json");
-                    if (resources.getResource(volumeShader).isPresent()) {
+                    if (com.kltyton.lumenfx.client.resource.shader.ShaderResourceFiles.exists(resources, volumeShader)) {
                         if (!volumeMaterials.containsKey(materialId))
                             volumeMaterials.put(materialId, PreparedVolumeMaterial.prepare(
                                     resources, materialId, key -> sparseVolumes.computeIfAbsent(key,

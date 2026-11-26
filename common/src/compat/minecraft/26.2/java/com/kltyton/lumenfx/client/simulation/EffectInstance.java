@@ -1422,6 +1422,10 @@ public final class EffectInstance implements AutoCloseable {
             if (unity != null) return unity.group();
             return proxyDraw != null || niagara == null ? 0 : niagara.emitterGroup(nativeIndex);
         }
+        public int estimatedWorkload() {
+            if (niagara != null) return niagara.emitterEstimatedWorkload(nativeIndex);
+            return 32;
+        }
         public boolean requiresOwnerThread() {
             return niagara == null ? Objects.requireNonNull(unity).usesWorldCollision()
                     : proxyDraw == null && niagara.emitterUsesSynchronousCollision(nativeIndex);

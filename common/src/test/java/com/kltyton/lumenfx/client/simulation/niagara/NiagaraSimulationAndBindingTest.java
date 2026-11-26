@@ -666,4 +666,131 @@ final class NiagaraSimulationAndBindingTest {
         assertEquals(-1, remapped[2]); // truncated row 3 (>= 2) invalidated to -1
         assertEquals(0, remapped[3]);  // retained row 0 (< 2) stays accessible
     }
+
+    @Test
+    void frameExecutorWorkStealingOverlapsOwnerWorkAndPreservesSemantics() {
+        var executor = com.kltyton.lumenfx.client.concurrent.VfxFrameExecutor.INSTANCE;
+        int partitions = Math.min(executor.maximumWorkers(), 4);
+        int itemCount = 128;
+        var visited = new java.util.concurrent.atomic.AtomicIntegerArray(itemCount);
+        var callerThread = Thread.currentThread();
+        var ownerRanOnCaller = new java.util.concurrent.atomic.AtomicBoolean(false);
+        var callerParticipatedInStealing = new java.util.concurrent.atomic.AtomicBoolean(false);
+        executor.executeIndexed(itemCount, partitions, () -> {
+            ownerRanOnCaller.set(Thread.currentThread() == callerThread);
+        }, (partition, index) -> {
+            assertTrue(partition >= 0 && partition < partitions, "partition out of range: " + partition);
+            if (partition == 0) {
+                assertSame(callerThread, Thread.currentThread());
+                callerParticipatedInStealing.set(true);
+            }
+            assertEquals(0, visited.getAndIncrement(index), "duplicate work item index " + index);
+        });
+        assertTrue(ownerRanOnCaller.get(), "ownerWork must execute on caller thread");
+        for (int i = 0; i < itemCount; i++) {
+            assertEquals(1, visited.get(i), "missing work item " + i);
+        }
+        if (partitions > 1) {
+            assertTrue(callerParticipatedInStealing.get() || itemCount < partitions,
+                    "caller thread should participate in stealing when items remain");
+        }
+
+        // Verify executeRanges with OwnerRequests services caller reads without deadlock.
+        int rangeCount = 64;
+        var rangeVisited = new java.util.concurrent.atomic.AtomicIntegerArray(rangeCount);
+        var ownerReads = new java.util.concurrent.atomic.AtomicInteger(0);
+        var requests = partitions > 1 ? new com.kltyton.lumenfx.client.concurrent.VfxFrameExecutor.OwnerRequests(partitions) : null;
+        executor.executeRanges(0, rangeCount, partitions, requests, (partition, from, to) -> {
+            for (int i = from; i < to; i++) {
+                if (requests != null && i == from) {
+                    int token = requests.read(() -> {
+                        assertSame(callerThread, Thread.currentThread());
+                        return ownerReads.incrementAndGet();
+                    });
+                    assertTrue(token > 0);
+                }
+                assertEquals(0, rangeVisited.getAndIncrement(i));
+            }
+        });
+        for (int i = 0; i < rangeCount; i++) {
+            assertEquals(1, rangeVisited.get(i));
+        }
+        if (requests != null) {
+            assertEquals(partitions, ownerReads.get());
+        }
+
+        // Verify failure propagation from worker threads.
+        var thrown = org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () ->
+                executor.executeIndexed(16, partitions, null, (partition, index) -> {
+                    if (index == 11) throw new IllegalArgumentException("boom-11");
+                }));
+        assertEquals("boom-11", thrown.getCause().getMessage());
+    }
+
+    @Test
+    void vectorMachineHoistedArithmeticMatchesExactFloatAndIntegerBitSemantics() {
+        // Constants: slot 0 = 2.5f (reg 4), slot 1 = 0.0f (reg 5), slot 2 = 1.0f (reg 6), slot 3 = 10.0f (reg 7), slot 4 = -1 (true mask, reg 8)
+        ByteBuffer constBuf = ByteBuffer.allocate(32).order(ByteOrder.LITTLE_ENDIAN);
+        constBuf.putFloat(2.5f).putFloat(0.0f).putFloat(1.0f).putFloat(10.0f).putInt(-1);
+        byte[] constants = constBuf.array();
+        // Registers layout:
+        // temp: 0..3 (4 temps)
+        // const: 4 (2.5f), 5 (0.0f), 6 (1.0f), 7 (10.0f), 8 (-1 mask)
+        // inputs (dataset 0): 9 (float[0] = a), 10 (float[1] = b), 11 (int[0] = ia)
+        // duplicate input bank: 12, 13, 14
+        // outputs (dataset 0): 15 (float[0]), 16 (float[1]), 17 (float[2]), 18 (int[0])
+        var op = com.kltyton.lumenfx.effect.niagara.VectorProgram.Opcode.class;
+        var program = new com.kltyton.lumenfx.effect.niagara.VectorProgram(
+                4, 4, 1, 0, 0, 32, false, 0, List.of(),
+                constants, new int[] { 0, 1, 2, 3, 4 },
+                List.of(
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Input(0, 0, 0, false),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Input(0, 0, 1, false),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Input(0, 1, 0, false)
+                ),
+                List.of(
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Output(0, 0, 0),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Output(0, 0, 1),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Output(0, 0, 2),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Output(0, 1, 0)
+                ),
+                List.of(),
+                List.of(
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Instruction(com.kltyton.lumenfx.effect.niagara.VectorProgram.Opcode.MAD, 3, 0, 0, new int[] { 9, 4, 10, 0 }),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Instruction(com.kltyton.lumenfx.effect.niagara.VectorProgram.Opcode.CLAMP, 3, 0, 0, new int[] { 0, 6, 7, 1 }),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Instruction(com.kltyton.lumenfx.effect.niagara.VectorProgram.Opcode.DIV, 2, 0, 0, new int[] { 9, 5, 2 }),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Instruction(com.kltyton.lumenfx.effect.niagara.VectorProgram.Opcode.CMPLT, 2, 0, 0, new int[] { 9, 10, 3 }),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Instruction(com.kltyton.lumenfx.effect.niagara.VectorProgram.Opcode.SELECT, 3, 0, 0, new int[] { 3, 1, 2, 0 }),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Instruction(com.kltyton.lumenfx.effect.niagara.VectorProgram.Opcode.ADDI, 2, 0, 0, new int[] { 11, 11, 3 }),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Instruction(com.kltyton.lumenfx.effect.niagara.VectorProgram.Opcode.ACQUIREINDEX, 1, 0, 0, new int[] { 8 }),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Instruction(com.kltyton.lumenfx.effect.niagara.VectorProgram.Opcode.OUTPUTDATA_FLOAT, 3, 0, 0, new int[] { 0, 1, 2, 15, 16, 17 }),
+                        new com.kltyton.lumenfx.effect.niagara.VectorProgram.Instruction(com.kltyton.lumenfx.effect.niagara.VectorProgram.Opcode.OUTPUTDATA_INT32, 1, 0, 0, new int[] { 3, 18 })
+                ));
+        assertNotNull(op);
+        var vm = new VectorMachine(program);
+        int n = 17; // non-multiple of 4 to test chunk padding + exact count
+        var inDs = new VectorDataSet(2, 1, 0);
+        inDs.reserve(n + 4);
+        inDs.count(n);
+        for (int i = 0; i < n; i++) {
+            inDs.floating(0, i, i - 3.0f);
+            inDs.floating(1, i, (i % 5) * 1.5f);
+            inDs.integer(0, i, i * 7 - 10);
+        }
+        var outDs = new VectorDataSet(3, 1, 0);
+        vm.execute(n, new VectorDataSet[] { inDs }, new VectorDataSet[] { outDs }, 0, constants);
+        assertEquals(n, outDs.count());
+        for (int i = 0; i < n; i++) {
+            float a = i - 3.0f;
+            float b = (i % 5) * 1.5f;
+            float mad = a * 2.5f + b;
+            float clamped = Math.min(Math.max(mad, 1.0f), 10.0f);
+            float divZero = 0.0f; // divide by 0.0f <= EPSILON yields 0.0f
+            float selected = a < b ? clamped : divZero;
+            assertEquals(Float.floatToRawIntBits(selected), Float.floatToRawIntBits(outDs.floating(0, i)), "row " + i);
+            assertEquals(Float.floatToRawIntBits(clamped), Float.floatToRawIntBits(outDs.floating(1, i)), "row " + i);
+            assertEquals(Float.floatToRawIntBits(divZero), Float.floatToRawIntBits(outDs.floating(2, i)), "row " + i);
+            assertEquals((i * 7 - 10) * 2, outDs.integer(0, i), "row " + i);
+        }
+    }
 }

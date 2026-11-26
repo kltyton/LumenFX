@@ -1,5 +1,7 @@
 package com.kltyton.lumenfx.runtime.simulation;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.kltyton.lumenfx.api.client.EffectHandle;
 import com.kltyton.lumenfx.effect.niagara.cache.NiagaraSimulationCache;
 import com.kltyton.lumenfx.effect.niagara.cache.NiagaraSimulationCache.Buffer;
@@ -21,8 +23,8 @@ import com.kltyton.lumenfx.runtime.niagara.DirectVectorProgram;
 import com.kltyton.lumenfx.runtime.niagara.DirectVectorVm;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -34,17 +36,14 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Full 26.2-parity Niagara system runtime for direct OpenGL targets:
  * <ul>
- *   <li>Executes real compiled Niagara {@code system_spawn}, {@code system_update}, {@code emitter.spawn},
- *       and {@code emitter.update} VectorVM bytecode (honoring {@code SpawnPerUnit}, {@code SpawnRate},
- *       {@code SpawnBurst}, emitter execution states, and real particle attributes).</li>
- *   <li>Drives real OpenGL 4.6 SPIR-V GPU compute dispatches via {@link GpuTickRequest} using the exact
- *       640-byte {@link DirectNiagaraFrame} snapshots and VM-computed {@code SpawnOutputInfo}s.</li>
- *   <li>Supports full {@code .lfsc} {@link NiagaraSimulationCache} playback with hardware-limit truncation,
- *       retained Float/Int/Half columns, persistent ID invalidation ({@code -1}), {@code nextRows}
- *       interpolation, monotonic {@code acquireTag}, and live simulation resume on cache exit.</li>
+ *   <li>Pre-compiled parameter binding plans & O(1) dataset swaps eliminating per-frame string lookups and array copies.</li>
+ *   <li>Real compiled VectorVM execution, OpenGL 4.6 SPIR-V GPU compute dispatches, analytical Stateless emitters,
+ *       and full {@code .lfsc} {@link NiagaraSimulationCache} playback & live GPU handoff.</li>
  * </ul>
  */
 public final class NiagaraSystemRuntime {
+    private static final int CPU_RENDER_SYNC_CAP = 65536;
+
     public record SpawnInvocation(int count, float interpStartDt, float intervalDt, int spawnGroup) { }
 
     public record GpuTickRequest(float deltaTime, float age, int tickCounter,
@@ -56,11 +55,110 @@ public final class NiagaraSystemRuntime {
                                  int cacheTotalSpawned,
                                  int cacheAcquireTag) { }
 
+    private static final int PARAM_EXEC_COUNT = 1;
+    private static final int PARAM_SPAWN_INTERVAL = 2;
+    private static final int PARAM_INTERP_START = 3;
+    private static final int PARAM_SPAWN_GROUP = 4;
+    private static final int PARAM_SYS_FLOATS = 5;
+    private static final int PARAM_SYS_INTS = 6;
+
+    private record ParameterBindingPlan(int[] kinds, int[] offsets, int[] srcStarts, int[] counts) {
+        static ParameterBindingPlan compile(DirectVectorProgram prog, Map<String, VariableSpec> systemVars, int constantLen) {
+            int max = prog.parameters.size();
+            int[] kinds = new int[max];
+            int[] offsets = new int[max];
+            int[] srcStarts = new int[max];
+            int[] counts = new int[max];
+            int n = 0;
+            for (DirectVectorProgram.Parameter p : prog.parameters) {
+                int offset = prog.runtimeBytes + p.offset();
+                if (offset < 0 || offset + p.bytes() > constantLen) continue;
+                String name = p.name();
+                if (name.equalsIgnoreCase("Engine.ExecutionCount")) {
+                    kinds[n] = PARAM_EXEC_COUNT; offsets[n] = offset; n++;
+                } else if (name.endsWith(".SpawnInterval")) {
+                    kinds[n] = PARAM_SPAWN_INTERVAL; offsets[n] = offset; n++;
+                } else if (name.endsWith(".InterpSpawnStartDt")) {
+                    kinds[n] = PARAM_INTERP_START; offsets[n] = offset; n++;
+                } else if (name.endsWith(".SpawnGroup")) {
+                    kinds[n] = PARAM_SPAWN_GROUP; offsets[n] = offset; n++;
+                } else {
+                    VariableSpec vs = systemVars.get(name.toLowerCase(Locale.ROOT));
+                    if (vs != null) {
+                        if (vs.floatCount() > 0 && p.bytes() == vs.floatCount() * 4) {
+                            kinds[n] = PARAM_SYS_FLOATS; offsets[n] = offset;
+                            srcStarts[n] = vs.floatStart(); counts[n] = vs.floatCount(); n++;
+                        } else if (vs.intCount() > 0 && p.bytes() == vs.intCount() * 4) {
+                            kinds[n] = PARAM_SYS_INTS; offsets[n] = offset;
+                            srcStarts[n] = vs.intStart(); counts[n] = vs.intCount(); n++;
+                        }
+                    }
+                }
+            }
+            if (n < max) {
+                return new ParameterBindingPlan(
+                        java.util.Arrays.copyOf(kinds, n),
+                        java.util.Arrays.copyOf(offsets, n),
+                        java.util.Arrays.copyOf(srcStarts, n),
+                        java.util.Arrays.copyOf(counts, n));
+            }
+            return new ParameterBindingPlan(kinds, offsets, srcStarts, counts);
+        }
+    }
+
+    private record StatelessParams(float spawnRate, int burstCount, float lifetime, float speed,
+                                   float gravity, float drag, float radius, float vortex,
+                                   float sizeStart, float sizeEnd,
+                                   float r0, float g0, float b0, float a0,
+                                   float r1, float g1, float b1, float a1) {
+        static @Nullable StatelessParams parse(EmitterSpec spec, JsonObject rawNiagara) {
+            if (spec.simTarget() != NiagaraSystemModel.SimTarget.STATELESS) return null;
+            JsonObject st = null;
+            if (rawNiagara != null && rawNiagara.has("emitters") && rawNiagara.get("emitters").isJsonArray()) {
+                for (var el : rawNiagara.getAsJsonArray("emitters")) {
+                    if (el.isJsonObject()) {
+                        JsonObject em = el.getAsJsonObject();
+                        String n = em.has("name") ? em.get("name").getAsString() : "";
+                        if ((n.equals(spec.name()) || spec.name().isEmpty()) && em.has("stateless") && em.get("stateless").isJsonObject()) {
+                            st = em.getAsJsonObject("stateless");
+                            break;
+                        }
+                    }
+                }
+            }
+            float spawnRate = st != null && st.has("spawn_rate") ? st.get("spawn_rate").getAsFloat()
+                    : Math.max(0f, spec.explicitSpawnRate() > 0f ? spec.explicitSpawnRate() : 20f);
+            int burst = st != null && st.has("burst_count") ? st.get("burst_count").getAsInt() : 0;
+            float life = st != null && st.has("lifetime") ? st.get("lifetime").getAsFloat() : Math.max(0.25f, spec.defaultLifetime());
+            float speed = st != null && st.has("speed") ? st.get("speed").getAsFloat() : 2.0f;
+            float grav = st != null && st.has("gravity") ? st.get("gravity").getAsFloat() : -4.5f;
+            float drag = st != null && st.has("drag") ? st.get("drag").getAsFloat() : 0.1f;
+            float rad = st != null && st.has("radius") ? st.get("radius").getAsFloat() : 0.25f;
+            float vortex = st != null && st.has("vortex_strength") ? st.get("vortex_strength").getAsFloat() : 0f;
+            float s0 = st != null && st.has("size_start") ? st.get("size_start").getAsFloat() : 0.35f;
+            float s1 = st != null && st.has("size_end") ? st.get("size_end").getAsFloat() : 0.05f;
+            float[] c0 = readColor(st, "color_start", 1f, 1f, 1f, 1f);
+            float[] c1 = readColor(st, "color_end", c0[0], c0[1], c0[2], 0f);
+            return new StatelessParams(spawnRate, burst, life, speed, grav, drag, rad, vortex,
+                    s0, s1, c0[0], c0[1], c0[2], c0[3], c1[0], c1[1], c1[2], c1[3]);
+        }
+
+        private static float[] readColor(@Nullable JsonObject o, String key, float dr, float dg, float db, float da) {
+            if (o != null && o.has(key) && o.get(key).isJsonArray()) {
+                JsonArray a = o.getAsJsonArray(key);
+                if (a.size() >= 4) return new float[]{a.get(0).getAsFloat(), a.get(1).getAsFloat(), a.get(2).getAsFloat(), a.get(3).getAsFloat()};
+                if (a.size() == 3) return new float[]{a.get(0).getAsFloat(), a.get(1).getAsFloat(), a.get(2).getAsFloat(), da};
+            }
+            return new float[]{dr, dg, db, da};
+        }
+    }
+
     public static final class EmitterState {
         public final EmitterSpec spec;
         public final RendererSpec primaryRenderer;
         public final MaterialModel material;
         public final List<ParticleInstance> cpuParticles = new ArrayList<>(64);
+        private final ArrayDeque<ParticleInstance> particlePool = new ArrayDeque<>(128);
         public final List<GpuTickRequest> pendingGpuTicks = new ArrayList<>(4);
         public final AtomicInteger liveGpuParticleCount = new AtomicInteger(0);
         public final AtomicInteger liveGpuCapacity = new AtomicInteger(0);
@@ -69,9 +167,12 @@ public final class NiagaraSystemRuntime {
         public volatile List<ParticleInstance> gpuReadbackParticles = List.of();
 
         public final DirectVectorDataSet current;
-        private DirectVectorDataSet destination;
+        private final DirectVectorDataSet destination;
         private final @Nullable DirectVectorVm spawnVm;
         private final @Nullable DirectVectorVm updateVm;
+        private final @Nullable ParameterBindingPlan spawnPlan;
+        private final @Nullable ParameterBindingPlan updatePlan;
+        private final @Nullable StatelessParams statelessParams;
         private final byte[] runtime640 = new byte[640];
         private final byte[] oldRuntime640 = new byte[640];
         private final ByteBuffer runtimeWords = ByteBuffer.wrap(runtime640).order(ByteOrder.LITTLE_ENDIAN);
@@ -81,7 +182,7 @@ public final class NiagaraSystemRuntime {
         private final @Nullable ByteBuffer updateWords;
         private final List<VariableSpec> spawnBindings;
         private final @Nullable VariableSpec executionStateBinding;
-        private final int posComp, colComp, sizeComp, widthComp, ageComp, lifeComp;
+        private final int posComp, colComp, sizeComp, widthComp, rotComp, ageComp, lifeComp;
 
         private final SourceRandomStream rng;
         private final int instanceSeed;
@@ -91,8 +192,8 @@ public final class NiagaraSystemRuntime {
         private int totalSpawned;
         private boolean first = true;
         private boolean resetPending = true;
+        private boolean statelessBurstFired;
 
-        // SimCache playback & handoff telemetry (-1 = dynamic OpenGL device capacity limit)
         private int simCacheCapacityLimit = -1;
         private int cachedTotalSpawned;
         private int cachedAcquireTag;
@@ -101,7 +202,7 @@ public final class NiagaraSystemRuntime {
         private boolean pendingGpuCacheUpload;
 
         EmitterState(EmitterSpec spec, Map<String, MaterialModel> materials,
-                     Map<String, VariableSpec> systemVars, int seed) {
+                     Map<String, VariableSpec> systemVars, JsonObject rawNiagara, int seed) {
             this.spec = spec;
             this.primaryRenderer = spec.renderers().isEmpty()
                     ? new RendererSpec(NiagaraSystemModel.RendererKind.SPRITE, spec.name(), "", null, null, Map.of())
@@ -118,6 +219,11 @@ public final class NiagaraSystemRuntime {
             this.spawnWords = spawnConstants != null ? ByteBuffer.wrap(spawnConstants).order(ByteOrder.LITTLE_ENDIAN) : null;
             this.updateConstants = spec.updateProgram() != null ? spec.updateProgram().constantData.clone() : null;
             this.updateWords = updateConstants != null ? ByteBuffer.wrap(updateConstants).order(ByteOrder.LITTLE_ENDIAN) : null;
+            this.spawnPlan = spec.spawnProgram() != null && spawnConstants != null
+                    ? ParameterBindingPlan.compile(spec.spawnProgram(), systemVars, spawnConstants.length) : null;
+            this.updatePlan = spec.updateProgram() != null && updateConstants != null
+                    ? ParameterBindingPlan.compile(spec.updateProgram(), systemVars, updateConstants.length) : null;
+            this.statelessParams = StatelessParams.parse(spec, rawNiagara);
 
             List<VariableSpec> sb = new ArrayList<>();
             for (String varName : spec.spawnInfoVariables()) {
@@ -131,10 +237,24 @@ public final class NiagaraSystemRuntime {
             this.colComp = findAttr(spec.attributes(), 0, "Color");
             this.sizeComp = findAttr(spec.attributes(), 0, "SpriteSize");
             this.widthComp = findAttr(spec.attributes(), 0, "RibbonWidth");
+            this.rotComp = findAttr(spec.attributes(), 0, "SpriteRotation");
             this.ageComp = findAttr(spec.attributes(), 0, "Age");
             this.lifeComp = findAttr(spec.attributes(), 0, "Lifetime");
 
             runtimeWords.putFloat(616, 1.0f);
+        }
+
+        ParticleInstance borrowParticle() {
+            ParticleInstance p = particlePool.pollFirst();
+            return p != null ? p : new ParticleInstance();
+        }
+
+        void clearCpuParticlesToPool() {
+            int n = cpuParticles.size();
+            for (int i = 0; i < n; i++) {
+                if (particlePool.size() < 4096) particlePool.addFirst(cpuParticles.get(i));
+            }
+            cpuParticles.clear();
         }
 
         public List<ParticleInstance> renderableParticles() {
@@ -142,6 +262,10 @@ public final class NiagaraSystemRuntime {
                 return cacheActiveLastTick ? cpuParticles : gpuReadbackParticles;
             }
             return cpuParticles;
+        }
+
+        public boolean isCacheActiveLastTick() {
+            return cacheActiveLastTick;
         }
 
         public int particleCount() {
@@ -205,6 +329,8 @@ public final class NiagaraSystemRuntime {
     private final DirectVectorDataSet updateInputs;
     private final @Nullable byte[] sysSpawnConstants;
     private final @Nullable byte[] sysUpdateConstants;
+    private final @Nullable byte[] sysSpawnScratch;
+    private final @Nullable byte[] sysUpdateScratch;
     private final SourceRandomStream sysRng;
     private final int systemSeed;
     private boolean systemInitialized;
@@ -230,12 +356,14 @@ public final class NiagaraSystemRuntime {
         this.updateInputs = createDataset(model.updateInputLayout());
         this.sysSpawnConstants = model.systemSpawn() != null ? model.systemSpawn().constantData.clone() : null;
         this.sysUpdateConstants = model.systemUpdate() != null ? model.systemUpdate().constantData.clone() : null;
+        this.sysSpawnScratch = sysSpawnConstants != null ? new byte[sysSpawnConstants.length] : null;
+        this.sysUpdateScratch = sysUpdateConstants != null ? new byte[sysUpdateConstants.length] : null;
 
         this.emitters = new ArrayList<>(model.emitters().size());
         for (int i = 0; i < model.emitters().size(); i++) {
             EmitterSpec em = model.emitters().get(i);
             if (em.simTarget() == NiagaraSystemModel.SimTarget.DISABLED) continue;
-            this.emitters.add(new EmitterState(em, materials, systemVars, systemSeed + i * 0x9E3779B9));
+            this.emitters.add(new EmitterState(em, materials, systemVars, model.rawNiagaraJson(), systemSeed + i * 0x9E3779B9));
         }
     }
 
@@ -256,6 +384,14 @@ public final class NiagaraSystemRuntime {
         return sum;
     }
 
+    public int estimatedWorkload() {
+        int sum = 8;
+        for (EmitterState e : emitters) {
+            sum += e.spec.isGpu() ? 4 : Math.max(4, e.particleCount());
+        }
+        return sum;
+    }
+
     public void tick(EffectHandle handle, EffectHandle.Snapshot snap, float dt, boolean stopping) {
         NiagaraSimulationCache.Playback playback = handle.niagaraCache();
         if (playback != null) {
@@ -263,7 +399,6 @@ public final class NiagaraSystemRuntime {
             return;
         }
         if (lastCache != null) {
-            // Transitioning out of SimCache playback into live simulation
             lastCache = null;
             for (EmitterState e : emitters) {
                 if (e.cacheActiveLastTick) {
@@ -365,7 +500,6 @@ public final class NiagaraSystemRuntime {
                 }
             }
 
-            // Build persistent ID table: retained rows stay addressable; truncated rows & dead gaps map to -1
             int[] srcIds = bufA.idTable();
             int[] outIds = new int[srcIds.length];
             for (int i = 0; i < srcIds.length; i++) {
@@ -397,12 +531,10 @@ public final class NiagaraSystemRuntime {
             if (e.first) System.arraycopy(e.runtime640, 0, e.oldRuntime640, 0, 640);
         }
 
-        // 1. Run real Niagara system_spawn / system_update VectorVM scripts
         if (systemSpawnVm != null && systemUpdateVm != null) {
-            runSystemVm(snap);
+            runSystemVm();
         }
 
-        // 2. Tick each emitter using exact VM-computed SpawnOutputInfo (or explicit synthetic spawn_rate)
         for (EmitterState state : emitters) {
             state.age += dt;
             List<SpawnInvocation> spawns = stopping ? List.of() : collectSpawns(state, dt);
@@ -418,9 +550,8 @@ public final class NiagaraSystemRuntime {
                 int cacheAcquireTag = doCacheUpload ? state.cachedAcquireTag : 0;
                 state.pendingGpuCacheUpload = false;
                 if (doCacheUpload) {
-                    // Ownership has transferred to GPU handoff payload; clear stale CPU cache mirror immediately.
                     state.current.clear();
-                    state.cpuParticles.clear();
+                    state.clearCpuParticlesToPool();
                 }
                 if (doCacheUpload || sumSpawn > 0 || state.liveGpuParticleCount.get() > 0 || state.hasPendingGpuTicks()) {
                     synchronized (state.pendingGpuTicks) {
@@ -434,6 +565,8 @@ public final class NiagaraSystemRuntime {
                         }
                     }
                 }
+            } else if (state.spec.simTarget() == NiagaraSystemModel.SimTarget.STATELESS && state.statelessParams != null) {
+                stepStatelessEmitter(state, snap, dt, stopping);
             } else if (state.spec.hasCpuVm()) {
                 stepCpuVmEmitter(state, snap, spawns);
             } else if (state.spec.explicitSpawnRate() > 0f) {
@@ -446,29 +579,29 @@ public final class NiagaraSystemRuntime {
         frame.finish(dt);
     }
 
-    private void runSystemVm(EffectHandle.Snapshot snap) {
-        if (!systemInitialized && systemSpawnVm != null && sysSpawnConstants != null) {
+    private void runSystemVm() {
+        if (!systemInitialized && systemSpawnVm != null && sysSpawnConstants != null && sysSpawnScratch != null) {
             spawnInputs.clear();
             spawnInputs.count(1);
             bindRuntimeInputs(model.spawnInputBindings(), spawnInputs);
-            byte[] c = sysSpawnConstants.clone();
-            System.arraycopy(frame.current, 0, c, 0, Math.min(32, c.length));
+            System.arraycopy(sysSpawnConstants, 0, sysSpawnScratch, 0, sysSpawnConstants.length);
+            System.arraycopy(frame.current, 0, sysSpawnScratch, 0, Math.min(32, sysSpawnScratch.length));
             systemDestination.clear();
             DirectVectorDataSet[] in = model.systemSpawn().inputs.isEmpty()
                     ? new DirectVectorDataSet[0] : new DirectVectorDataSet[]{systemCurrent, spawnInputs};
-            systemSpawnVm.execute(1, in, new DirectVectorDataSet[]{systemDestination}, 0, c, sysRng);
+            systemSpawnVm.execute(1, in, new DirectVectorDataSet[]{systemDestination}, 0, sysSpawnScratch, sysRng);
             swapSystem();
             systemInitialized = true;
         }
-        if (systemUpdateVm != null && sysUpdateConstants != null) {
+        if (systemUpdateVm != null && sysUpdateConstants != null && sysUpdateScratch != null) {
             updateInputs.clear();
             updateInputs.count(1);
             bindRuntimeInputs(model.updateInputBindings(), updateInputs);
-            byte[] c = sysUpdateConstants.clone();
-            System.arraycopy(frame.current, 0, c, 0, Math.min(32, c.length));
+            System.arraycopy(sysUpdateConstants, 0, sysUpdateScratch, 0, sysUpdateConstants.length);
+            System.arraycopy(frame.current, 0, sysUpdateScratch, 0, Math.min(32, sysUpdateScratch.length));
             systemDestination.clear();
             systemUpdateVm.execute(1, new DirectVectorDataSet[]{systemCurrent, updateInputs},
-                    new DirectVectorDataSet[]{systemDestination}, 0, c, sysRng);
+                    new DirectVectorDataSet[]{systemDestination}, 0, sysUpdateScratch, sysRng);
             swapSystem();
         }
     }
@@ -493,7 +626,6 @@ public final class NiagaraSystemRuntime {
     }
 
     private List<SpawnInvocation> collectSpawns(EmitterState state, float dt) {
-        // Check emitter execution state from system VM (0 = Active, 1 = Inactive, 2 = InactiveClear, 3/4 = Complete)
         if (state.executionStateBinding != null && systemCurrent.count() > 0) {
             int execState = systemCurrent.integer(state.executionStateBinding.intStart(), 0);
             if (execState != 0) return List.of();
@@ -510,7 +642,6 @@ public final class NiagaraSystemRuntime {
             }
             return list;
         }
-        // Synthetic non-VM JSON with explicit spawn_rate
         if (state.spec.explicitSpawnRate() > 0f) {
             state.explicitSpawnCarry += state.spec.explicitSpawnRate() * dt;
             int count = (int) Math.floor(state.explicitSpawnCarry);
@@ -521,29 +652,28 @@ public final class NiagaraSystemRuntime {
     }
 
     private void stepCpuVmEmitter(EmitterState state, EffectHandle.Snapshot snap, List<SpawnInvocation> spawns) {
-        // 1. Update existing particles via compiled emitter.update VM
         int existing = state.current.count();
         state.destination.count(0);
-        if (existing > 0 && state.updateVm != null && state.updateConstants != null && state.updateWords != null) {
-            prepareEmitterConstants(state, state.spec.updateProgram(), state.updateConstants, state.updateWords,
-                    new SpawnInvocation(existing, 0f, 0f, 0));
+        if (existing > 0 && state.updateVm != null && state.updateConstants != null
+                && state.updateWords != null && state.updatePlan != null) {
+            prepareEmitterConstants(state, state.spec.updateProgram(), state.updatePlan,
+                    state.updateConstants, state.updateWords, new SpawnInvocation(existing, 0f, 0f, 0));
             state.updateVm.execute(existing, new DirectVectorDataSet[]{state.current},
                     new DirectVectorDataSet[]{state.destination}, 0, state.updateConstants, state.rng);
         }
-        DirectVectorDataSet tmp = state.current;
-        // Swap destination into current by copying or swapping internal buffers
-        state.current.copyFrom(state.destination);
-        state.destination = tmp == state.current ? state.destination : state.destination;
+        // O(1) planar backing-array swap (zero particle-array copy!)
+        state.current.swapWith(state.destination);
 
-        // 2. Spawn new particles via compiled emitter.spawn VM for each VM-computed SpawnInvocation
-        int cap = Math.min(state.spec.declaredMaxParticles(), 16384);
-        if (state.spawnVm != null && state.spawnConstants != null && state.spawnWords != null) {
+        int cap = Math.min(state.spec.declaredMaxParticles(), CPU_RENDER_SYNC_CAP);
+        if (state.spawnVm != null && state.spawnConstants != null
+                && state.spawnWords != null && state.spawnPlan != null) {
             for (SpawnInvocation inv : spawns) {
                 int remaining = Math.max(0, cap - state.current.count());
                 int count = Math.min(inv.count(), remaining);
                 if (count <= 0) break;
                 state.runtimeWords.putInt(612, state.totalSpawned);
-                prepareEmitterConstants(state, state.spec.spawnProgram(), state.spawnConstants, state.spawnWords,
+                prepareEmitterConstants(state, state.spec.spawnProgram(), state.spawnPlan,
+                        state.spawnConstants, state.spawnWords,
                         new SpawnInvocation(count, inv.interpStartDt(), inv.intervalDt(), inv.spawnGroup()));
                 state.totalSpawned += count;
                 state.spawnVm.execute(count, new DirectVectorDataSet[0],
@@ -554,35 +684,36 @@ public final class NiagaraSystemRuntime {
     }
 
     private void prepareEmitterConstants(EmitterState state, DirectVectorProgram prog,
+                                         ParameterBindingPlan plan,
                                          byte[] constants, ByteBuffer words, SpawnInvocation inv) {
         System.arraycopy(prog.constantData, 0, constants, 0, Math.min(prog.constantData.length, constants.length));
         System.arraycopy(state.runtime640, 0, constants, 0, Math.min(640, constants.length));
 
-        for (DirectVectorProgram.Parameter p : prog.parameters) {
-            int offset = prog.runtimeBytes + p.offset();
-            if (offset < 0 || offset + p.bytes() > constants.length) continue;
-            String name = p.name();
-            if (name.equalsIgnoreCase("Engine.ExecutionCount")) {
-                words.putInt(offset, inv.count());
-            } else if (name.endsWith(".SpawnInterval")) {
-                words.putFloat(offset, inv.intervalDt());
-            } else if (name.endsWith(".InterpSpawnStartDt")) {
-                words.putFloat(offset, inv.interpStartDt());
-            } else if (name.endsWith(".SpawnGroup")) {
-                words.putInt(offset, inv.spawnGroup());
-            } else if (systemCurrent.count() > 0) {
-                VariableSpec vs = findVar(systemVars, name);
-                if (vs != null) {
-                    if (vs.floatCount() > 0 && p.bytes() == vs.floatCount() * 4) {
-                        for (int c = 0; c < vs.floatCount(); c++) {
-                            words.putFloat(offset + c * 4, systemCurrent.floating(vs.floatStart() + c, 0));
-                        }
-                    } else if (vs.intCount() > 0 && p.bytes() == vs.intCount() * 4) {
-                        for (int c = 0; c < vs.intCount(); c++) {
-                            words.putInt(offset + c * 4, systemCurrent.integer(vs.intStart() + c, 0));
-                        }
+        boolean hasSys = systemCurrent.count() > 0;
+        int[] kinds = plan.kinds();
+        int[] offsets = plan.offsets();
+        int[] srcStarts = plan.srcStarts();
+        int[] counts = plan.counts();
+        for (int i = 0; i < kinds.length; i++) {
+            int offset = offsets[i];
+            switch (kinds[i]) {
+                case PARAM_EXEC_COUNT -> words.putInt(offset, inv.count());
+                case PARAM_SPAWN_INTERVAL -> words.putFloat(offset, inv.intervalDt());
+                case PARAM_INTERP_START -> words.putFloat(offset, inv.interpStartDt());
+                case PARAM_SPAWN_GROUP -> words.putInt(offset, inv.spawnGroup());
+                case PARAM_SYS_FLOATS -> {
+                    if (hasSys) {
+                        int s = srcStarts[i], cnt = counts[i];
+                        for (int c = 0; c < cnt; c++) words.putFloat(offset + c * 4, systemCurrent.floating(s + c, 0));
                     }
                 }
+                case PARAM_SYS_INTS -> {
+                    if (hasSys) {
+                        int s = srcStarts[i], cnt = counts[i];
+                        for (int c = 0; c < cnt; c++) words.putInt(offset + c * 4, systemCurrent.integer(s + c, 0));
+                    }
+                }
+                default -> { }
             }
         }
 
@@ -594,20 +725,97 @@ public final class NiagaraSystemRuntime {
         }
     }
 
+    /** Deterministic analytical evaluation for Niagara {@code SimTarget.STATELESS} emitters. */
+    private static void stepStatelessEmitter(EmitterState state, EffectHandle.Snapshot snap, float dt, boolean stopping) {
+        StatelessParams sp = state.statelessParams;
+        if (sp == null) return;
+        Vec3 origin = snap.pose().position();
+
+        // Advance analytical particles with drag, gravity, and optional vortex forcefield
+        for (int i = state.cpuParticles.size() - 1; i >= 0; i--) {
+            ParticleInstance p = state.cpuParticles.get(i);
+            p.prevX = p.x; p.prevY = p.y; p.prevZ = p.z;
+            p.age += dt;
+            if (p.age >= p.lifetime) {
+                int last = state.cpuParticles.size() - 1;
+                ParticleInstance dead = state.cpuParticles.get(i);
+                if (i != last) state.cpuParticles.set(i, state.cpuParticles.get(last));
+                state.cpuParticles.remove(last);
+                if (state.particlePool.size() < 4096) state.particlePool.addFirst(dead);
+                continue;
+            }
+            float t = p.normalizedAge();
+            float ax = 0f, ay = sp.gravity(), az = 0f;
+            if (sp.vortex() != 0f) {
+                double dx = p.x - origin.x;
+                double dz = p.z - origin.z;
+                double r = Math.sqrt(dx * dx + dz * dz + 1e-4);
+                ax += (float) (-dz / r * sp.vortex());
+                az += (float) (dx / r * sp.vortex());
+            }
+            p.vx += ax * dt; p.vy += ay * dt; p.vz += az * dt;
+            if (sp.drag() > 0f) {
+                float f = Math.max(0f, 1f - sp.drag() * dt);
+                p.vx *= f; p.vy *= f; p.vz *= f;
+            }
+            p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+            float sz = sp.sizeStart() + (sp.sizeEnd() - sp.sizeStart()) * t;
+            p.width = p.height = Math.max(0.01f, sz * snap.pose().scaleX());
+            p.r = (sp.r0() + (sp.r1() - sp.r0()) * t) * snap.red();
+            p.g = (sp.g0() + (sp.g1() - sp.g0()) * t) * snap.green();
+            p.b = (sp.b0() + (sp.b1() - sp.b0()) * t) * snap.blue();
+            p.a = (sp.a0() + (sp.a1() - sp.a0()) * t) * snap.alpha();
+        }
+        if (stopping) return;
+
+        int toSpawn = 0;
+        if (!state.statelessBurstFired && sp.burstCount() > 0) {
+            state.statelessBurstFired = true;
+            toSpawn += sp.burstCount();
+        }
+        if (sp.spawnRate() > 0f) {
+            state.explicitSpawnCarry += sp.spawnRate() * dt;
+            int c = (int) Math.floor(state.explicitSpawnCarry);
+            if (c > 0) { state.explicitSpawnCarry -= c; toSpawn += c; }
+        }
+        int cap = Math.min(state.spec.declaredMaxParticles(), CPU_RENDER_SYNC_CAP);
+        int spawn = Math.min(toSpawn, Math.max(0, cap - state.cpuParticles.size()));
+        for (int s = 0; s < spawn; s++) {
+            float az = state.rng.fraction() * (float) (Math.PI * 2.0);
+            float el = (state.rng.fraction() * 0.6f + 0.4f);
+            float h = (float) Math.sqrt(Math.max(0f, 1f - el * el));
+            ParticleInstance p = state.borrowParticle();
+            p.x = p.prevX = origin.x + Math.cos(az) * sp.radius();
+            p.y = p.prevY = origin.y;
+            p.z = p.prevZ = origin.z + Math.sin(az) * sp.radius();
+            p.vx = (float) Math.cos(az) * h * sp.speed();
+            p.vy = el * sp.speed();
+            p.vz = (float) Math.sin(az) * h * sp.speed();
+            p.age = 0f;
+            p.lifetime = Math.max(0.05f, sp.lifetime());
+            p.width = p.height = p.startWidth = p.startHeight = Math.max(0.01f, sp.sizeStart() * snap.pose().scaleX());
+            p.r = p.startR = sp.r0() * snap.red();
+            p.g = p.startG = sp.g0() * snap.green();
+            p.b = p.startB = sp.b0() * snap.blue();
+            p.a = p.startA = sp.a0() * snap.alpha();
+            state.cpuParticles.add(p);
+        }
+    }
+
     private void syncRenderParticlesFromDataset(EmitterState state, EffectHandle.Snapshot snap) {
-        int count = Math.min(state.current.count(), 4096);
-        state.cpuParticles.clear();
+        int count = Math.min(state.current.count(), CPU_RENDER_SYNC_CAP);
+        state.clearCpuParticlesToPool();
         if (count <= 0) return;
 
         Vec3 origin = snap.pose().position();
         boolean local = state.spec.localSpace();
+        int fCount = state.current.componentCount(0);
         for (int i = 0; i < count; i++) {
-            ParticleInstance p = new ParticleInstance();
-            if (state.posComp >= 0 && state.posComp + 2 < state.current.componentCount(0)) {
+            ParticleInstance p = state.borrowParticle();
+            if (state.posComp >= 0 && state.posComp + 2 < fCount) {
                 float ux = state.current.floating(state.posComp, i);
                 float uy = state.current.floating(state.posComp + 1, i);
                 float uz = state.current.floating(state.posComp + 2, i);
-                // Convert UE (X, Y, Z) cm -> MC (X, Z, Y) blocks
                 double mx = ux * 0.01;
                 double my = uz * 0.01;
                 double mz = uy * 0.01;
@@ -620,7 +828,7 @@ public final class NiagaraSystemRuntime {
             } else {
                 p.x = p.prevX = origin.x; p.y = p.prevY = origin.y; p.z = p.prevZ = origin.z;
             }
-            if (state.colComp >= 0 && state.colComp + 3 < state.current.componentCount(0)) {
+            if (state.colComp >= 0 && state.colComp + 3 < fCount) {
                 p.r = clamp01(state.current.floating(state.colComp, i)) * snap.red();
                 p.g = clamp01(state.current.floating(state.colComp + 1, i)) * snap.green();
                 p.b = clamp01(state.current.floating(state.colComp + 2, i)) * snap.blue();
@@ -629,18 +837,20 @@ public final class NiagaraSystemRuntime {
                 p.r = snap.red(); p.g = snap.green(); p.b = snap.blue(); p.a = snap.alpha();
             }
             float w = 0.25f;
-            if (state.widthComp >= 0 && state.widthComp < state.current.componentCount(0)) {
+            if (state.widthComp >= 0 && state.widthComp < fCount) {
                 float rw = state.current.floating(state.widthComp, i);
                 if (Float.isFinite(rw) && rw > 0f) w = rw > 4f ? rw * 0.01f : rw;
-            } else if (state.sizeComp >= 0 && state.sizeComp < state.current.componentCount(0)) {
+            } else if (state.sizeComp >= 0 && state.sizeComp < fCount) {
                 float sw = state.current.floating(state.sizeComp, i);
                 if (Float.isFinite(sw) && sw > 0f) w = sw > 4f ? sw * 0.01f : sw;
             }
             p.width = p.startWidth = Math.max(0.03f, Math.min(8f, w));
             p.height = p.startHeight = p.width;
-            p.age = state.ageComp >= 0 && state.ageComp < state.current.componentCount(0)
+            p.rotationDeg = state.rotComp >= 0 && state.rotComp < fCount
+                    ? state.current.floating(state.rotComp, i) : 0f;
+            p.age = state.ageComp >= 0 && state.ageComp < fCount
                     ? state.current.floating(state.ageComp, i) : 0f;
-            p.lifetime = state.lifeComp >= 0 && state.lifeComp < state.current.componentCount(0)
+            p.lifetime = state.lifeComp >= 0 && state.lifeComp < fCount
                     ? Math.max(0.05f, state.current.floating(state.lifeComp, i)) : 1f;
             state.cpuParticles.add(p);
         }
@@ -654,19 +864,21 @@ public final class NiagaraSystemRuntime {
             p.age += dt;
             if (p.age >= p.lifetime) {
                 int last = state.cpuParticles.size() - 1;
+                ParticleInstance dead = state.cpuParticles.get(i);
                 if (i != last) state.cpuParticles.set(i, state.cpuParticles.get(last));
                 state.cpuParticles.remove(last);
+                if (state.particlePool.size() < 4096) state.particlePool.addFirst(dead);
                 continue;
             }
             p.vy -= 4.5f * dt;
             p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
             p.a = p.startA * (1f - p.normalizedAge()) * snap.alpha();
         }
-        int cap = Math.min(state.spec.declaredMaxParticles(), 4096);
+        int cap = Math.min(state.spec.declaredMaxParticles(), CPU_RENDER_SYNC_CAP);
         int toSpawn = Math.min(spawnCount, Math.max(0, cap - state.cpuParticles.size()));
         for (int s = 0; s < toSpawn; s++) {
             float angle = state.rng.fraction() * (float) (Math.PI * 2.0);
-            ParticleInstance p = new ParticleInstance();
+            ParticleInstance p = state.borrowParticle();
             p.x = p.prevX = origin.x; p.y = p.prevY = origin.y; p.z = p.prevZ = origin.z;
             p.vx = (float) Math.cos(angle) * 0.8f; p.vy = 2.5f; p.vz = (float) Math.sin(angle) * 0.8f;
             p.age = 0f; p.lifetime = Math.max(0.25f, state.spec.defaultLifetime());

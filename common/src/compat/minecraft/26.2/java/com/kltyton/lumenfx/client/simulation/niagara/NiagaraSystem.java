@@ -2963,6 +2963,11 @@ public final class NiagaraSystem implements AutoCloseable {
         return gpuEmitters[index].complete();
     }
     public int emitterGroup(int index) { return schedule.group(index); }
+    public int emitterEstimatedWorkload(int index) {
+        if (isGpuEmitter(index)) return 8;
+        NiagaraCpuEmitter emitter = emitters[index];
+        return emitter == null ? 1 : Math.max(1, emitter.count());
+    }
     public boolean emitterUsesSynchronousCollision(int index) { return execute && cachePlayer == null && emitterSynchronousCollision[index]; }
     public void prepareGpuEmitter(int index) {
         if (cachePlayer != null) return;

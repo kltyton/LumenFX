@@ -1,0 +1,322 @@
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.regex.Pattern
+
+/**
+ * Deterministic MC 26.2 Blaze3D -> MC 26.3 RenderPearl source remapper for shared 26.2+ sources.
+ * Keeps 1,600+ shared Java files single-source-of-truth while allowing explicit files under
+ * common/src/compat/minecraft/26.3/, neoforge/26.3/, and fabric/26.3/ to handle genuine API deltas.
+ */
+class RenderPearl263Remapper {
+    static final Map<String, String> CLASS_MAP = [
+            // Buffers & memory
+            'com.mojang.blaze3d.buffers.GpuBufferSlice'           : 'com.mojang.renderpearl.api.buffers.GpuBufferSlice',
+            'com.mojang.blaze3d.buffers.GpuBuffer'                : 'com.mojang.renderpearl.api.buffers.GpuBuffer',
+            'com.mojang.blaze3d.buffers.GpuFence'                 : 'com.mojang.renderpearl.api.commands.GpuFence',
+            'com.mojang.blaze3d.systems.TransientMemory'          : 'com.mojang.renderpearl.api.buffers.TransientMemory',
+            // Commands & passes
+            'com.mojang.blaze3d.systems.CommandEncoderBackend'    : 'com.mojang.renderpearl.backend.api.CommandEncoderBackend',
+            'com.mojang.blaze3d.systems.CommandEncoder'           : 'com.mojang.renderpearl.api.commands.CommandEncoder',
+            'com.mojang.blaze3d.systems.GpuQueryPool'             : 'com.mojang.renderpearl.api.commands.GpuQueryPool',
+            'com.mojang.blaze3d.systems.GpuQuery'                 : 'com.mojang.renderpearl.api.commands.GpuQuery',
+            'com.mojang.blaze3d.systems.RenderPassDescriptor'     : 'com.kltyton.lumenfx.client.graphics.LumenRenderPassDescriptor',
+            'com.mojang.blaze3d.systems.RenderPassBackend'        : 'com.mojang.renderpearl.backend.api.RenderPassBackend',
+            'com.mojang.blaze3d.systems.RenderPass'               : 'com.mojang.renderpearl.api.commands.RenderPass',
+            // Device & backend
+            'com.mojang.blaze3d.systems.BackendCreationException' : 'com.mojang.renderpearl.api.device.BackendCreationException',
+            'com.mojang.blaze3d.systems.GpuDeviceBackend'         : 'com.mojang.renderpearl.backend.api.GpuDeviceBackend',
+            'com.mojang.blaze3d.systems.GpuDeviceLossException'   : 'com.mojang.renderpearl.api.device.GpuDeviceLossException',
+            'com.mojang.blaze3d.systems.GpuOutOfMemoryException'  : 'com.mojang.renderpearl.api.device.GpuOutOfMemoryException',
+            'com.mojang.blaze3d.systems.GpuDevice'                : 'com.mojang.renderpearl.api.device.GpuDevice',
+            'com.mojang.blaze3d.systems.GpuBackend'               : 'com.mojang.renderpearl.api.device.GpuBackend',
+            'com.mojang.blaze3d.systems.GpuSurfaceBackend'        : 'com.mojang.renderpearl.backend.api.GpuSurfaceBackend',
+            'com.mojang.blaze3d.systems.GpuSurface'               : 'com.mojang.renderpearl.api.device.GpuSurface',
+            'com.mojang.blaze3d.shaders.GpuDebugOptions'          : 'com.mojang.renderpearl.api.device.GpuDebugOptions',
+            // Formats & pipelines
+            'com.mojang.blaze3d.GpuFormat'                        : 'com.mojang.renderpearl.api.GpuFormat',
+            'com.mojang.blaze3d.IndexType'                        : 'com.mojang.renderpearl.api.pipeline.IndexType',
+            'com.mojang.blaze3d.PrimitiveTopology'                : 'com.mojang.renderpearl.api.pipeline.PrimitiveTopology',
+            'com.mojang.blaze3d.pipeline.BindGroupLayout'         : 'com.mojang.renderpearl.api.pipeline.BindGroupLayout',
+            'com.mojang.blaze3d.pipeline.BlendEquation'           : 'com.mojang.renderpearl.api.pipeline.BlendEquation',
+            'com.mojang.blaze3d.pipeline.BlendFunction'           : 'com.mojang.renderpearl.api.pipeline.BlendFunction',
+            'com.mojang.blaze3d.pipeline.ColorTargetState'        : 'com.mojang.renderpearl.api.pipeline.ColorTargetState',
+            'com.mojang.blaze3d.pipeline.CompiledRenderPipeline'  : 'com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline',
+            'com.mojang.blaze3d.pipeline.DepthStencilState'       : 'com.mojang.renderpearl.api.pipeline.DepthStencilState',
+            'com.mojang.blaze3d.pipeline.PolygonMode'             : 'com.mojang.renderpearl.api.pipeline.PolygonMode',
+            'com.mojang.blaze3d.pipeline.RenderPipeline'          : 'com.mojang.renderpearl.api.pipeline.RenderPipeline',
+            'com.mojang.blaze3d.platform.BlendFactor'             : 'com.mojang.renderpearl.api.pipeline.BlendFactor',
+            'com.mojang.blaze3d.platform.BlendOp'                 : 'com.mojang.renderpearl.api.pipeline.BlendOp',
+            'com.mojang.blaze3d.platform.CompareOp'               : 'com.mojang.renderpearl.api.pipeline.CompareOp',
+            'com.mojang.blaze3d.shaders.ShaderSource'             : 'com.kltyton.lumenfx.client.graphics.LumenShaderSource',
+            'com.mojang.blaze3d.shaders.ShaderType'               : 'com.mojang.renderpearl.api.pipeline.ShaderType',
+            'com.mojang.blaze3d.shaders.UniformType'              : 'com.mojang.renderpearl.api.pipeline.UniformType',
+            'com.mojang.blaze3d.shaders.ShaderCompileException'   : 'com.mojang.renderpearl.util.ShaderCompileException',
+            'com.mojang.blaze3d.preprocessor.GlslPreprocessor'    : 'com.kltyton.lumenfx.client.graphics.LumenGlslPreprocessor',
+            // Textures & vertex format
+            'com.mojang.blaze3d.textures.AddressMode'             : 'com.mojang.renderpearl.api.textures.AddressMode',
+            'com.mojang.blaze3d.textures.FilterMode'              : 'com.mojang.renderpearl.api.textures.FilterMode',
+            'com.mojang.blaze3d.textures.GpuSampler'              : 'com.mojang.renderpearl.api.textures.GpuSampler',
+            'com.mojang.blaze3d.textures.GpuTextureView'          : 'com.mojang.renderpearl.api.textures.GpuTextureView',
+            'com.mojang.blaze3d.textures.GpuTexture'              : 'com.mojang.renderpearl.api.textures.GpuTexture',
+            'com.mojang.blaze3d.textures.TextureViewAndSampler'   : 'com.mojang.renderpearl.util.TextureViewAndSampler',
+            'com.mojang.blaze3d.vertex.VertexFormatElement'       : 'com.mojang.renderpearl.api.vertex.VertexFormatElement',
+            'com.mojang.blaze3d.vertex.VertexFormat'              : 'com.mojang.renderpearl.api.vertex.VertexFormat',
+            // OpenGL backend
+            'com.mojang.blaze3d.opengl.FrameBufferCache'          : 'com.mojang.renderpearl.backend.opengl.FrameBufferCache',
+            'com.mojang.blaze3d.opengl.GlBackend'                 : 'com.mojang.renderpearl.backend.opengl.GlBackend',
+            'com.mojang.blaze3d.opengl.GlBuffer'                  : 'com.mojang.renderpearl.backend.opengl.GlBuffer',
+            'com.mojang.blaze3d.opengl.GlCommandEncoder'          : 'com.mojang.renderpearl.backend.opengl.GlCommandEncoder',
+            'com.mojang.blaze3d.opengl.GlConst'                   : 'com.mojang.renderpearl.backend.opengl.GlConst',
+            'com.mojang.blaze3d.opengl.GlDevice'                  : 'com.mojang.renderpearl.backend.opengl.GlDevice',
+            'com.mojang.blaze3d.opengl.GlFence'                   : 'com.mojang.renderpearl.backend.opengl.GlFence',
+            'com.mojang.blaze3d.opengl.GlProgram'                 : 'com.mojang.renderpearl.backend.opengl.GlProgram',
+            'com.mojang.blaze3d.opengl.GlRenderPass'              : 'com.mojang.renderpearl.backend.opengl.GlRenderPass',
+            'com.mojang.blaze3d.opengl.GlRenderPipeline'          : 'com.mojang.renderpearl.backend.opengl.GlRenderPipeline',
+            'com.mojang.blaze3d.opengl.GlSampler'                 : 'com.mojang.renderpearl.backend.opengl.GlSampler',
+            'com.mojang.blaze3d.opengl.GlShaderModule'            : 'com.mojang.renderpearl.backend.opengl.GlShaderModule',
+            'com.mojang.blaze3d.opengl.GlStateManager'            : 'com.mojang.renderpearl.backend.opengl.GlStateManager',
+            'com.mojang.blaze3d.opengl.GlTextureView'             : 'com.mojang.renderpearl.backend.opengl.GlTextureView',
+            'com.mojang.blaze3d.opengl.GlTexture'                 : 'com.mojang.renderpearl.backend.opengl.GlTexture',
+            'com.mojang.blaze3d.opengl.Uniform'                   : 'com.mojang.renderpearl.backend.opengl.Uniform',
+            // Vulkan backend & shader frontend
+            'com.mojang.blaze3d.vulkan.glsl.GlslCompiler'         : 'com.mojang.renderpearl.frontend.shaders.GlslCompiler',
+            'com.mojang.blaze3d.vulkan.VulkanBackend'             : 'com.mojang.renderpearl.backend.vulkan.VulkanBackend',
+            'com.mojang.blaze3d.vulkan.VulkanCommandEncoder'      : 'com.mojang.renderpearl.backend.vulkan.VulkanCommandEncoder',
+            'com.mojang.blaze3d.vulkan.VulkanConst'               : 'com.mojang.renderpearl.backend.vulkan.VulkanConst',
+            'com.mojang.blaze3d.vulkan.VulkanDevice'              : 'com.mojang.renderpearl.backend.vulkan.VulkanDevice',
+            'com.mojang.blaze3d.vulkan.VulkanGpuBuffer'           : 'com.mojang.renderpearl.backend.vulkan.VulkanGpuBuffer',
+            'com.mojang.blaze3d.vulkan.VulkanGpuSampler'          : 'com.mojang.renderpearl.backend.vulkan.VulkanGpuSampler',
+            'com.mojang.blaze3d.vulkan.VulkanGpuSurface'          : 'com.mojang.renderpearl.backend.vulkan.VulkanGpuSurface',
+            'com.mojang.blaze3d.vulkan.VulkanGpuTextureView'      : 'com.mojang.renderpearl.backend.vulkan.VulkanGpuTextureView',
+            'com.mojang.blaze3d.vulkan.VulkanGpuTexture'          : 'com.mojang.renderpearl.backend.vulkan.VulkanGpuTexture',
+            'com.mojang.blaze3d.vulkan.VulkanRenderPass'          : 'com.mojang.renderpearl.backend.vulkan.VulkanRenderPass',
+            'com.mojang.blaze3d.vulkan.VulkanRenderPipeline'      : 'com.mojang.renderpearl.backend.vulkan.VulkanRenderPipeline',
+            'com.mojang.blaze3d.vulkan.VulkanTransientMemory'     : 'com.mojang.renderpearl.backend.vulkan.VulkanTransientMemory',
+            'com.mojang.blaze3d.vulkan.VulkanUtils'               : 'com.mojang.renderpearl.backend.vulkan.VulkanUtils',
+            'com.mojang.blaze3d.vulkan.VulkanQueue'               : 'com.mojang.renderpearl.backend.vulkan.VulkanQueue',
+            'com.mojang.blaze3d.vulkan.VulkanPhysicalDevice'      : 'com.mojang.renderpearl.backend.vulkan.VulkanPhysicalDevice',
+            'com.mojang.blaze3d.vulkan.VulkanInstance'            : 'com.mojang.renderpearl.backend.vulkan.VulkanInstance',
+            'com.mojang.blaze3d.vulkan.Destroyable'               : 'com.mojang.renderpearl.backend.vulkan.Destroyable',
+            // MC 26.3 non-RenderPearl class moves/adapters
+            'net.minecraft.client.renderer.DynamicUniforms'          : 'net.minecraft.client.renderer.DynamicGpuData',
+            'net.minecraft.world.level.levelgen.synth.ImprovedNoise' : 'com.kltyton.lumenfx.effect.noise.ImprovedNoise',
+    ]
+
+    private static final String COMPAT = 'com.kltyton.lumenfx.client.graphics.RenderPearlCompat'
+
+    private static final Pattern DEVICE_BACKEND_PATTERN =
+            Pattern.compile('(?<!\\.)\\b((?:RenderSystem\\.getDevice\\(\\)|[a-z][A-Za-z0-9_]*))\\.backend\\b(?!\\s*\\()')
+    private static final Pattern TEXTURE_INIT_CMD_PATTERN =
+            Pattern.compile('\\.textureInitCommandBuffer\\(\\)')
+    private static final Pattern DYNAMIC_UNIFORMS_SIMPLE =
+            Pattern.compile('\\bDynamicUniforms\\b')
+    private static final Pattern RPD_ATTACHMENT_PATTERN =
+            Pattern.compile('(?<!\\.)\\bRenderPassDescriptor\\.((?:@[A-Za-z0-9_$.]+\\s+)*)Attachment\\b')
+    private static final Pattern RPD_SIMPLE =
+            Pattern.compile('(?<!\\.)\\bRenderPassDescriptor\\b')
+    private static final Pattern SHADER_SOURCE_SIMPLE =
+            Pattern.compile('(?<!\\.)\\bShaderSource\\b')
+    private static final Pattern BIND_TEXTURE_PATTERN =
+            Pattern.compile('\\.bindTexture\\(')
+    private static final Pattern WITH_SAMPLER_PATTERN =
+            Pattern.compile('\\.withSampler\\(([^()]+(?:\\([^()]*\\)[^()]*)*)\\)')
+    private static final Pattern NEW_TEXTURE_TARGET_PATTERN =
+            Pattern.compile('new\\s+(?:com\\.mojang\\.blaze3d\\.pipeline\\.)?TextureTarget\\(')
+    private static final Pattern NEW_SNIPPET_PATTERN =
+            Pattern.compile('new\\s+RenderPipeline\\.Snippet\\(')
+    private static final Pattern PRECOMPILE_PIPELINE_PATTERN =
+            Pattern.compile('(?<!\\.)\\b((?:RenderSystem\\.getDevice\\(\\)|[a-z][A-Za-z0-9_]*))\\.precompilePipeline\\(')
+    private static final Pattern SET_PIPELINE_PATTERN =
+            Pattern.compile('(?<!\\.)\\b(?!this\\b|super\\b|delegate\\b)([a-z][A-Za-z0-9_]*)\\.setPipeline\\(')
+    private static final Pattern CREATE_RENDER_PASS_CHAIN_PATTERN =
+            Pattern.compile('(?<!\\.)\\b((?:RenderSystem\\.getDevice\\(\\)|[a-z][A-Za-z0-9_]*)\\.createCommandEncoder\\(\\))\\.createRenderPass\\(')
+    private static final Pattern CREATE_RENDER_PASS_PATTERN =
+            Pattern.compile('(?<!\\.)\\b(?!this\\b|super\\b|backend\\b|delegate\\b|config\\b)([a-z][A-Za-z0-9_]*)\\.createRenderPass\\(')
+    private static final Pattern GET_VERTEX_SHADER_PATTERN =
+            Pattern.compile('(?<!\\.)\\b([a-z][A-Za-z0-9_]*)\\.getVertexShader\\(\\)')
+    private static final Pattern GET_FRAGMENT_SHADER_PATTERN =
+            Pattern.compile('(?<!\\.)\\b([a-z][A-Za-z0-9_]*)\\.getFragmentShader\\(\\)')
+    private static final Pattern GET_COLOR_TARGET_STATE_PATTERN =
+            Pattern.compile('(?<!\\.)\\b([a-z][A-Za-z0-9_]*)\\.getColorTargetState\\(\\)')
+    private static final Pattern GET_COLOR_TARGET_STATES_PATTERN =
+            Pattern.compile('(?<!\\.)\\b([a-z][A-Za-z0-9_]*)\\.getColorTargetStates\\(\\)')
+    private static final Pattern GET_VERTEX_FORMAT_BINDINGS_PATTERN =
+            Pattern.compile('(?<!\\.)\\b([a-z][A-Za-z0-9_]*)\\.getVertexFormatBindings\\(\\)')
+    private static final Pattern SHADER_MANAGER_GET_SHADER_PATTERN =
+            Pattern.compile('((?:Minecraft\\.getInstance\\(\\)\\.getShaderManager\\(\\)|(?<!\\.)\\b(?:shaders|manager)))\\.getShader\\(')
+    private static final Pattern SOUND_RESOLVE_DECL_PATTERN =
+            Pattern.compile('WeighedSoundEvents\\s+resolve\\(SoundManager\\s+sounds\\)')
+    private static final Pattern SOUND_RESOLVE_SUPER_PATTERN =
+            Pattern.compile('super\\.resolve\\(sounds\\)')
+    private static final Pattern ITEM_ENTITY_TARGET_PATTERN =
+            Pattern.compile('(?<!\\.)\\b([a-z][A-Za-z0-9_]*)\\.itemEntityTarget\\(\\)')
+    private static final Pattern WEATHER_TARGET_PATTERN =
+            Pattern.compile('(?<!\\.)\\b([a-z][A-Za-z0-9_]*)\\.weatherTarget\\(\\)')
+    private static final Pattern MATRICES_PROJECTION_PATTERN =
+            Pattern.compile('\\bBindGroupLayouts\\.MATRICES_PROJECTION\\b')
+    private static final Pattern LAYER_PIPELINE_PATTERN =
+            Pattern.compile('(\\.layer\\(\\)|\\blayer)\\.pipeline\\(\\)')
+    private static final Pattern ENTITY_SHOULD_RENDER_PATTERN =
+            Pattern.compile('(?<!\\.)\\b(entityRenderer)\\.shouldRender\\(')
+    private static final Pattern SECTION_VISIBILITY_PATTERN =
+            Pattern.compile('(?<!\\.)\\b(section)\\.getVisibility\\(')
+    private static final Pattern SOURCE_VULKAN_VIEW_PATTERN =
+            Pattern.compile('device\\.createTextureView\\(this\\)')
+    private static final Pattern PREPARED_OUTPUT_TARGET_PATTERN =
+            Pattern.compile('prepared\\.outputTarget\\(\\)\\.toString\\(\\)')
+    private static final Pattern ENTITY_HURT_MARKED_PATTERN =
+            Pattern.compile('entity\\.hurtMarked\\s*=\\s*true')
+    private static final Pattern MISSING_TEXTURE_CONST_PATTERN =
+            Pattern.compile('TextureManager\\.INTENTIONAL_MISSING_TEXTURE')
+
+    private static final List<Map.Entry<Pattern, String>> PATTERNS = buildPatterns()
+
+    private static List<Map.Entry<Pattern, String>> buildPatterns() {
+        List<Map.Entry<String, String>> entries = new ArrayList<>()
+        CLASS_MAP.each { k, v ->
+            entries.add(Map.entry(k, v))
+            entries.add(Map.entry(k.replace('.', '/'), v.replace('.', '/')))
+        }
+        // Longest keys first to avoid any prefix match
+        entries.sort { a, b -> b.key.length() <=> a.key.length() }
+        List<Map.Entry<Pattern, String>> compiled = new ArrayList<>(entries.size())
+        for (def e : entries) {
+            Pattern p = Pattern.compile('(?<![A-Za-z0-9_$/])' + Pattern.quote(e.key) + '(?![A-Za-z0-9_])')
+            compiled.add(Map.entry(p, e.value))
+        }
+        return compiled
+    }
+
+    static String remapSource(String text) {
+        String out = text
+        if (out.contains('.backend') && !out.contains('class LumenGpuDeviceAccess')) {
+            out = DEVICE_BACKEND_PATTERN.matcher(out).replaceAll('com.kltyton.lumenfx.client.graphics.LumenGpuDeviceAccess.backend($1)')
+        }
+        if (out.contains('.textureInitCommandBuffer()')) {
+            out = TEXTURE_INIT_CMD_PATTERN.matcher(out).replaceAll('.objectInitCommandBuffer()')
+        }
+        if (out.contains('.bindTexture(')) {
+            out = BIND_TEXTURE_PATTERN.matcher(out).replaceAll('.setUniform(')
+        }
+        if (out.contains('.withSampler(')) {
+            out = WITH_SAMPLER_PATTERN.matcher(out).replaceAll('.withUniform($1, com.mojang.renderpearl.api.pipeline.UniformType.COMBINED_IMAGE_SAMPLER)')
+        }
+        if (out.contains('TextureTarget(')) {
+            out = NEW_TEXTURE_TARGET_PATTERN.matcher(out).replaceAll(COMPAT + '.textureTarget(')
+        }
+        if (out.contains('RenderPipeline.Snippet(')) {
+            out = NEW_SNIPPET_PATTERN.matcher(out).replaceAll(COMPAT + '.snippet(')
+        }
+        if (out.contains('.precompilePipeline(')) {
+            out = PRECOMPILE_PIPELINE_PATTERN.matcher(out).replaceAll(COMPAT + '.precompilePipeline($1, ')
+        }
+        if (out.contains('.setPipeline(')) {
+            out = SET_PIPELINE_PATTERN.matcher(out).replaceAll(COMPAT + '.setPipeline($1, ')
+        }
+        if (out.contains('.createRenderPass(')) {
+            out = CREATE_RENDER_PASS_CHAIN_PATTERN.matcher(out).replaceAll(COMPAT + '.createRenderPass($1, ')
+            out = CREATE_RENDER_PASS_PATTERN.matcher(out).replaceAll(COMPAT + '.createRenderPass($1, ')
+        }
+        if (out.contains('.getVertexShader()')) {
+            out = GET_VERTEX_SHADER_PATTERN.matcher(out).replaceAll(COMPAT + '.vertexShader($1)')
+        }
+        if (out.contains('.getFragmentShader()')) {
+            out = GET_FRAGMENT_SHADER_PATTERN.matcher(out).replaceAll(COMPAT + '.fragmentShader($1)')
+        }
+        if (out.contains('.getColorTargetState()')) {
+            out = GET_COLOR_TARGET_STATE_PATTERN.matcher(out).replaceAll(COMPAT + '.colorTargetState($1)')
+        }
+        if (out.contains('.getColorTargetStates()')) {
+            out = GET_COLOR_TARGET_STATES_PATTERN.matcher(out).replaceAll(COMPAT + '.colorTargetStatesArray($1)')
+        }
+        if (out.contains('.getVertexFormatBindings()')) {
+            out = GET_VERTEX_FORMAT_BINDINGS_PATTERN.matcher(out).replaceAll(COMPAT + '.vertexFormatBindingsArray($1)')
+        }
+        if (out.contains('.getShader(')) {
+            out = SHADER_MANAGER_GET_SHADER_PATTERN.matcher(out).replaceAll(COMPAT + '.getShader($1, ')
+        }
+        if (out.contains('resolve(SoundManager')) {
+            out = SOUND_RESOLVE_DECL_PATTERN.matcher(out).replaceAll('WeighedSoundEvents getOrResolve(SoundManager sounds)')
+            out = SOUND_RESOLVE_SUPER_PATTERN.matcher(out).replaceAll('super.getOrResolve(sounds)')
+        }
+        if (out.contains('.itemEntityTarget()')) {
+            out = ITEM_ENTITY_TARGET_PATTERN.matcher(out).replaceAll(COMPAT + '.auxiliaryDepthTarget($1, 0)')
+        }
+        if (out.contains('.weatherTarget()')) {
+            out = WEATHER_TARGET_PATTERN.matcher(out).replaceAll(COMPAT + '.auxiliaryDepthTarget($1, 1)')
+        }
+        if (out.contains('BindGroupLayouts.MATRICES_PROJECTION')) {
+            out = MATRICES_PROJECTION_PATTERN.matcher(out).replaceAll('BindGroupLayouts.PROJECTION')
+        }
+        if (out.contains('.pipeline()')) {
+            out = LAYER_PIPELINE_PATTERN.matcher(out).replaceAll('$1.pipeline(false)')
+        }
+        if (out.contains('entityRenderer.shouldRender(')) {
+            out = ENTITY_SHOULD_RENDER_PATTERN.matcher(out).replaceAll(COMPAT + '.shouldRender($1, ')
+        }
+        if (out.contains('section.getVisibility(')) {
+            out = SECTION_VISIBILITY_PATTERN.matcher(out).replaceAll(COMPAT + '.sectionVisibility($1, ')
+        }
+        if (out.contains('device.createTextureView(this)')) {
+            out = SOURCE_VULKAN_VIEW_PATTERN.matcher(out).replaceAll(COMPAT + '.createTextureView(device, this)')
+        }
+        if (out.contains('prepared.outputTarget().toString()')) {
+            out = PREPARED_OUTPUT_TARGET_PATTERN.matcher(out).replaceAll('prepared.name()')
+        }
+        if (out.contains('entity.hurtMarked = true')) {
+            out = ENTITY_HURT_MARKED_PATTERN.matcher(out).replaceAll('entity.syncVelocity = true')
+        }
+        if (out.contains('TextureManager.INTENTIONAL_MISSING_TEXTURE')) {
+            out = MISSING_TEXTURE_CONST_PATTERN.matcher(out).replaceAll('net.minecraft.client.renderer.texture.MissingTextureAtlasSprite.getLocation()')
+        }
+        boolean usesRpd = out.contains('com.mojang.blaze3d.systems.RenderPassDescriptor')
+        boolean usesShaderSource = out.contains('com.mojang.blaze3d.shaders.ShaderSource')
+        if (usesRpd) {
+            out = RPD_ATTACHMENT_PATTERN.matcher(out).replaceAll('com.mojang.renderpearl.api.commands.RenderPassDescriptor.$1Attachment')
+        }
+        if (out.contains('com.mojang.blaze3d') || out.contains('com/mojang/blaze3d')
+                || out.contains('DynamicUniforms') || out.contains('ImprovedNoise')) {
+            for (def entry : PATTERNS) {
+                out = entry.key.matcher(out).replaceAll(entry.value)
+            }
+            if (out.contains('DynamicUniforms')) {
+                out = DYNAMIC_UNIFORMS_SIMPLE.matcher(out).replaceAll('DynamicGpuData')
+            }
+            if (usesRpd) {
+                out = RPD_SIMPLE.matcher(out).replaceAll('LumenRenderPassDescriptor')
+            }
+            if (usesShaderSource) {
+                out = SHADER_SOURCE_SIMPLE.matcher(out).replaceAll('LumenShaderSource')
+            }
+        }
+        return out
+    }
+
+    static void remapTree(List<File> sourceDirs, Set<String> skipRelativePaths, File outputDir) {
+        if (outputDir.exists()) {
+            outputDir.deleteDir()
+        }
+        outputDir.mkdirs()
+        Set<String> written = new HashSet<>(skipRelativePaths)
+        // Highest priority dirs first so overrides win cleanly
+        sourceDirs.reverse().each { File dir ->
+            if (!dir.isDirectory()) return
+            Path root = dir.toPath()
+            dir.eachFileRecurse { File f ->
+                if (!f.isFile() || !f.name.endsWith('.java')) return
+                String rel = root.relativize(f.toPath()).toString().replace('\\', '/')
+                if (!written.add(rel)) return
+                String content = Files.readString(f.toPath(), StandardCharsets.UTF_8)
+                String remapped = remapSource(content)
+                File dst = new File(outputDir, rel)
+                dst.parentFile.mkdirs()
+                Files.writeString(dst.toPath(), remapped, StandardCharsets.UTF_8)
+            }
+        }
+    }
+}
+
+ext.lumenfxRemapRenderPearlSources = { List<File> sourceDirs, Set<String> skipRelativePaths, File outputDir ->
+    RenderPearl263Remapper.remapTree(sourceDirs, skipRelativePaths, outputDir)
+}

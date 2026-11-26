@@ -14,7 +14,7 @@ public record PreparedShadingEnergyShaders(Map<String, Map<String, PreparedNiaga
 
     public static @Nullable PreparedShadingEnergyShaders prepare(ResourceManager resources) {
         var index = Identifier.fromNamespaceAndPath("lumenfx", "shaders/compute/" + PIPELINE + "/index.json");
-        if (resources.getResource(index).isEmpty()) return null;
+        if (!ShaderResourceFiles.exists(resources, index)) return null;
         var expected = new LinkedHashMap<String, Set<String>>();
         for (String format : Set.of("float", "unorm16", "unorm8")) {
             expected.put("reflection_" + format, SUBSTRATE);

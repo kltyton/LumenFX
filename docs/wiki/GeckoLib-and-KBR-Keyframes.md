@@ -4,7 +4,7 @@
 
 # GeckoLib & KBR Particle Keyframes
 
-LumenFX includes zero-dependency, pure optional soft-compatibility with **GeckoLib 4.x** (Minecraft 1.20.1 & 1.21.1), **GeckoLib 5.x** (Minecraft 26.1.2 & 26.2), and **KBR (`kltyton_bedrock_runtime`)** animation particle keyframes across all 8 targets.
+LumenFX includes zero-dependency, pure optional soft-compatibility with **GeckoLib 4.x** (Minecraft 1.20.1 & 1.21.1), **GeckoLib 5.x** (Minecraft 26.1.2, 26.2 & 26.3), and **KBR (`kltyton_bedrock_runtime`)** animation particle keyframes across all 10 targets.
 
 When GeckoLib or KBR is absent, none of their classes are loaded and no keyframe mixins are applied.
 

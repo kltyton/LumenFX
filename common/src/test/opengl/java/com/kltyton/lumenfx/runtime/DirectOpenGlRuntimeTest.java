@@ -5,19 +5,32 @@ import com.google.gson.JsonParser;
 import com.kltyton.lumenfx.api.client.EffectHandle;
 import com.kltyton.lumenfx.effect.niagara.cache.NiagaraSimulationCache;
 import com.kltyton.lumenfx.math.SourceRandomStream;
+import com.kltyton.lumenfx.runtime.audio.DirectSpatialAudioEngine;
 import com.kltyton.lumenfx.runtime.bridge.McResourceBridge;
+import com.kltyton.lumenfx.runtime.concurrent.DirectFrameExecutor;
 import com.kltyton.lumenfx.runtime.gl.DirectGlNiagaraGpuRunner;
+import com.kltyton.lumenfx.runtime.gl.material.DirectGlCustomMaterialCompiler;
+import com.kltyton.lumenfx.runtime.gl.rvt.DirectGlRuntimeVirtualTexture;
+import com.kltyton.lumenfx.runtime.model.BlendMode;
 import com.kltyton.lumenfx.runtime.model.EffectModel;
+import com.kltyton.lumenfx.runtime.model.GaussianSplatModel;
+import com.kltyton.lumenfx.runtime.model.GroomAssetModel;
+import com.kltyton.lumenfx.runtime.model.MaterialModel;
+import com.kltyton.lumenfx.runtime.model.NaniteClusterModel;
 import com.kltyton.lumenfx.runtime.model.NiagaraSystemModel;
 import com.kltyton.lumenfx.runtime.model.PhotonFxModel;
 import com.kltyton.lumenfx.runtime.model.ProductionEffectParser;
 import com.kltyton.lumenfx.runtime.model.ScalarCurve;
 import com.kltyton.lumenfx.runtime.model.StaticMeshModel;
 import com.kltyton.lumenfx.runtime.model.UnityEmitterModel;
+import com.kltyton.lumenfx.runtime.niagara.DirectVectorDataSet;
+import com.kltyton.lumenfx.runtime.niagara.DirectVectorProgram;
+import com.kltyton.lumenfx.runtime.niagara.DirectVectorVm;
 import com.kltyton.lumenfx.runtime.niagara.HalfFloat;
 import com.kltyton.lumenfx.runtime.simulation.EffectRuntimeInstance;
 import com.kltyton.lumenfx.runtime.simulation.NiagaraSystemRuntime;
 import com.kltyton.lumenfx.runtime.simulation.ParticleInstance;
+import com.kltyton.lumenfx.runtime.simulation.PhotonFxRuntime;
 import com.kltyton.lumenfx.runtime.simulation.ServerForceAuthority;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -561,6 +574,243 @@ final class DirectOpenGlRuntimeTest {
         }
     }
 
+    @Test
+    void directFrameExecutorOverlapsOwnerWorkAndPreservesWorkStealingSemantics() {
+        DirectFrameExecutor exec = DirectFrameExecutor.INSTANCE;
+        int n = 64;
+        int[] visits = new int[n];
+        boolean[] ownerRan = {false};
+        int parts = exec.partitions(n, 256);
+        exec.executeIndexed(n, parts, () -> ownerRan[0] = true, (partition, index) -> visits[index]++);
+        assertTrue(ownerRan[0], "Owner work must execute alongside worker-stealing tasks");
+        for (int i = 0; i < n; i++) {
+            assertEquals(1, visits[i], "Each indexed work item must run exactly once");
+        }
+    }
+
+    @Test
+    void directVectorVmHoistedArithmeticAndCurlNoiseMatchExactSemantics() {
+        // Register layout: temp[0..4], const[5=2.5f, 6=-1], inputs[7=in0, 8=in1, mirror 9..10], outputs[11=out0, 12=out1]
+        List<DirectVectorProgram.Instruction> ins = List.of(
+                new DirectVectorProgram.Instruction(DirectVectorProgram.Opcode.MUL, 2, 0, 0, new int[]{7, 8, 0}),
+                new DirectVectorProgram.Instruction(DirectVectorProgram.Opcode.ADD, 2, 0, 0, new int[]{0, 5, 1}),
+                new DirectVectorProgram.Instruction(DirectVectorProgram.Opcode.EXTERNAL_FUNC_CALL, 3, 0, 0, new int[]{7, 8, 1, 2, 3, 4}),
+                new DirectVectorProgram.Instruction(DirectVectorProgram.Opcode.ACQUIREINDEX, 1, 0, 0, new int[]{6}),
+                new DirectVectorProgram.Instruction(DirectVectorProgram.Opcode.OUTPUTDATA_FLOAT, 2, 0, 0, new int[]{1, 2, 11, 12})
+        );
+        byte[] consts = new byte[48];
+        ByteBuffer cb = ByteBuffer.wrap(consts).order(ByteOrder.LITTLE_ENDIAN);
+        cb.putFloat(32, 2.5f); // slot 8 -> reg 5
+        cb.putInt(36, -1);     // slot 9 -> reg 6 (true mask)
+        DirectVectorProgram prog = new DirectVectorProgram(
+                5, 2, 1, 32, false, 16,
+                List.of(),
+                consts,
+                new int[]{8, 9},
+                List.of(
+                        new DirectVectorProgram.Input(0, 0, 0, false),
+                        new DirectVectorProgram.Input(0, 0, 1, false)
+                ),
+                List.of(
+                        new DirectVectorProgram.Output(0, 0, 0),
+                        new DirectVectorProgram.Output(0, 0, 1)
+                ),
+                List.of(new DirectVectorProgram.External("curl_noise", 3, 3, "CurlNoise", List.of())),
+                ins);
+        DirectVectorDataSet in = new DirectVectorDataSet(2, 0, 0);
+        in.count(8);
+        for (int i = 0; i < 8; i++) {
+            in.floating(0, i, (i + 1) * 1.5f);
+            in.floating(1, i, 4.0f);
+        }
+
+        DirectVectorDataSet out = new DirectVectorDataSet(2, 0, 0);
+        DirectVectorVm vm = new DirectVectorVm(prog);
+        vm.execute(8, new DirectVectorDataSet[]{in}, new DirectVectorDataSet[]{out}, 0, consts, new SourceRandomStream(42));
+        assertEquals(8, out.count());
+        for (int i = 0; i < 8; i++) {
+            float expected = (i + 1) * 1.5f * 4.0f + 2.5f;
+            assertEquals(expected, out.floating(0, i), 1e-5f);
+            assertTrue(Float.isFinite(out.floating(1, i)), "curl_noise must produce finite output");
+        }
+        // Verify O(1) swapWith
+        DirectVectorDataSet alt = new DirectVectorDataSet(2, 0, 0);
+        alt.swapWith(out);
+        assertEquals(8, alt.count());
+        assertEquals(0, out.count());
+        assertEquals(1.5f * 4.0f + 2.5f, alt.floating(0, 0), 1e-5f);
+    }
+
+    @Test
+    void photonFullTimelineBurstsForcefieldCollisionAndSubEmittersWork() {
+        PhotonFxModel.PhysicsExtras parentExtras = new PhotonFxModel.PhysicsExtras(
+                1024,
+                List.of(new PhotonFxModel.BurstSpec(0.0f, 6, 1, 0.1f, 1.0f)),
+                new PhotonFxModel.ShapeSpec("sphere", 0.2f, 25f, 0.5f, 0.5f, 0.5f, true),
+                1.0f, 0.05f, 0.2f, 2.0f,
+                new float[]{0f, 0f, 0f}, new float[]{0f, 0f, 0f},
+                1.0f, 0.5f, 0f, 90f, 1f, 0.2f, 0.1f, 0f, true,
+                new PhotonFxModel.CollisionSpec(true, 0.8f, 0.1f, 0.0f, false),
+                List.of(new PhotonFxModel.ForceFieldSpec("vortex", 3.0f, 0f, 0f, 0f, 10f)),
+                List.of(new PhotonFxModel.SubEmitterSpec("COLLISION", "sparks", 2, 1.0f)),
+                4.0f, 10, 0.1f, 0.1f, true, true, 0.6f);
+
+        PhotonFxModel.TransformSpec ident = new PhotonFxModel.TransformSpec("root", null, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1);
+        PhotonFxModel.FxObjectSpec main = new PhotonFxModel.FxObjectSpec(
+                "main", PhotonFxModel.ObjectType.PARTICLE, ident, PhotonFxModel.RenderMode.BILLBOARD, false,
+                2.0f, false, 0.0f, 0.0f, 6, 1.0f, 0.0f, 0.4f, 1f, 1f, 1f, 1f,
+                null, BlendMode.ADDITIVE, true, false, false, null, null, parentExtras);
+        PhotonFxModel.FxObjectSpec sparks = new PhotonFxModel.FxObjectSpec(
+                "sparks", PhotonFxModel.ObjectType.PARTICLE, ident, PhotonFxModel.RenderMode.BILLBOARD, false,
+                2.0f, false, 0.0f, 0.0f, 0, 0.5f, 1.0f, 0.15f, 1f, 0.8f, 0.2f, 1f,
+                null, BlendMode.ADDITIVE, true, false, false, null, null, PhotonFxModel.PhysicsExtras.DEFAULT);
+        PhotonFxModel.FxObjectSpec beam = new PhotonFxModel.FxObjectSpec(
+                "laser", PhotonFxModel.ObjectType.BEAM, ident, PhotonFxModel.RenderMode.BEAM, true,
+                2.0f, true, 0.0f, 0.0f, 1, 1.0f, 0.0f, 0.2f, 0.3f, 0.8f, 1f, 1f,
+                null, BlendMode.ADDITIVE, true, false, false, null, null, PhotonFxModel.PhysicsExtras.DEFAULT);
+
+        PhotonFxModel model = new PhotonFxModel("test:photon_full", List.of(main, sparks, beam));
+        assertTrue(main.material().hdr());
+        assertTrue(main.material().softParticles());
+
+        PhotonFxRuntime rt = new PhotonFxRuntime(model, 99L);
+        assertTrue(rt.requiresOwnerThread());
+        McResourceBridge floorBridge = new DirectoryResourceBridge() {
+            @Override public boolean isSolidBlock(Object level, double x, double y, double z) { return y <= 0.0; }
+        };
+        EffectHandle handle = new EffectHandle(new Vec3(0.0, 0.4, 0.0));
+        Object dummyLevel = new Object();
+        for (int t = 0; t < 15; t++) {
+            assertTrue(rt.tick(handle.snapshot(), 0.05f, false, dummyLevel, floorBridge));
+        }
+        assertEquals(6, rt.objects().get(0).particles.size(), "Burst must spawn 6 main particles");
+        assertTrue(rt.objects().get(1).particles.size() > 0, "Block collision must trigger COLLISION sub-emitter sparks");
+        assertEquals(1, rt.objects().get(2).particles.size(), "Beam must maintain resident segmented geometry");
+        assertTrue(rt.objects().get(2).particles.get(0).trailCount >= 3, "Beam must populate trail segment points");
+    }
+
+    @Test
+    void nativeOpenGlParityModelsNaniteSplatGroomRvtCustomShaderAudioAndStatelessWork() {
+        String parityJson = """
+                {
+                  "format_version": 1,
+                  "materials": {
+                    "custom_hdr": {
+                      "blend": "additive",
+                      "hdr": true,
+                      "emissive_scale": 2.2,
+                      "soft_particles": true,
+                      "soft_fade_distance": 1.25,
+                      "nanite": true,
+                      "rvt": true,
+                      "sub_uv": [2, 2],
+                      "custom_glsl": "fragColor = texture(uTex, vUv) * vColor * lfx_soft_particle_alpha();"
+                    }
+                  },
+                  "niagara": {
+                    "emitters": [
+                      {
+                        "name": "stateless_vortex",
+                        "material": "custom_hdr",
+                        "stateless": {
+                          "spawn_rate": 0.0,
+                          "burst_count": 10,
+                          "lifetime": 1.0,
+                          "speed": 2.0,
+                          "vortex_strength": 4.0
+                        }
+                      }
+                    ]
+                  },
+                  "audio": [
+                    { "sound": "lumenfx:sfx/burst", "volume": 0.8, "pitch": 1.1, "spatialized": true }
+                  ],
+                  "gaussian_splats": {
+                    "splats": [
+                      { "position": [0.0, 1.0, 0.0], "scale": [0.2, 0.1, 0.2], "rotation": [0, 0, 0, 1], "color": [1, 0.5, 0.2, 0.9] }
+                    ]
+                  },
+                  "grooms": [
+                    {
+                      "gravity": 9.81,
+                      "wind_strength": 0.4,
+                      "strands": [
+                        { "points": [[0,0,0], [0,-0.2,0.05], [0,-0.4,0.1]], "root_width": 0.03, "tip_width": 0.005, "color": [0.2, 0.1, 0.05] }
+                      ]
+                    }
+                  ],
+                  "volumes": [
+                    { "position": [0, 1, 0], "size": [3, 2, 3], "color": [0.5, 0.7, 1.0], "density": 0.8 }
+                  ],
+                  "decals": [
+                    { "position": [0, 0, 0], "size": [2, 1, 2], "color": [1, 0.2, 0.1, 0.9], "texture": "lumenfx:textures/decal.png" }
+                  ],
+                  "lights": [
+                    { "position": [0, 2, 0], "radius": 8.0, "color": [1, 0.8, 0.4], "intensity": 2.0, "type": "spot", "direction": [0, -1, 0] }
+                  ]
+                }
+                """;
+        EffectModel model = ProductionEffectParser.parse("lumenfx:full_parity", parityJson, null);
+        MaterialModel mat = model.materials().get("custom_hdr");
+        assertNotNull(mat);
+        assertTrue(mat.hdr());
+        assertTrue(mat.softParticles());
+        assertEquals(1.25f, mat.softFadeDistance(), 1e-5f);
+        assertEquals(2.2f, mat.emissiveScale(), 1e-5f);
+        assertTrue(mat.nanite());
+        assertTrue(mat.rvt());
+        assertTrue(mat.hasCustomShader());
+        assertEquals(2, mat.subUvRows());
+        assertEquals(2, mat.subUvCols());
+        assertEquals(1, model.audioCues().size());
+        assertEquals(1, model.gaussianSplats().size());
+        assertEquals(1, model.gaussianSplats().get(0).count());
+        assertEquals(1, model.grooms().size());
+        assertEquals(1, model.grooms().get(0).strands().size());
+        assertEquals(1, model.volumes().size());
+        assertEquals(1, model.decals().size());
+        assertEquals(1, model.lights().size());
+        assertTrue(model.lights().get(0).spot());
+        assertEquals(1, model.rvtMaterials().size());
+
+        // Stateless Niagara emitter burst ticks cleanly
+        EffectRuntimeInstance inst = new EffectRuntimeInstance(model, new EffectHandle(Vec3.ZERO), null, 55L, 1);
+        assertTrue(inst.tick(0.05f, 1, null));
+        assertEquals(10, inst.niagaraRuntime().emitters().get(0).particleCount());
+
+        // Custom GLSL fragment wrapper produces valid #version 330 core program
+        String wrapped = DirectGlCustomMaterialCompiler.wrapFragmentSource(mat.customGlslFragment());
+        assertTrue(wrapped.startsWith("#version 330 core"));
+        assertTrue(wrapped.contains("void main()"));
+        assertTrue(wrapped.contains("lfx_soft_particle_alpha"));
+
+        // Nanite meshlet clustering produces bounded clusters
+        StaticMeshModel cube = StaticMeshModel.unitTexturedCube("test:cube");
+        NaniteClusterModel clusters = NaniteClusterModel.buildFromMesh(cube);
+        assertTrue(clusters.clusters().size() >= 1);
+        assertEquals(cube.indexCount(), clusters.clusters().get(0).indexCount());
+
+        // RVT page allocation & LRU eviction across >64 virtual tiles
+        DirectGlRuntimeVirtualTexture rvt = new DirectGlRuntimeVirtualTexture();
+        for (int i = 0; i < 70; i++) {
+            assertNotNull(rvt.requestPage(i % 64, i / 64, 0));
+        }
+        assertEquals(64, rvt.residentPageCount(), "Physical atlas holds at most 64 LRU resident pages");
+
+        // Spatial audio PCM WAV parser decodes valid mono 16-bit WAV header cleanly
+        ByteBuffer wav = ByteBuffer.allocate(48).order(ByteOrder.LITTLE_ENDIAN);
+        wav.putInt(0x46464952).putInt(40).putInt(0x45564157); // RIFF, size, WAVE
+        wav.putInt(0x20746d66).putInt(16).putShort((short) 1).putShort((short) 1)
+                .putInt(44100).putInt(88200).putShort((short) 2).putShort((short) 16);
+        wav.putInt(0x61746164).putInt(4).putShort((short) 1000).putShort((short) -1000);
+        DirectSpatialAudioEngine.DecodedPcm pcm = DirectSpatialAudioEngine.parseWavPcm(wav.array());
+        assertNotNull(pcm);
+        assertEquals(1, pcm.channels());
+        assertEquals(44100, pcm.sampleRate());
+        assertEquals(16, pcm.bitsPerSample());
+        assertEquals(4, pcm.pcm().length);
+    }
+
     private static byte[] buildSyntheticSimCacheLfsc() throws IOException {
         ByteArrayOutputStream raw = new ByteArrayOutputStream();
         ByteBuffer b = ByteBuffer.allocate(65536).order(ByteOrder.LITTLE_ENDIAN);
@@ -680,7 +930,7 @@ final class DirectOpenGlRuntimeTest {
         return raw.toByteArray();
     }
 
-    private static final class DirectoryResourceBridge implements McResourceBridge {
+    private static class DirectoryResourceBridge implements McResourceBridge {
         private final Path[] roots;
         DirectoryResourceBridge(Path... roots) { this.roots = roots; }
         @Override public String mcVersion() { return "test"; }

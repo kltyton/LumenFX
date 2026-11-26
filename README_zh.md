@@ -22,8 +22,8 @@
 
 - **极致轻量、无重型外部前置与游戏内编辑器**——彻底解耦外部 `LDLib2` 与 `KilaGraph` 强依赖（KilaGraph 着色器图仍以纯可选软兼容方式保留），运行 JAR 不含编辑器、演示贴图或重复冗余文件，所有特效均以标准 Minecraft 资源包形式加载（`assets/<namespace>/lumenfx/...`）。
 - **跨引擎资产兼容与前端编辑器插件**——同时运行 LumenFX 原生 JSON、Photon `.fx`、**Unity ParticleSystem（Shuriken）**（配套标准 **Unity UPM 编辑器插件**）与 **Unreal Engine Niagara**（CPU VectorVM、GPU SPIR-V 计算与 SimCache `.lfsc`，配套 **UE5 编辑器插件** 与离线编译器）。
-- **原生软兼容 GeckoLib（4.x / 5.x）与 KBR 粒子关键帧系统**——全部 8 个目标均可在 Blockbench 动画 `particle_effects` 关键帧中直接触发 LumenFX 粒子与拖尾，支持 3D 定位点位置与旋转跟随，并与 KBR 原生暴雪/3D 粒子和平共存。
-- **多版本多加载器统一交付**——完整覆盖 Minecraft **1.20.1、1.21.1、26.1.2 与 26.2**（Forge、NeoForge、Fabric），每个目标仅交付单一统一 JAR，并在 26.2 提供**动态 Vulkan 优先 / OpenGL 自动回退**。
+- **原生软兼容 GeckoLib（4.x / 5.x）与 KBR 粒子关键帧系统**——全部 10 个目标均可在 Blockbench 动画 `particle_effects` 关键帧中直接触发 LumenFX 粒子与拖尾，支持 3D 定位点位置与旋转跟随，并与 KBR 原生暴雪/3D 粒子和平共存。
+- **多版本多加载器统一交付**——完整覆盖 Minecraft **1.20.1、1.21.1、26.1.2、26.2 与 26.3**（Forge、NeoForge、Fabric），每个目标仅交付单一统一 JAR；26.2 与 26.3 提供**动态 Vulkan 优先 / OpenGL 自动回退**，1.20.1 / 1.21.1 / 26.1.2 提供全特性原生 OpenGL 管线。
 
 源自 Photon 26.2 的代码文件完整保留 KilaBash 的署名与版权声明，遵循随附的 [Photon 许可证（CC BY-NC-SA 4.0）](licenses/photon/LICENSE)；LumenFX 原创代码与离线工具采用 [MIT 许可证](LICENSE)。
 
@@ -51,16 +51,16 @@
 ## 核心特性
 
 - **跨引擎统一运行时**：单一公共 Java API（`VfxEffects`）即可播放 LumenFX JSON、Photon `.fx`、Unity ParticleSystem 导出资源及 Unreal Engine Niagara CPU/GPU 与 SimCache 特效。
-- **丰富渲染模式与内置泛光**：支持精灵（公告板 / 速度拉伸 / 水平 / 垂直）、丝带拖尾（Catmull–Rom 与 Hermite 自适应细分）、光束（Beam）、3D 网格（Mesh）及动态粒子光源，无需光影即可呈现炫目辉光。
-- **完全可自定义 GLSL 着色器材质**：支持自定义片元着色器（`assets/<namespace>/shaders/vfx/*.fsh`）、多纹理采样器、粒子年龄/随机值/自定义参数通道、多种混合模式与精细深度控制。
-- **动态图形后端自适应（Minecraft 26.2）**：
-  - 每个版本目标仅发布**单一统一 JAR**；
+- **丰富渲染模式、内置 HDR 泛光与全版本原生 OpenGL 对等管线**：全版本（1.20.1–26.3）支持精灵（公告板 / 速度拉伸 / 水平 / 垂直）、丝带拖尾、光束（Beam）、3D 网格、Nanite 簇级 LOD 网格、3D 高斯泼溅（Gaussian Splatting）、运行时虚拟纹理（RVT）、Groom 毛发发丝、体积雾与体积材质、延迟贴花、动态点光源/聚光灯、深度软粒子及 3D OpenAL 空间音频，无需光影即可呈现 HDR 泛光。
+- **Niagara GPU 零回读直出与自定义 GLSL 材质**：GPU 模拟的 Niagara 粒子直接从 OpenGL/Vulkan 存储缓冲渲染并进行 GPU 距离排序（无 CPU 回读上限）；支持自定义 GLSL 片元/顶点着色器（`assets/<namespace>/shaders/vfx/*.fsh`）、多纹理采样器、场景深度/颜色采样与完整混合/深度控制。
+- **动态图形后端自适应与无损着色器打包（Minecraft 26.2 & 26.3）**：
+  - 每个版本目标仅发布**单一统一 JAR**，采用无损计算着色器打包（`compute.lfpack`）显著缩小包体并完整支持资源包覆盖；
   - 当系统显卡驱动及已装渲染模组支持 Vulkan 时（包含独立运行与 Sodium 共装），**默认自动启用 Vulkan**；
   - 当环境不支持 Vulkan 或检测到必须使用 OpenGL 的渲染模组（如 Iris）时，**自动无缝回退至 OpenGL**；
   - 始终尊重用户的显式图形后端参数（`--graphicsBackend`）、视频设置及原版崩溃恢复。
 - **零强制前置，全可选软兼容**：完全独立运行，不强制依赖 LDLib2、KilaGraph、Iris、Sodium、GeckoLib 或 KBR；共装时自动启用对应可选兼容路径。
 - **GeckoLib 与 KBR 粒子关键帧兼容**：直接在 Blockbench 动画的 `particle_effects` 关键帧中触发 LumenFX 特效，自动按 ID 分流（未命中时交还 KBR 原生暴雪/3D 粒子），支持 3D 定位点位置/旋转跟随、`pre_effect_script` 参数指令与 `LumenFxKeyframeBridge` 公开 Java API。
-- **有界多线程模拟与原子重载**：将粒子数值计算分配至有界工作线程池，支持游戏内资源包热重载（F3+T）并自动回收过期渲染管线。
+- **无锁工作窃取多线程模拟与零拷贝 GPU 上传**：全版本采用持久化无锁工作窃取线程池、LPT 负载排序、主线程重叠调度、预编译 Niagara 参数绑定、指令提升 VectorVM 与多帧环形缓冲直写。
 
 ---
 
@@ -68,14 +68,16 @@
 
 | Minecraft 版本 | 加载器 | Maven Artifact ID | Java 版本 | 图形后端策略 |
 | :---: | :---: | :--- | :---: | :--- |
+| **26.3** | NeoForge | `lumenfx-neoforge-26.3` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
+| **26.3** | Fabric | `lumenfx-fabric-26.3` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
 | **26.2** | NeoForge | `lumenfx-neoforge-26.2` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
 | **26.2** | Fabric | `lumenfx-fabric-26.2` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
-| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | Java 25 | OpenGL |
-| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | Java 25 | OpenGL |
-| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | Java 21 | OpenGL |
-| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | Java 21 | OpenGL |
-| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | Java 17 | OpenGL |
-| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | Java 17 | OpenGL |
+| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | Java 25 | 原生 OpenGL（全特性对等管线） |
+| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | Java 25 | 原生 OpenGL（全特性对等管线） |
+| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | Java 21 | 原生 OpenGL（全特性对等管线） |
+| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | Java 21 | 原生 OpenGL（全特性对等管线） |
+| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | Java 17 | 原生 OpenGL（全特性对等管线） |
+| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | Java 17 | 原生 OpenGL（全特性对等管线） |
 
 ---
 
@@ -95,7 +97,7 @@ repositories {
 
 dependencies {
     // 按需替换为上表中对应版本与加载器的 Artifact ID
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.2:0.2.0'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.0'
 }
 ```
 

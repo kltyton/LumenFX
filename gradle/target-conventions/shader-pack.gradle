@@ -1,0 +1,479 @@
+import java.io.BufferedOutputStream
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.FileOutputStream
+import java.nio.file.Files
+import java.security.MessageDigest
+import java.util.Arrays
+import java.util.HexFormat
+import java.util.zip.Deflater
+import java.util.zip.Inflater
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
+
+/**
+ * Pure lossless build-time packaging helpers:
+ * 1. Packs assets/lumenfx/shaders/compute/** into a single LFPK v1 Deflate-9 bundle with exact alias,
+ *    sparse byte-patch, and block-copy delta deduplication (verified byte-for-byte on every build).
+ * 2. Losslessly recompresses the release JAR at Deflate level 9 with deterministic timestamps and
+ *    stripped extended extra headers while preserving all entries and CRC32 integrity.
+ */
+class LumenFxLosslessPacker {
+    static final int MAGIC = 0x4C46504B // "LFPK"
+    static final int VERSION = 1
+    static final int MODE_RAW = 0
+    static final int MODE_ALIAS = 1
+    static final int MODE_SPARSE_PATCH = 2
+    static final int MODE_COPY_PATCH = 3
+    private static final int WINDOW = 16
+    private static final int HASH_BITS = 15
+    private static final int HASH_SIZE = 1 << HASH_BITS
+    private static final int HASH_MASK = HASH_SIZE - 1
+
+    static void packComputeShaders(File sourceDir, File outputFile) {
+        if (!sourceDir.isDirectory()) {
+            throw new IllegalStateException("Compute shader source directory missing: ${sourceDir}")
+        }
+        List<File> files = []
+        sourceDir.eachFileRecurse { File f ->
+            if (!f.isFile()) return
+            String rel = sourceDir.toPath().relativize(f.toPath()).toString().replace('\\', '/')
+            if (rel == 'fog/integrate.comp' || rel == 'volume/preshaded.csh') return
+            files.add(f)
+        }
+        // Sort deterministically: pipeline dir -> extension -> base (.vk before .gl, vulkan before opengl)
+        files.sort { File a, File b ->
+            String ra = sourceDir.toPath().relativize(a.toPath()).toString().replace('\\', '/')
+            String rb = sourceDir.toPath().relativize(b.toPath()).toString().replace('\\', '/')
+            String pa = pipelineOf(ra), pb = pipelineOf(rb)
+            int c = pa <=> pb
+            if (c != 0) return c
+            String ea = extOf(ra), eb = extOf(rb)
+            c = ea <=> eb
+            if (c != 0) return c
+            int prioA = backendOrder(ra), prioB = backendOrder(rb)
+            if (prioA != prioB) return prioA <=> prioB
+            return ra <=> rb
+        }
+
+        MessageDigest sha = MessageDigest.getInstance('SHA-256')
+        List<String> relPaths = []
+        List<byte[]> originals = []
+        Map<String, Integer> hashToIndex = new HashMap<>()
+        Map<String, List<Integer>> pipelineSpvIndices = new HashMap<>()
+
+        ByteArrayOutputStream payloadBaos = new ByteArrayOutputStream(1024 * 1024)
+        DataOutputStream out = new DataOutputStream(payloadBaos)
+        out.writeInt(files.size())
+
+        int aliasCount = 0
+        int sparseCount = 0
+        int copyCount = 0
+        long totalRawBytes = 0L
+
+        for (int i = 0; i < files.size(); i++) {
+            File file = files.get(i)
+            String rel = sourceDir.toPath().relativize(file.toPath()).toString().replace('\\', '/')
+            byte[] bytes = Files.readAllBytes(file.toPath())
+            totalRawBytes += bytes.length
+            relPaths.add(rel)
+            originals.add(bytes)
+
+            String digest = HexFormat.of().formatHex(sha.digest(bytes))
+            String pipe = pipelineOf(rel)
+            out.writeUTF(rel)
+
+            Integer exactIdx = hashToIndex.get(digest)
+            if (exactIdx != null) {
+                out.writeByte(MODE_ALIAS)
+                out.writeInt(exactIdx)
+                aliasCount++
+            } else {
+                hashToIndex.put(digest, i)
+                byte[] bestEncoded = null
+                int bestMode = MODE_RAW
+                int bestBase = -1
+
+                List<Integer> candidates = pipelineSpvIndices.get(pipe)
+                if (rel.endsWith('.spv') && candidates != null && !candidates.isEmpty()) {
+                    // 1) Try sparse byte patch on same-length siblings (handles volume .gl/.vk in ~15 bytes)
+                    for (int ci = candidates.size() - 1; ci >= 0; ci--) {
+                        int candIdx = candidates.get(ci)
+                        byte[] base = originals.get(candIdx)
+                        if (base.length == bytes.length) {
+                            byte[] sparse = trySparsePatch(base, bytes, (int) (bytes.length * 0.10))
+                            if (sparse != null && (bestEncoded == null || sparse.length < bestEncoded.length)) {
+                                bestEncoded = sparse
+                                bestMode = MODE_SPARSE_PATCH
+                                bestBase = candIdx
+                                if (sparse.length < 256) break
+                            }
+                        }
+                    }
+                    // 2) Try word-aligned copy-patch against recent same-pipeline SPV siblings
+                    if (bestEncoded == null && bytes.length >= 2048) {
+                        int tried = 0
+                        for (int ci = candidates.size() - 1; ci >= 0 && tried < 6; ci--) {
+                            int candIdx = candidates.get(ci)
+                            byte[] base = originals.get(candIdx)
+                            if (base.length < 1024) continue
+                            tried++
+                            byte[] delta = tryCopyPatch(base, bytes)
+                            if (delta != null && delta.length < (int) (bytes.length * 0.78)
+                                    && (bestEncoded == null || delta.length < bestEncoded.length)) {
+                                bestEncoded = delta
+                                bestMode = MODE_COPY_PATCH
+                                bestBase = candIdx
+                            }
+                        }
+                    }
+                }
+
+                if (bestMode == MODE_SPARSE_PATCH) {
+                    out.writeByte(MODE_SPARSE_PATCH)
+                    out.writeInt(bestBase)
+                    out.write(bestEncoded)
+                    sparseCount++
+                } else if (bestMode == MODE_COPY_PATCH) {
+                    out.writeByte(MODE_COPY_PATCH)
+                    out.writeInt(bestBase)
+                    out.write(bestEncoded)
+                    copyCount++
+                } else {
+                    out.writeByte(MODE_RAW)
+                    out.writeInt(bytes.length)
+                    out.write(bytes)
+                }
+
+                if (rel.endsWith('.spv')) {
+                    pipelineSpvIndices.computeIfAbsent(pipe, { [] }).add(i)
+                }
+            }
+        }
+        out.flush()
+        byte[] uncompressed = payloadBaos.toByteArray()
+
+        ByteArrayOutputStream compressedBaos = new ByteArrayOutputStream(Math.max(1024, uncompressed.length.intdiv(3) as int))
+        DataOutputStream finalOut = new DataOutputStream(compressedBaos)
+        finalOut.writeInt(MAGIC)
+        finalOut.writeInt(VERSION)
+        finalOut.writeInt(uncompressed.length)
+        Deflater deflater = new Deflater(Deflater.BEST_COMPRESSION)
+        try {
+            deflater.setInput(uncompressed)
+            deflater.finish()
+            byte[] buf = new byte[16384]
+            while (!deflater.finished()) {
+                int n = deflater.deflate(buf)
+                if (n > 0) finalOut.write(buf, 0, n)
+            }
+        } finally {
+            deflater.end()
+        }
+        finalOut.flush()
+        byte[] packedBytes = compressedBaos.toByteArray()
+
+        // Mandatory lossless round-trip verification before writing
+        verifyRoundTrip(packedBytes, relPaths, originals)
+
+        outputFile.parentFile.mkdirs()
+        Files.write(outputFile.toPath(), packedBytes)
+        println("LumenFX packComputeShaders: ${files.size()} files (${String.format('%.2f', totalRawBytes / 1048576.0d)} MB raw) -> " +
+                "${String.format('%.2f', packedBytes.length / 1048576.0d)} MB compute.lfpack " +
+                "(alias=${aliasCount}, sparse=${sparseCount}, copyDelta=${copyCount})")
+    }
+
+    private static String pipelineOf(String rel) {
+        int slash = rel.indexOf('/')
+        return slash > 0 ? rel.substring(0, slash) : ''
+    }
+
+    private static String extOf(String rel) {
+        int dot = rel.lastIndexOf('.')
+        return dot >= 0 ? rel.substring(dot) : ''
+    }
+
+    private static int backendOrder(String rel) {
+        if (rel.endsWith('.vk.spv') || rel.endsWith('vulkan.compute.spv')) return 0
+        if (rel.endsWith('.gl.spv') || rel.endsWith('opengl.compute.spv')) return 1
+        return 2
+    }
+
+    private static byte[] trySparsePatch(byte[] base, byte[] target, int maxDiffBytes) {
+        int len = base.length
+        int diffCount = 0
+        List<int[]> runs = []
+        int i = 0
+        while (i < len) {
+            if (base[i] == target[i]) {
+                i++
+                continue
+            }
+            int start = i
+            while (i < len && base[i] != target[i]) {
+                i++
+                diffCount++
+                if (diffCount > maxDiffBytes) return null
+            }
+            runs.add([start, i - start] as int[])
+        }
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(diffCount + runs.size() * 8 + 4)
+        DataOutputStream dos = new DataOutputStream(baos)
+        dos.writeInt(runs.size())
+        for (int[] run : runs) {
+            dos.writeInt(run[0])
+            dos.writeInt(run[1])
+            dos.write(target, run[0], run[1])
+        }
+        dos.flush()
+        return baos.toByteArray()
+    }
+
+    private static int hash16(byte[] data, int off) {
+        int h = 0x811C9DC5
+        for (int k = 0; k < WINDOW; k += 4) {
+            int w = (data[off + k] & 0xFF)
+                    | ((data[off + k + 1] & 0xFF) << 8)
+                    | ((data[off + k + 2] & 0xFF) << 16)
+                    | ((data[off + k + 3] & 0xFF) << 24)
+            h = (h ^ w) * 0x01000193
+        }
+        return (h ^ (h >>> 16)) & HASH_MASK
+    }
+
+    private static byte[] tryCopyPatch(byte[] base, byte[] target) {
+        int baseLen = base.length
+        int targetLen = target.length
+        if (baseLen < WINDOW || targetLen < WINDOW) return null
+
+        int[] head = new int[HASH_SIZE]
+        Arrays.fill(head, -1)
+        int maxSlots = (baseLen >>> 2) + 1
+        int[] prev = new int[maxSlots]
+        for (int off = 0; off + WINDOW <= baseLen; off += 4) {
+            int h = hash16(base, off)
+            int slot = off >>> 2
+            prev[slot] = head[h]
+            head[h] = slot
+        }
+
+        List<int[]> ops = [] // [type>=0: copyLen, srcOff] or [-litLen, targetOff]
+        int pos = 0
+        int litStart = 0
+        while (pos + WINDOW <= targetLen) {
+            int h = hash16(target, pos)
+            int slot = head[h]
+            int bestOff = -1
+            int bestLen = WINDOW - 1
+            int probes = 0
+            while (slot != -1 && probes < 16) {
+                probes++
+                int bOff = slot << 2
+                int m = 0
+                int maxM = Math.min(baseLen - bOff, targetLen - pos)
+                if (maxM > bestLen && base[bOff] == target[pos] && base[bOff + WINDOW - 1] == target[pos + WINDOW - 1]) {
+                    while (m < maxM && base[bOff + m] == target[pos + m]) {
+                        m++
+                    }
+                    if (m > bestLen) {
+                        bestLen = m
+                        bestOff = bOff
+                        if (m >= 512) break
+                    }
+                }
+                slot = prev[slot]
+            }
+            if (bestOff >= 0) {
+                if (pos > litStart) {
+                    ops.add([-(pos - litStart), litStart] as int[])
+                }
+                ops.add([bestLen, bestOff] as int[])
+                pos += bestLen
+                litStart = pos
+            } else {
+                pos += 4
+            }
+        }
+        if (litStart < targetLen) {
+            ops.add([-(targetLen - litStart), litStart] as int[])
+        }
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(Math.max(256, targetLen >>> 1))
+        DataOutputStream dos = new DataOutputStream(baos)
+        dos.writeInt(targetLen)
+        dos.writeInt(ops.size())
+        for (int[] op : ops) {
+            int tag = op[0]
+            dos.writeInt(tag)
+            if (tag >= 0) {
+                dos.writeInt(op[1])
+            } else {
+                dos.write(target, op[1], -tag)
+            }
+        }
+        dos.flush()
+        return baos.toByteArray()
+    }
+
+    private static void verifyRoundTrip(byte[] packed, List<String> expectedPaths, List<byte[]> expectedBytes) {
+        DataInputStream hdr = new DataInputStream(new ByteArrayInputStream(packed))
+        if (hdr.readInt() != MAGIC) throw new IllegalStateException('Pack verify failed: bad magic')
+        if (hdr.readInt() != VERSION) throw new IllegalStateException('Pack verify failed: bad version')
+        int uncompressedLen = hdr.readInt()
+        Inflater inflater = new Inflater()
+        byte[] inflated = new byte[uncompressedLen]
+        try {
+            inflater.setInput(packed, 12, packed.length - 12)
+            int off = 0
+            while (!inflater.finished()) {
+                int n = inflater.inflate(inflated, off, inflated.length - off)
+                if (n == 0) break
+                off += n
+            }
+            if (off != uncompressedLen) throw new IllegalStateException("Pack verify failed: inflated ${off} != ${uncompressedLen}")
+        } finally {
+            inflater.end()
+        }
+        DataInputStream din = new DataInputStream(new ByteArrayInputStream(inflated))
+        int count = din.readInt()
+        if (count != expectedPaths.size()) throw new IllegalStateException("Pack verify failed: count ${count} != ${expectedPaths.size()}")
+        byte[][] decoded = new byte[count][]
+        for (int i = 0; i < count; i++) {
+            String path = din.readUTF()
+            if (path != expectedPaths.get(i)) throw new IllegalStateException("Pack verify failed: path mismatch at ${i}")
+            int mode = din.readUnsignedByte()
+            byte[] data
+            if (mode == MODE_RAW) {
+                int len = din.readInt()
+                data = new byte[len]
+                din.readFully(data)
+            } else if (mode == MODE_ALIAS) {
+                data = decoded[din.readInt()]
+            } else if (mode == MODE_SPARSE_PATCH) {
+                byte[] base = decoded[din.readInt()]
+                data = base.clone()
+                int runs = din.readInt()
+                for (int r = 0; r < runs; r++) {
+                    int off = din.readInt()
+                    int len = din.readInt()
+                    din.readFully(data, off, len)
+                }
+            } else if (mode == MODE_COPY_PATCH) {
+                byte[] base = decoded[din.readInt()]
+                int outLen = din.readInt()
+                int opCount = din.readInt()
+                data = new byte[outLen]
+                int dst = 0
+                for (int op = 0; op < opCount; op++) {
+                    int tag = din.readInt()
+                    if (tag >= 0) {
+                        int srcOff = din.readInt()
+                        System.arraycopy(base, srcOff, data, dst, tag)
+                        dst += tag
+                    } else {
+                        int litLen = -tag
+                        din.readFully(data, dst, litLen)
+                        dst += litLen
+                    }
+                }
+                if (dst != outLen) throw new IllegalStateException("Pack verify failed: copy len ${dst} != ${outLen} for ${path}")
+            } else {
+                throw new IllegalStateException("Pack verify failed: unknown mode ${mode}")
+            }
+            if (!Arrays.equals(data, expectedBytes.get(i))) {
+                throw new IllegalStateException("Pack verify failed: byte mismatch for ${path}")
+            }
+            decoded[i] = data
+        }
+    }
+
+    static void optimizeJarLossless(File jarFile) {
+        long before = jarFile.length()
+        File tempFile = new File(jarFile.parentFile, jarFile.name + '.opt.tmp')
+        int fileCount = 0
+        new ZipFile(jarFile).withCloseable { ZipFile zin ->
+            List<ZipEntry> entries = []
+            def en = zin.entries()
+            while (en.hasMoreElements()) {
+                entries.add(en.nextElement())
+            }
+            entries.sort { ZipEntry a, ZipEntry b ->
+                if (a.name == 'META-INF/MANIFEST.MF') return -1
+                if (b.name == 'META-INF/MANIFEST.MF') return 1
+                return a.name <=> b.name
+            }
+            new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(tempFile), 65536)).withCloseable { ZipOutputStream zos ->
+                zos.setLevel(Deflater.BEST_COMPRESSION)
+                byte[] buf = new byte[32768]
+                for (ZipEntry src : entries) {
+                    ZipEntry dst = new ZipEntry(src.name)
+                    dst.setTime(0L)
+                    dst.setExtra(null)
+                    if (src.isDirectory()) {
+                        dst.setMethod(ZipEntry.STORED)
+                        dst.setSize(0L)
+                        dst.setCompressedSize(0L)
+                        dst.setCrc(0L)
+                        zos.putNextEntry(dst)
+                        zos.closeEntry()
+                    } else {
+                        byte[] raw = zin.getInputStream(src).withCloseable { InputStream is -> is.readAllBytes() }
+                        boolean precompressed = src.name.endsWith('.lfpack') || src.name.endsWith('.png') || src.name.endsWith('.jar')
+                        if (precompressed) {
+                            def crc = new java.util.zip.CRC32()
+                            crc.update(raw)
+                            dst.setMethod(ZipEntry.STORED)
+                            dst.setSize(raw.length)
+                            dst.setCompressedSize(raw.length)
+                            dst.setCrc(crc.value)
+                            zos.putNextEntry(dst)
+                            zos.write(raw)
+                            zos.closeEntry()
+                        } else {
+                            zos.putNextEntry(dst)
+                            zos.write(raw)
+                            zos.closeEntry()
+                        }
+                        fileCount++
+                    }
+                }
+            }
+        }
+        // Verify every file CRC & size survived intact before replacing
+        new ZipFile(jarFile).withCloseable { ZipFile orig ->
+            new ZipFile(tempFile).withCloseable { ZipFile opt ->
+                def en = orig.entries()
+                while (en.hasMoreElements()) {
+                    ZipEntry a = en.nextElement()
+                    if (a.isDirectory()) continue
+                    ZipEntry b = opt.getEntry(a.name)
+                    if (b == null || b.size != a.size || b.crc != a.crc) {
+                        tempFile.delete()
+                        throw new IllegalStateException("Lossless JAR verification failed for ${a.name}")
+                    }
+                }
+            }
+        }
+        long after = tempFile.length()
+        if (after < before) {
+            Files.move(tempFile.toPath(), jarFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            println("LumenFX optimizeJarLossless (${jarFile.name}): ${fileCount} files | " +
+                    "${String.format('%.2f', before / 1048576.0d)} MB -> ${String.format('%.2f', after / 1048576.0d)} MB " +
+                    "(-${String.format('%.1f', (before - after) / 1024.0d)} KB)")
+        } else {
+            tempFile.delete()
+            println("LumenFX optimizeJarLossless (${jarFile.name}): ${fileCount} files | kept original " +
+                    "${String.format('%.2f', before / 1048576.0d)} MB (candidate ${String.format('%.2f', after / 1048576.0d)} MB)")
+        }
+    }
+}
+
+ext.lumenfxPackComputeShaders = { File sourceDir, File outputFile ->
+    LumenFxLosslessPacker.packComputeShaders(sourceDir, outputFile)
+}
+ext.lumenfxOptimizeJarLossless = { File jarFile ->
+    LumenFxLosslessPacker.optimizeJarLossless(jarFile)
+}

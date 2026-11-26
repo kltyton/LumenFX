@@ -23,26 +23,55 @@ java {
 }
 repositories { mavenCentral() }
 
-def isMc262 = minecraft == '26.2'
-def usesIdentifier = minecraft in ['26.2', '26.1.2']
-def hasKilaGraph = loader == 'neoforge' && isMc262
+def usesBlaze3dGpu = minecraft in ['26.2', '26.3']
+def usesRenderPearl = minecraft == '26.3'
+def usesIdentifier = minecraft in ['26.2', '26.3', '26.1.2']
+def hasKilaGraph = loader == 'neoforge' && usesBlaze3dGpu
+if (usesRenderPearl) {
+    apply from: new File(templeRoot, 'gradle/target-conventions/renderpearl-263.gradle')
+}
 
 def layers = [
         new File(commonRoot, 'src/main'),
-        new File(commonRoot, "src/compat/minecraft/graphics/${isMc262 ? 'blaze3d_gpu' : 'opengl_direct'}"),
-        new File(commonRoot, "src/compat/minecraft/id/${usesIdentifier ? 'identifier' : 'resource_location'}"),
-        new File(commonRoot, "src/compat/minecraft/${minecraft}"),
-        new File(commonRoot, "src/compat/${loader}"),
-        new File(commonRoot, "src/compat/${loader}/${isMc262 ? 'blaze3d_gpu' : 'opengl_direct'}"),
-        new File(commonRoot, "src/compat/${loader}/${minecraft}")
+        new File(commonRoot, "src/compat/minecraft/graphics/${usesBlaze3dGpu ? 'blaze3d_gpu' : 'opengl_direct'}"),
+        new File(commonRoot, "src/compat/minecraft/id/${usesIdentifier ? 'identifier' : 'resource_location'}")
 ]
+if (usesBlaze3dGpu) {
+    layers.add(new File(commonRoot, 'src/compat/minecraft/26.2'))
+}
+if (minecraft != '26.2') {
+    layers.add(new File(commonRoot, "src/compat/minecraft/${minecraft}"))
+}
+layers.add(new File(commonRoot, "src/compat/${loader}"))
+layers.add(new File(commonRoot, "src/compat/${loader}/${usesBlaze3dGpu ? 'blaze3d_gpu' : 'opengl_direct'}"))
 if (hasKilaGraph) {
     layers.add(new File(commonRoot, 'src/compat/kilagraph/enabled'))
 }
+layers.add(new File(commonRoot, "src/compat/${loader}/${minecraft}"))
 layers = layers.findAll { it.isDirectory() }
 
 def javaDirectories = layers.collect { new File(it, 'java') }.findAll { it.isDirectory() }
 def resourceDirectories = layers.reverse().collect { new File(it, 'resources') }.findAll { it.isDirectory() }
+// Allow higher-priority version layers (e.g. 26.3) to cleanly override individual Java files from 26.2
+def javaSourceTrees = []
+Set<String> claimedJavaPaths = new HashSet<>()
+javaDirectories.reverse().each { File dir ->
+    Set<String> excludedForDir = new HashSet<>(claimedJavaPaths)
+    if (dir.isDirectory()) {
+        dir.eachFileRecurse { File f ->
+            if (f.isFile() && f.name.endsWith('.java')) {
+                claimedJavaPaths.add(dir.toPath().relativize(f.toPath()).toString().replace('\\', '/'))
+            }
+        }
+    }
+    javaSourceTrees.add(fileTree(dir) {
+        include '**/*.java'
+        if (!excludedForDir.isEmpty()) {
+            exclude excludedForDir
+        }
+    })
+}
+javaSourceTrees = javaSourceTrees.reverse()
 def packageName = identity.getProperty('mod_java_package', identity.getProperty('mod_group_id'))
 def constants = new File(layout.buildDirectory.get().asFile, 'generated/sources/temple')
 def constantFile = new File(constants, "${packageName.replace('.', '/')}/BuildInfo.java")
@@ -68,23 +97,70 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
 }
 
+def renderPearlOutDir = new File(layout.buildDirectory.get().asFile, 'generated/sources/renderpearl')
+def renderPearlTestOutDir = new File(layout.buildDirectory.get().asFile, 'generated/testSources/renderpearl')
+def native263Dirs = javaDirectories.findAll {
+    def p = it.canonicalPath.replace('\\', '/')
+    p.endsWith('/26.3/java')
+}
+def sharedForRenderPearlDirs = javaDirectories.findAll { !native263Dirs.contains(it) }
+def renderPearlScript = new File(templeRoot, 'gradle/target-conventions/renderpearl-263.gradle')
+def prepareRenderPearlSources = tasks.register('prepareRenderPearlSources') {
+    enabled = usesRenderPearl
+    inputs.file(renderPearlScript)
+    inputs.files(sharedForRenderPearlDirs.collect { fileTree(it) { include '**/*.java' } })
+    inputs.files(native263Dirs.collect { fileTree(it) { include '**/*.java' } })
+    outputs.dir(renderPearlOutDir)
+    doLast {
+        Set<String> nativePaths = new HashSet<>()
+        native263Dirs.each { File d ->
+            if (d.isDirectory()) {
+                d.eachFileRecurse { File f ->
+                    if (f.isFile() && f.name.endsWith('.java')) {
+                        nativePaths.add(d.toPath().relativize(f.toPath()).toString().replace('\\', '/'))
+                    }
+                }
+            }
+        }
+        lumenfxRemapRenderPearlSources(sharedForRenderPearlDirs, nativePaths, renderPearlOutDir)
+    }
+}
+def prepareRenderPearlTestSources = tasks.register('prepareRenderPearlTestSources') {
+    enabled = usesRenderPearl
+    def testJavaDir = new File(commonRoot, 'src/test/java')
+    inputs.file(renderPearlScript)
+    inputs.dir(testJavaDir)
+    outputs.dir(renderPearlTestOutDir)
+    doLast {
+        lumenfxRemapRenderPearlSources([testJavaDir], Collections.emptySet(), renderPearlTestOutDir)
+    }
+}
+
 sourceSets {
     main {
         java.setSrcDirs(active ? javaDirectories + [constants] : [])
         resources.setSrcDirs(active ? resourceDirectories : [])
     }
     test {
-        java.setSrcDirs(active ? [new File(commonRoot, isMc262 ? 'src/test/java' : 'src/test/opengl/java')] : [])
-        resources.setSrcDirs(active ? [new File(commonRoot, isMc262 ? 'src/test/resources' : 'src/test/opengl/resources')] : [])
+        java.setSrcDirs(active ? [new File(commonRoot, usesBlaze3dGpu ? 'src/test/java' : 'src/test/opengl/java')] : [])
+        resources.setSrcDirs(active ? [new File(commonRoot, usesBlaze3dGpu ? 'src/test/resources' : 'src/test/opengl/resources')] : [])
     }
 }
 tasks.named('compileJava', JavaCompile) {
     dependsOn generateBuildInfo
-    source javaDirectories, constants
+    if (usesRenderPearl) {
+        dependsOn prepareRenderPearlSources
+        source = files(renderPearlOutDir, native263Dirs, constants)
+    } else {
+        source = files(javaSourceTrees, constants)
+    }
 }
 tasks.named('compileTestJava', JavaCompile) {
-    def testJavaDir = new File(commonRoot, isMc262 ? 'src/test/java' : 'src/test/opengl/java')
-    if (testJavaDir.isDirectory()) {
+    def testJavaDir = new File(commonRoot, usesBlaze3dGpu ? 'src/test/java' : 'src/test/opengl/java')
+    if (usesRenderPearl) {
+        dependsOn prepareRenderPearlTestSources
+        source = files(renderPearlTestOutDir)
+    } else if (testJavaDir.isDirectory()) {
         source testJavaDir
     } else {
         source = files()
@@ -98,15 +174,18 @@ tasks.withType(JavaCompile).configureEach {
 tasks.named('processResources', ProcessResources) {
     from resourceDirectories
     exclude 'assets/lumenfx/shaders/fog/integrate.comp'
+    exclude 'assets/lumenfx/shaders/compute/volume/preshaded.csh'
     exclude 'META-INF/licenses/**'
-    if (!isMc262) {
+    if (usesBlaze3dGpu) {
+        exclude 'assets/lumenfx/shaders/compute/**'
+    } else {
         exclude 'assets/lumenfx/shaders/**'
         exclude 'assets/photon/**'
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 tasks.named('processTestResources', ProcessResources) {
-    def testResDir = new File(commonRoot, isMc262 ? 'src/test/resources' : 'src/test/opengl/resources')
+    def testResDir = new File(commonRoot, usesBlaze3dGpu ? 'src/test/resources' : 'src/test/opengl/resources')
     if (testResDir.isDirectory()) {
         from testResDir
     }
@@ -114,7 +193,13 @@ tasks.named('processTestResources', ProcessResources) {
 }
 tasks.named('sourcesJar', Jar) {
     dependsOn generateBuildInfo
-    from javaDirectories
+    if (usesRenderPearl) {
+        dependsOn prepareRenderPearlSources
+        from renderPearlOutDir
+        from native263Dirs
+    } else {
+        from javaSourceTrees
+    }
     from constants
     from resourceDirectories
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -122,7 +207,7 @@ tasks.named('sourcesJar', Jar) {
 tasks.named('test', Test) {
     useJUnitPlatform()
     workingDir = templeRoot
-    def testJavaDir = new File(commonRoot, isMc262 ? 'src/test/java' : 'src/test/opengl/java')
+    def testJavaDir = new File(commonRoot, usesBlaze3dGpu ? 'src/test/java' : 'src/test/opengl/java')
     if (!testJavaDir.isDirectory()) {
         enabled = false
     }
@@ -147,4 +232,5 @@ tasks.named('test', Test) {
 }
 ext.templeResourceDirectories = resourceDirectories
 ext.templeSourceDirectories = javaDirectories + [constants]
+ext.templeSourceTrees = usesRenderPearl ? [files(renderPearlOutDir) { builtBy prepareRenderPearlSources }] + native263Dirs + [constants] : javaSourceTrees + [constants]
 apply from: new File(templeRoot, 'gradle/target-conventions/ide-sources.gradle')

@@ -39,13 +39,12 @@ public final class PhotonUploads {
 
     /** A std140 block of {@code size} bytes filled by {@code fill}, for this frame. */
     public static GpuBufferSlice block(int size, Consumer<Std140Builder> fill) {
-        var staging = MemoryUtil.memCalloc(size);
-        try {
-            fill.accept(Std140Builder.intoBuffer(staging));
-            staging.rewind();
-            return block(staging);
-        } finally {
-            MemoryUtil.memFree(staging);
+        var alignment = RenderSystem.getDevice().getDeviceInfo().limits().minUniformOffsetAlignment();
+        try (var view = memory().allocateGpuMapped(size, alignment, GpuBuffer.USAGE_UNIFORM)) {
+            var data = view.data();
+            MemoryUtil.memSet(MemoryUtil.memAddress(data), 0, size);
+            fill.accept(Std140Builder.intoBuffer(data));
+            return view.slice();
         }
     }
 

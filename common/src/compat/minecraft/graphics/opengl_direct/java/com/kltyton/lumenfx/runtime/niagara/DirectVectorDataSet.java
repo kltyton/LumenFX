@@ -74,4 +74,20 @@ public final class DirectVectorDataSet {
         }
         count = source.count;
     }
+
+    /** O(1) swap of planar component backing arrays and metadata with another same-layout dataset. */
+    public void swapWith(DirectVectorDataSet other) {
+        if (other == this) return;
+        for (int t = 0; t < components.length; t++) {
+            int[][] tmp = components[t];
+            components[t] = other.components[t];
+            other.components[t] = tmp;
+        }
+        int tmpCap = capacity;
+        capacity = other.capacity;
+        other.capacity = tmpCap;
+        int tmpCount = count;
+        count = other.count;
+        other.count = tmpCount;
+    }
 }
