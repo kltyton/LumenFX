@@ -1,5 +1,7 @@
 package com.kltyton.lumenfx.runtime.niagara;
 
+import com.kltyton.lumenfx.math.HalfFloat;
+
 import java.util.Arrays;
 
 /** Planar typed component arrays storing floats, ints, and halves as 32-bit words for VectorVM execution. */

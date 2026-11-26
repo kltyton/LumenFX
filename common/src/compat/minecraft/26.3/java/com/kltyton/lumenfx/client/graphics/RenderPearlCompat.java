@@ -18,6 +18,7 @@ import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import com.mojang.renderpearl.api.pipeline.PolygonMode;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.UniformType;
 import com.mojang.renderpearl.api.pipeline.ShaderSource;
 import com.mojang.renderpearl.api.pipeline.ShaderType;
 import com.mojang.renderpearl.api.textures.GpuTexture;
@@ -52,6 +53,10 @@ import org.jspecify.annotations.Nullable;
  * {@link RenderPassDescriptor} creation, and MC 26.3 {@link TextureTarget}/{@link ShaderManager} APIs.
  */
 public final class RenderPearlCompat {
+    public static final BindGroupLayout MATRICES_PROJECTION = BindGroupLayout.builder()
+            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
+            .build();
     public record CompiledResult(@Nullable CompiledRenderPipeline pipeline) {
         public boolean isValid() {
             return pipeline != null && !pipeline.isClosed();
@@ -65,6 +70,14 @@ public final class RenderPearlCompat {
             Collections.synchronizedMap(new WeakHashMap<>());
 
     private RenderPearlCompat() { }
+
+    public static void rememberSource(BackendRenderPipeline.CreateInfo info, RenderPipeline pipeline) {
+        CREATE_INFO_PIPELINES.put(info, pipeline);
+    }
+
+    public static @Nullable RenderPipeline getSource(BackendRenderPipeline.CreateInfo info) {
+        return CREATE_INFO_PIPELINES.get(info);
+    }
 
     public static CompiledResult precompilePipeline(GpuDevice device, RenderPipeline pipeline) {
         RenderSystem.assertOnRenderThread();

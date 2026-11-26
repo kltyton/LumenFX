@@ -134,6 +134,7 @@ public final class UnityEmitterRuntime {
             p.g = p.startG * tmpColor[1] * tint[1] * snap.green();
             p.b = p.startB * tmpColor[2] * tint[2] * snap.blue();
             p.a = p.startA * tmpColor[3] * tint[3] * snap.alpha();
+            p.setMaterialData(spec.materialData());
 
             if (bridge != null && level != null) {
                 p.packedLight = bridge.samplePackedLight(level, p.x, p.y, p.z);
@@ -287,6 +288,7 @@ public final class UnityEmitterRuntime {
         p.g = p.startG * tint[1] * snap.green();
         p.b = p.startB * tint[2] * snap.blue();
         p.a = p.startA * tint[3] * snap.alpha();
+        p.setMaterialData(spec.materialData());
         if (bridge != null && level != null) {
             p.packedLight = bridge.samplePackedLight(level, p.x, p.y, p.z);
         }

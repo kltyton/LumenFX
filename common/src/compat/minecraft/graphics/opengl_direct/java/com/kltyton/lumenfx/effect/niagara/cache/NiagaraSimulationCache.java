@@ -1,6 +1,6 @@
 package com.kltyton.lumenfx.effect.niagara.cache;
 
-import com.kltyton.lumenfx.runtime.niagara.HalfFloat;
+import com.kltyton.lumenfx.math.HalfFloat;
 import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;

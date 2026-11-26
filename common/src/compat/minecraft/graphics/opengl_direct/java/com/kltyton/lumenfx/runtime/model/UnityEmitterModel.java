@@ -103,6 +103,7 @@ public final class UnityEmitterModel {
     private final TrailSpec trail;
     private final CollisionSpec collision;
     private final List<SubEmitterSpec> subEmitters;
+    private final MaterialDataCurves materialData;
 
     public UnityEmitterModel(
             String name, RendererKind renderer, String materialName, MaterialModel material,
@@ -117,7 +118,7 @@ public final class UnityEmitterModel {
             @Nullable MeshEntrySpec meshEntry, float[] tint, boolean prewarm, @Nullable Long randomSeed,
             double simulationSpeed, double maximumParticleDeltaTime,
             boolean stretchedBillboard, float velocityStretchScale,
-            TrailSpec trail, CollisionSpec collision, List<SubEmitterSpec> subEmitters) {
+            TrailSpec trail, CollisionSpec collision, List<SubEmitterSpec> subEmitters, MaterialDataCurves materialData) {
         this.name = name;
         this.renderer = renderer;
         this.materialName = materialName;
@@ -165,9 +166,11 @@ public final class UnityEmitterModel {
         this.trail = trail;
         this.collision = collision;
         this.subEmitters = List.copyOf(subEmitters);
+        this.materialData = materialData;
     }
 
     public String name() { return name; }
+    public MaterialDataCurves materialData() { return materialData; }
     public RendererKind renderer() { return renderer; }
     public String materialName() { return materialName; }
     public MaterialModel material() { return material; }
@@ -356,7 +359,8 @@ public final class UnityEmitterModel {
                 startColor, velMin, velMax, accel, drag, velOverLife, forceOverLife,
                 sizeOverLife, colorOverLife, shape, noiseStrength, noiseFrequency,
                 atlasCols, atlasRows, atlasFrame, meshEntry, tint, prewarm, randomSeed,
-                simSpeed, maxDt, stretched, stretchScale, trail, collision, subEmitters);
+                simSpeed, maxDt, stretched, stretchScale, trail, collision, subEmitters,
+                MaterialDataCurves.fromJson(value.get("custom_data")));
     }
 
     private static RendererKind parseRendererKind(String raw) {

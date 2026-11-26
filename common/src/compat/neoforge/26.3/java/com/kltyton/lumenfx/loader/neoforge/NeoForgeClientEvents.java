@@ -137,16 +137,6 @@ public final class NeoForgeClientEvents {
     }
 
     @SubscribeEvent
-    public static void afterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
-        ClientVfxEvents.onAfterOpaqueFeatures(event.getLevelRenderState());
-    }
-
-    @SubscribeEvent
-    public static void afterTranslucentParticles(RenderLevelStageEvent.AfterTranslucentParticles event) {
-        ClientVfxEvents.onAfterTranslucentParticles(event.getLevelRenderState());
-    }
-
-    @SubscribeEvent
     public static void afterLevel(RenderLevelStageEvent.AfterLevel event) {
         ClientVfxEvents.onAfterLevel(event.getLevelRenderState(), event.getModelViewMatrix());
     }

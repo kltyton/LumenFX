@@ -43,7 +43,7 @@ Minecraft **1.20.1（Forge / Fabric）**、**1.21.1（NeoForge / Fabric）** 与
 
 ## 可选模组兼容
 
-LumenFX 完全支持**独立运行**，不强制依赖 `LDLib2`、`KilaGraph`、渲染优化、光影或动画模组。
+Fabric 版需要对应 Minecraft 版本的 Fabric API。LDLib2、KilaGraph、渲染优化、光影和动画模组均为可选。
 
 | 模组 | 依赖类型 | 共装表现 |
 | :--- | :---: | :--- |

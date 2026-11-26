@@ -157,7 +157,13 @@ tasks.named('processResources', ProcessResources) {
         from(packedShadersDir)
         exclude 'assets/lumenfx/shaders/compute/**'
     } else {
-        exclude 'assets/lumenfx/shaders/**'
+        // Resource-pack materials import these shared GLSL includes on every backend.
+        exclude { entry ->
+            def path = entry.relativePath.pathString
+            path.startsWith('assets/lumenfx/shaders/') &&
+                    path != 'assets/lumenfx/shaders/include' &&
+                    !path.startsWith('assets/lumenfx/shaders/include/')
+        }
         exclude 'assets/photon/**'
     }
     exclude 'assets/lumenfx/shaders/fog/integrate.comp'
@@ -183,7 +189,13 @@ tasks.named('jar', Jar) {
     if (usesBlaze3dGpu) {
         exclude 'assets/lumenfx/shaders/compute/**'
     } else {
-        exclude 'assets/lumenfx/shaders/**'
+        // Resource-pack materials import these shared GLSL includes on every backend.
+        exclude { entry ->
+            def path = entry.relativePath.pathString
+            path.startsWith('assets/lumenfx/shaders/') &&
+                    path != 'assets/lumenfx/shaders/include' &&
+                    !path.startsWith('assets/lumenfx/shaders/include/')
+        }
         exclude 'assets/photon/**'
         exclude 'windows/x64/lumenfx/**'
     }

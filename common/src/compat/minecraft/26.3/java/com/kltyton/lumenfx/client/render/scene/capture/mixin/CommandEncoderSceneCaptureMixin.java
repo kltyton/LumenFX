@@ -3,6 +3,7 @@ package com.kltyton.lumenfx.client.render.scene.capture.mixin;
 import com.kltyton.lumenfx.client.graphics.LumenRenderPassDescriptor;
 import com.kltyton.lumenfx.client.render.light.shadow.geometry.WorldShadowPassScope;
 import com.kltyton.lumenfx.client.render.scene.capture.SceneSurfacePassAccess;
+import com.kltyton.lumenfx.client.render.scene.capture.RenderPassScenePipelineAccess;
 import com.kltyton.lumenfx.client.render.scene.surface.PhotonOpaqueMaskCapture;
 import com.kltyton.lumenfx.client.render.scene.surface.SceneSurfaceCapture;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;

@@ -18,9 +18,9 @@
 
 **LumenFX is a fork of [Photon](https://github.com/Low-Drag-MC/Photon) (Photon 26.2 by [KilaBash](https://github.com/KilaBash) / Low-Drag-MC).**
 
-Building upon Photon's particle simulation core, timelines, curves, and `.fx` playback foundation, LumenFX restructures and extends the runtime into a **lightweight, standalone, resource-driven client VFX library** with:
+Building upon Photon's particle simulation core, timelines, curves, and `.fx` playback foundation, LumenFX restructures and extends the runtime into a **lightweight, resource-driven client VFX library** with:
 
-- **Zero heavy external dependencies & no in-game editor in the runtime JAR** — runs completely standalone with no required `LDLib2` or `KilaGraph` installation (KilaGraph shader-graph playback remains available as optional soft-compat), and ships no demo assets or editor UI inside runtime JARs.
+- **Zero heavy external dependencies & no in-game editor in the runtime JAR** — runs without `LDLib2` or `KilaGraph` (KilaGraph shader-graph playback remains available as optional soft-compat), and ships no demo assets or editor UI inside runtime JARs.
 - **Multi-engine asset support & creator editor plugins** — runs native LumenFX JSON effects, Photon `.fx` effects, offline-exported **Unity ParticleSystem (Shuriken)** assets (via the included **Unity UPM Editor Plugin**), and offline-compiled **Unreal Engine Niagara** systems (CPU VectorVM, GPU SPIR-V compute, and SimCache `.lfsc`, via the included **UE5 Editor Plugin** & CLI compiler).
 - **GeckoLib (4.x / 5.x) & KBR particle keyframe compatibility** — play LumenFX effects directly from Blockbench `particle_effects` keyframes with 3D locator position & rotation tracking across all 10 targets while peacefully coexisting with KBR SnowStorm / Bedrock particles.
 - **Unified multi-version & multi-loader architecture** — ships a single unified mod JAR per target across Minecraft **1.20.1, 1.21.1, 26.1.2, 26.2, and 26.3** (Forge, NeoForge, and Fabric), with **dynamic Vulkan-first / OpenGL fallback on 26.2 & 26.3** and a full-feature native OpenGL runtime on 1.20.1, 1.21.1, and 26.1.2.
@@ -58,7 +58,7 @@ All screenshots below were captured live in-game using LumenFX's native runtime 
   - Defaults to **Vulkan** when the system driver and active rendering mods support it (including standalone and Sodium).
   - Automatically falls back to **OpenGL** when Vulkan is unavailable or when an OpenGL-only rendering mod (such as Iris) is active.
   - Always respects explicit user overrides (`--graphicsBackend`, in-game video settings, and vanilla crash recovery).
-- **Optional Mod Compatibility**: Runs completely standalone with zero required dependencies (no mandatory LDLib2, KilaGraph, Iris, Sodium, GeckoLib, or KBR); offers automatic optional soft-compatibility with **Iris**, **Sodium**, **GeckoLib 4.x / 5.x**, **KBR (KltytonBedrockRuntime)**, and **KilaGraph**.
+- **Optional Mod Compatibility**: Fabric builds require Fabric API for the matching Minecraft version. LumenFX automatically enables optional integrations with **Iris**, **Sodium**, **GeckoLib 4.x / 5.x**, **KBR (KltytonBedrockRuntime)**, and **KilaGraph**.
 - **GeckoLib & KBR Particle Keyframes**: Trigger LumenFX effects straight from Blockbench animation `particle_effects` keyframes with automatic ID routing, 3D locator position/rotation tracking, `pre_effect_script` options (`follow`, `rotate`, `scale`, `color`, `offset`, `beam_end`, `stop`, `restart`, `seed`), and the `LumenFxKeyframeBridge` Java API.
 - **Lock-Free Work-Stealing Multi-Threaded Simulation**: Runs emitter simulation on persistent lock-free worker pools with workload-balanced LPT scheduling, owner-thread overlap, pre-compiled Niagara parameter bindings, hoisted VectorVM execution, and ring-buffered GPU uploads.
 
@@ -97,7 +97,7 @@ repositories {
 
 dependencies {
     // Replace with your target artifact ID from the table above
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.0'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.1'
 }
 ```
 

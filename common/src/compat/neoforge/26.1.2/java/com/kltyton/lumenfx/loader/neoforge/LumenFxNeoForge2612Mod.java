@@ -3,9 +3,9 @@ package com.kltyton.lumenfx.loader.neoforge;
 import com.kltyton.lumenfx.LumenFx;
 import com.kltyton.lumenfx.runtime.DirectVfxEngine;
 import com.kltyton.lumenfx.runtime.bridge.Mc2612ResourceBridge;
+import com.kltyton.lumenfx.runtime.gl.Mc2612WorldEffects;
 import com.kltyton.lumenfx.runtime.simulation.ServerForceAuthority;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -17,7 +17,6 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import org.joml.Matrix4f;
 
 @Mod(LumenFx.MOD_ID)
 public final class LumenFxNeoForge2612Mod {
@@ -42,15 +41,8 @@ public final class LumenFxNeoForge2612Mod {
             NeoForge.EVENT_BUS.addListener((LevelEvent.Unload event) -> {
                 if (event.getLevel().isClientSide()) DirectVfxEngine.INSTANCE.clearLevel();
             });
-            NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent.AfterTranslucentParticles event) -> {
-                CameraRenderState cam = event.getLevelRenderState().cameraRenderState;
-                if (cam == null || !cam.initialized) return;
-                float partial = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
-                DirectVfxEngine.INSTANCE.renderLevel(
-                        new Matrix4f(cam.projectionMatrix),
-                        new Matrix4f(event.getModelViewMatrix()),
-                        cam.pos.x, cam.pos.y, cam.pos.z, partial);
-            });
+            NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent.AfterTranslucentParticles event) ->
+                    Mc2612WorldEffects.render(event.getLevelRenderState().cameraRenderState));
         }
     }
 }

@@ -1,4 +1,4 @@
-package com.kltyton.lumenfx.runtime.niagara;
+package com.kltyton.lumenfx.math;
 
 /** Pure Java 17 IEEE-754 binary16 (half-precision float) conversion helpers. */
 public final class HalfFloat {
@@ -28,18 +28,19 @@ public final class HalfFloat {
     public static short fromFloat(float value) {
         int bits = Float.floatToRawIntBits(value);
         int sign = (bits >>> 16) & 0x8000;
-        int exp = ((bits >>> 23) & 0xFF) - 112;
+        int exp = ((bits >>> 23) & 0xFF) - 127;
         int mant = bits & 0x007FFFFF;
-        if (exp <= 0) {
-            if (exp < -10) return (short) sign;
-            mant = (mant | 0x00800000) >> (1 - exp);
-            return (short) (sign | ((mant + 0x00001000) >> 13));
+        if (exp == 128) {
+            int payload = mant == 0 ? 0 : Math.max(1, mant >>> 13);
+            return (short) (sign | 0x7C00 | payload);
         }
-        if (exp == 143) {
-            if (mant == 0) return (short) (sign | 0x7C00);
-            return (short) (sign | 0x7C00 | (mant >>> 13) | (mant != 0 ? 1 : 0));
-        }
-        if (exp > 30) return (short) (sign | 0x7C00);
-        return (short) (sign | (exp << 10) | ((mant + 0x00001000) >> 13));
+        if (exp > 15) return (short) (sign | 0x7C00);
+        if (exp < -25) return (short) sign;
+        if (exp < -14) return (short) (sign | roundEven(mant | 0x00800000, -exp - 1));
+        return (short) (sign | (((exp + 15) << 10) + roundEven(mant, 13)));
+    }
+
+    private static int roundEven(int value, int shift) {
+        return (value + (1 << (shift - 1)) - 1 + ((value >>> shift) & 1)) >>> shift;
     }
 }

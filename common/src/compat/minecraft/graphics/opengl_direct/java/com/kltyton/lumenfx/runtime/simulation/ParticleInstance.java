@@ -1,5 +1,7 @@
 package com.kltyton.lumenfx.runtime.simulation;
 
+import com.kltyton.lumenfx.runtime.model.MaterialDataCurves;
+
 /** Mutable pooled particle state shared by Unity, Niagara, and Photon emitters. */
 public final class ParticleInstance {
     public static final int MAX_TRAIL_POINTS = 24;
@@ -16,6 +18,15 @@ public final class ParticleInstance {
     public float startR, startG, startB, startA;
     public float r, g, b, a;
     public float curveRandom;
+    public float customX, customY, customZ, customW;
+
+    void setMaterialData(MaterialDataCurves curves) {
+        float age = normalizedAge();
+        customX = curves.x().evaluate(age, curveRandom);
+        customY = curves.y().evaluate(age, curveRandom);
+        customZ = curves.z().evaluate(age, curveRandom);
+        customW = curves.w().evaluate(age, curveRandom);
+    }
     public int packedLight = 0x00F000F0;
 
     public final double[] trailX = new double[MAX_TRAIL_POINTS];

@@ -26,7 +26,7 @@ import com.kltyton.lumenfx.runtime.model.UnityEmitterModel;
 import com.kltyton.lumenfx.runtime.niagara.DirectVectorDataSet;
 import com.kltyton.lumenfx.runtime.niagara.DirectVectorProgram;
 import com.kltyton.lumenfx.runtime.niagara.DirectVectorVm;
-import com.kltyton.lumenfx.runtime.niagara.HalfFloat;
+import com.kltyton.lumenfx.math.HalfFloat;
 import com.kltyton.lumenfx.runtime.simulation.EffectRuntimeInstance;
 import com.kltyton.lumenfx.runtime.simulation.NiagaraSystemRuntime;
 import com.kltyton.lumenfx.runtime.simulation.ParticleInstance;
@@ -374,11 +374,13 @@ final class DirectOpenGlRuntimeTest {
 
     @Test
     void realAuroraTrailFixedOriginEmitsZeroAndMovingOriginEmitsByDistance() throws Exception {
-        Path auroraPath = Path.of("G:/weituo/code/26.2/Eden Realm/src/main/resources/assets/eden_realm/lumenfx/effects/pegasus/aurora_trail.json");
+        Path edenResources = Path.of("G:/weituo/code/26.2/Eden Realm/src/main/resources");
+        Path auroraPath = edenResources.resolve("assets/eden_realm/lumenfx/effects/pegasus/aurora_trail.json");
         if (!Files.isRegularFile(auroraPath)) return;
 
         String json = Files.readString(auroraPath, StandardCharsets.UTF_8);
-        EffectModel model = ProductionEffectParser.parse("eden_realm:pegasus/aurora_trail", json, null);
+        EffectModel model = ProductionEffectParser.parse("eden_realm:pegasus/aurora_trail", json,
+                new DirectoryResourceBridge(edenResources));
         assertNotNull(model.niagara());
         assertTrue(model.niagara().hasSystemVm(), "aurora_trail must load real system_spawn/system_update VM");
         assertEquals(8, model.niagara().emitters().size());
@@ -615,7 +617,7 @@ final class DirectOpenGlRuntimeTest {
                         new DirectVectorProgram.Output(0, 0, 0),
                         new DirectVectorProgram.Output(0, 0, 1)
                 ),
-                List.of(new DirectVectorProgram.External("curl_noise", 3, 3, "CurlNoise", List.of())),
+                List.of(new DirectVectorProgram.External("curl_noise", 3, 3, "CurlNoise", List.of(), null)),
                 ins);
         DirectVectorDataSet in = new DirectVectorDataSet(2, 0, 0);
         in.count(8);

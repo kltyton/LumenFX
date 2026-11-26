@@ -182,7 +182,7 @@ public final class PhotonFxModel {
         boolean localSpace = !readString(config, "simulationSpace", "Local").equalsIgnoreCase("World");
         float durationTicks = Math.max(1f, readFloat(config, "duration", 100f));
         boolean looping = readBool(config, "isLooping", readBool(config, "looping", true));
-        float delayTicks = Math.max(0f, readFloat(config, "startDelay", readFloat(config, "delay", 0f)));
+        float delayTicks = Math.max(0f, readNumberOrConstant(config.get("startDelay"), readFloat(config, "delay", 0f)));
         int maxParticles = Math.max(1, Math.min(65536, readInt(config, "maxParticles", 4096)));
 
         float emissionRate = 10f;
@@ -190,7 +190,8 @@ public final class PhotonFxModel {
         List<BurstSpec> bursts = new ArrayList<>();
         Map<String, Object> emission = asMap(config.get("emission"));
         if (emission != null) {
-            emissionRate = readNumberOrConstant(emission.get("emissionRate"), 10f);
+            // Photon stores the nested emission setting in particles per Minecraft tick.
+            emissionRate = 20f * readNumberOrConstant(emission.get("emissionRate"), 0.5f);
             Object burstsObj = emission.get("bursts");
             if (burstsObj instanceof List<?> bList) {
                 for (Object bItem : bList) {
@@ -214,8 +215,8 @@ public final class PhotonFxModel {
 
         float lifeTicks = Math.max(1f, readNumberOrConstant(config.get("startLifetime"), 40f));
         float startSpeed = readNumberOrConstant(config.get("startSpeed"), 0.5f);
-        float startSize = Math.max(0.02f, readNumberOrConstant(config.get("startSize"), 1.0f));
-        float startRotDeg = readNumberOrConstant(config.get("startRotation"), 0f);
+        float startSize = Math.max(0.02f, readAxisOrConstant(config.get("startSize"), 0, 1.0f));
+        float startRotDeg = readAxisOrConstant(config.get("startRotation"), 2, 0f);
         float gravityModifier = readNumberOrConstant(config.get("gravityModifier"), readFloat(config, "gravity", 0f));
         float drag = Math.max(0f, readNumberOrConstant(config.get("drag"), 0f));
         int argb = readInt(config, "startColor", 0xFFFFFFFF);
@@ -361,11 +362,15 @@ public final class PhotonFxModel {
 
     private static ShapeSpec parseShape(@Nullable Map<String, Object> shape) {
         if (shape == null) return ShapeSpec.DEFAULT;
-        String kind = readString(shape, "type", readString(shape, "shape", "point")).toLowerCase(Locale.ROOT);
-        float radius = Math.max(0.01f, readFloat(shape, "radius", 0.5f));
-        float angle = readFloat(shape, "angle", 25f);
+        Map<String, Object> shapeType = asMap(shape.get("shape"));
+        Map<String, Object> shapeData = shapeType == null ? null : asMap(shapeType.get("data"));
+        String kind = (shapeType == null ? readString(shape, "type", readString(shape, "shape", "point"))
+                : readString(shapeType, "type", "point")).toLowerCase(Locale.ROOT);
+        Map<String, Object> parameters = shapeData == null ? shape : shapeData;
+        float radius = Math.max(0.01f, readFloat(parameters, "radius", 0.5f));
+        float angle = readFloat(parameters, "angleA", readFloat(parameters, "angle", 25f));
         float[] box = readFloatList(shape.get("scale"), 0.5f, 0.5f, 0.5f);
-        boolean surface = readBool(shape, "surface", readBool(shape, "emitFromShell", false));
+        boolean surface = readBool(parameters, "surface", readBool(parameters, "emitFromShell", false));
         return new ShapeSpec(kind, radius, angle, box[0], box[1], box[2], surface);
     }
 
@@ -450,12 +455,19 @@ public final class PhotonFxModel {
         return fallback;
     }
 
+    private static float readAxisOrConstant(@Nullable Object obj, int axis, float fallback) {
+        if (obj instanceof List<?> list) {
+            return axis < list.size() ? readNumberOrConstant(list.get(axis), fallback) : fallback;
+        }
+        return readNumberOrConstant(obj, fallback);
+    }
+
     private static float[] readFloatList(@Nullable Object obj, float dx, float dy, float dz) {
         if (obj instanceof List<?> list && list.size() >= 3) {
             return new float[] {
-                    ((Number) list.get(0)).floatValue(),
-                    ((Number) list.get(1)).floatValue(),
-                    ((Number) list.get(2)).floatValue()
+                    readNumberOrConstant(list.get(0), dx),
+                    readNumberOrConstant(list.get(1), dy),
+                    readNumberOrConstant(list.get(2), dz)
             };
         }
         return new float[] {dx, dy, dz};
@@ -464,10 +476,10 @@ public final class PhotonFxModel {
     private static float[] readFloatList4(@Nullable Object obj, float dx, float dy, float dz, float dw) {
         if (obj instanceof List<?> list && list.size() >= 4) {
             return new float[] {
-                    ((Number) list.get(0)).floatValue(),
-                    ((Number) list.get(1)).floatValue(),
-                    ((Number) list.get(2)).floatValue(),
-                    ((Number) list.get(3)).floatValue()
+                    readNumberOrConstant(list.get(0), dx),
+                    readNumberOrConstant(list.get(1), dy),
+                    readNumberOrConstant(list.get(2), dz),
+                    readNumberOrConstant(list.get(3), dw)
             };
         }
         return new float[] {dx, dy, dz, dw};

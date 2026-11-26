@@ -33,6 +33,7 @@ public final class AccessorRegistries {
         registerCodec(IResourcePath.class, IResourcePath.CODEC, 500);
         registerCodec(Identifier.class, Identifier.CODEC, 500);
         registerCodec(UUID.class, LDLibExtraCodecs.UUID, 500);
+        registerCodec(Number.class, LDLibExtraCodecs.NUMBER, 500);
         registerCodec(BlockPos.class, BlockPos.CODEC, 500);
         registerCodec(Vector2f.class, LDLibExtraCodecs.VECTOR2F, 500);
         registerCodec(Vector2i.class, LDLibExtraCodecs.VECTOR2I, 500);

@@ -91,10 +91,12 @@ public final class LumenFxFabricClientMod implements ClientModInitializer {
 
         LevelExtractionEvents.END_EXTRACTION.register(context ->
                 ClientVfxEvents.onExtractLevelRenderState(context.level(), context.levelState(), context.deltaTracker()));
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(context ->
-                ClientVfxEvents.onAfterOpaqueFeatures(context.levelState()));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context ->
-                ClientVfxEvents.onAfterTranslucentParticles(context.levelState()));
+        if (!net.minecraft.SharedConstants.getCurrentVersion().id().startsWith("26.3")) {
+            LevelRenderEvents.AFTER_SOLID_FEATURES.register(context ->
+                    ClientVfxEvents.onAfterOpaqueFeatures(context.levelState()));
+            LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context ->
+                    ClientVfxEvents.onAfterTranslucentParticles(context.levelState()));
+        }
         LevelRenderEvents.END_MAIN.register(context ->
                 ClientVfxEvents.onAfterLevelFromCurrent(context.levelState()));
     }

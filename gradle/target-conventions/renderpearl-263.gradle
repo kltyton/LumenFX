@@ -182,14 +182,19 @@ class RenderPearl263Remapper {
         entries.sort { a, b -> b.key.length() <=> a.key.length() }
         List<Map.Entry<Pattern, String>> compiled = new ArrayList<>(entries.size())
         for (def e : entries) {
-            Pattern p = Pattern.compile('(?<![A-Za-z0-9_$/])' + Pattern.quote(e.key) + '(?![A-Za-z0-9_])')
+            // JVM descriptors use L<class-name>; where the L is adjacent to the internal name.
+            String boundary = e.key.contains('/') ? '(?:(?<=L)|(?<![A-Za-z0-9_$/]))' : '(?<![A-Za-z0-9_$/])'
+            Pattern p = Pattern.compile(boundary + Pattern.quote(e.key) + '(?![A-Za-z0-9_])')
             compiled.add(Map.entry(p, e.value))
         }
         return compiled
     }
 
     static String remapSource(String text) {
-        String out = text
+        // RenderPearl groups enabled device features and extensions in a FeatureSet.
+        String out = text.replace(
+                'createDevice(Ljava/util/Collection;Lcom/mojang/blaze3d/vulkan/VulkanPhysicalDevice;Ljava/util/Set;)Lorg/lwjgl/vulkan/VkDevice;',
+                'createDevice(Lcom/mojang/renderpearl/backend/vulkan/init/FeatureSet;Lcom/mojang/renderpearl/backend/vulkan/VulkanPhysicalDevice;)Lorg/lwjgl/vulkan/VkDevice;')
         if (out.contains('.backend') && !out.contains('class LumenGpuDeviceAccess')) {
             out = DEVICE_BACKEND_PATTERN.matcher(out).replaceAll('com.kltyton.lumenfx.client.graphics.LumenGpuDeviceAccess.backend($1)')
         }
@@ -247,7 +252,7 @@ class RenderPearl263Remapper {
             out = WEATHER_TARGET_PATTERN.matcher(out).replaceAll(COMPAT + '.auxiliaryDepthTarget($1, 1)')
         }
         if (out.contains('BindGroupLayouts.MATRICES_PROJECTION')) {
-            out = MATRICES_PROJECTION_PATTERN.matcher(out).replaceAll('BindGroupLayouts.PROJECTION')
+            out = MATRICES_PROJECTION_PATTERN.matcher(out).replaceAll(COMPAT + '.MATRICES_PROJECTION')
         }
         if (out.contains('.pipeline()')) {
             out = LAYER_PIPELINE_PATTERN.matcher(out).replaceAll('$1.pipeline(false)')

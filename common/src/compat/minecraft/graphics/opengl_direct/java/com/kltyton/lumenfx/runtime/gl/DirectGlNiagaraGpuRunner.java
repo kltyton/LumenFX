@@ -8,7 +8,7 @@ import com.kltyton.lumenfx.runtime.model.NiagaraSystemModel.GpuProgramSpec;
 import com.kltyton.lumenfx.runtime.model.NiagaraSystemModel.RendererKind;
 import com.kltyton.lumenfx.runtime.model.NiagaraSystemModel.UniformBlockSpec;
 import com.kltyton.lumenfx.runtime.niagara.DirectVectorDataSet;
-import com.kltyton.lumenfx.runtime.niagara.HalfFloat;
+import com.kltyton.lumenfx.math.HalfFloat;
 import com.kltyton.lumenfx.runtime.simulation.EffectRuntimeInstance;
 import com.kltyton.lumenfx.runtime.simulation.NiagaraSystemRuntime;
 import com.kltyton.lumenfx.runtime.simulation.NiagaraSystemRuntime.EmitterState;

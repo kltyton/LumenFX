@@ -8,16 +8,17 @@ import org.lwjgl.opengl.GL14C;
 import org.lwjgl.opengl.GL15C;
 import org.lwjgl.opengl.GL20C;
 import org.lwjgl.opengl.GL30C;
+import org.lwjgl.opengl.GL31C;
 import org.lwjgl.opengl.GL33C;
 import org.lwjgl.system.MemoryUtil;
 
 /**
- * Captures and restores OpenGL graphics pipeline state (including framebuffers, viewport, texture units 0..3,
+ * Captures and restores OpenGL graphics pipeline state (including framebuffers, viewport, active material texture units,
  * blend/depth/cull/color mask) around direct LumenFX draw calls so Minecraft, Iris/Oculus, and Sodium/Embeddium
  * state is never disturbed.
  */
 public final class GlStateGuard implements AutoCloseable {
-    private static final int SAVED_TEX_UNITS = 4;
+    static final int MATERIAL_TEXTURE_START = 4;
 
     private final int prevDrawFbo;
     private final int prevReadFbo;
@@ -27,8 +28,12 @@ public final class GlStateGuard implements AutoCloseable {
     private final int prevArrayBuffer;
     private final int prevElementBuffer;
     private final int prevActiveTexture;
-    private final int[] prevTex2d = new int[SAVED_TEX_UNITS];
-    private final int[] prevSamplers = new int[SAVED_TEX_UNITS];
+    private final int[] prevTex2d;
+    private final int[] prevSamplers;
+    private final int prevUniformBuffer;
+    private final int prevEffectFrameBuffer;
+    private final long prevEffectFrameStart;
+    private final long prevEffectFrameSize;
     private final boolean prevBlend;
     private final int prevBlendSrcRgb;
     private final int prevBlendDstRgb;
@@ -42,7 +47,17 @@ public final class GlStateGuard implements AutoCloseable {
     private final boolean prevCullFace;
     private final boolean[] prevColorMask = new boolean[4];
 
-    public GlStateGuard() {
+    public GlStateGuard(int textureUnits) {
+        int maxUnits = GL11C.glGetInteger(GL20C.GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS);
+        if (textureUnits > maxUnits) {
+            throw new IllegalArgumentException("LumenFX material requires " + textureUnits + " texture units; available: " + maxUnits);
+        }
+        this.prevTex2d = new int[textureUnits];
+        this.prevSamplers = new int[textureUnits];
+        this.prevUniformBuffer = GL11C.glGetInteger(GL31C.GL_UNIFORM_BUFFER_BINDING);
+        this.prevEffectFrameBuffer = GL30C.glGetIntegeri(GL31C.GL_UNIFORM_BUFFER_BINDING, 0);
+        this.prevEffectFrameStart = org.lwjgl.opengl.GL32C.glGetInteger64i(GL31C.GL_UNIFORM_BUFFER_START, 0);
+        this.prevEffectFrameSize = org.lwjgl.opengl.GL32C.glGetInteger64i(GL31C.GL_UNIFORM_BUFFER_SIZE, 0);
         this.prevDrawFbo = GL11C.glGetInteger(GL30C.GL_DRAW_FRAMEBUFFER_BINDING);
         this.prevReadFbo = GL11C.glGetInteger(GL30C.GL_READ_FRAMEBUFFER_BINDING);
         IntBuffer vp = MemoryUtil.memAllocInt(4);
@@ -57,7 +72,7 @@ public final class GlStateGuard implements AutoCloseable {
         this.prevArrayBuffer = GL11C.glGetInteger(GL15C.GL_ARRAY_BUFFER_BINDING);
         this.prevElementBuffer = GL11C.glGetInteger(GL15C.GL_ELEMENT_ARRAY_BUFFER_BINDING);
         this.prevActiveTexture = GL11C.glGetInteger(GL13C.GL_ACTIVE_TEXTURE);
-        for (int u = 0; u < SAVED_TEX_UNITS; u++) {
+        for (int u = 0; u < prevTex2d.length; u++) {
             GL13C.glActiveTexture(GL13C.GL_TEXTURE0 + u);
             this.prevTex2d[u] = GL11C.glGetInteger(GL11C.GL_TEXTURE_BINDING_2D);
             this.prevSamplers[u] = GL11C.glGetInteger(GL33C.GL_SAMPLER_BINDING);
@@ -97,12 +112,19 @@ public final class GlStateGuard implements AutoCloseable {
         GL30C.glBindVertexArray(prevVao);
         GL15C.glBindBuffer(GL15C.GL_ARRAY_BUFFER, prevArrayBuffer);
         GL15C.glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, prevElementBuffer);
-        for (int u = 0; u < SAVED_TEX_UNITS; u++) {
+        for (int u = 0; u < prevTex2d.length; u++) {
             GL13C.glActiveTexture(GL13C.GL_TEXTURE0 + u);
             GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, prevTex2d[u]);
             GL33C.glBindSampler(u, prevSamplers[u]);
         }
         GL13C.glActiveTexture(prevActiveTexture);
+        if (prevEffectFrameBuffer != 0 && prevEffectFrameSize > 0) {
+            GL30C.glBindBufferRange(GL31C.GL_UNIFORM_BUFFER, 0, prevEffectFrameBuffer,
+                    prevEffectFrameStart, prevEffectFrameSize);
+        } else {
+            GL30C.glBindBufferBase(GL31C.GL_UNIFORM_BUFFER, 0, prevEffectFrameBuffer);
+        }
+        GL15C.glBindBuffer(GL31C.GL_UNIFORM_BUFFER, prevUniformBuffer);
         if (prevBlend) GL11C.glEnable(GL11C.GL_BLEND); else GL11C.glDisable(GL11C.GL_BLEND);
         GL14C.glBlendFuncSeparate(prevBlendSrcRgb, prevBlendDstRgb, prevBlendSrcAlpha, prevBlendDstAlpha);
         GL20C.glBlendEquationSeparate(prevBlendEqRgb, prevBlendEqAlpha);

@@ -182,7 +182,7 @@ public final class NiagaraSystemRuntime {
         private final @Nullable ByteBuffer updateWords;
         private final List<VariableSpec> spawnBindings;
         private final @Nullable VariableSpec executionStateBinding;
-        private final int posComp, colComp, sizeComp, widthComp, rotComp, ageComp, lifeComp;
+        private final int posComp, colComp, sizeComp, widthComp, rotComp, ageComp, lifeComp, materialRandomComp;
 
         private final SourceRandomStream rng;
         private final int instanceSeed;
@@ -240,13 +240,16 @@ public final class NiagaraSystemRuntime {
             this.rotComp = findAttr(spec.attributes(), 0, "SpriteRotation");
             this.ageComp = findAttr(spec.attributes(), 0, "Age");
             this.lifeComp = findAttr(spec.attributes(), 0, "Lifetime");
+            this.materialRandomComp = findAttr(spec.attributes(), 0, "MaterialRandom");
 
             runtimeWords.putFloat(616, 1.0f);
         }
 
         ParticleInstance borrowParticle() {
             ParticleInstance p = particlePool.pollFirst();
-            return p != null ? p : new ParticleInstance();
+            if (p == null) return new ParticleInstance();
+            p.curveRandom = p.customX = p.customY = p.customZ = p.customW = 0f;
+            return p;
         }
 
         void clearCpuParticlesToPool() {
@@ -829,9 +832,9 @@ public final class NiagaraSystemRuntime {
                 p.x = p.prevX = origin.x; p.y = p.prevY = origin.y; p.z = p.prevZ = origin.z;
             }
             if (state.colComp >= 0 && state.colComp + 3 < fCount) {
-                p.r = clamp01(state.current.floating(state.colComp, i)) * snap.red();
-                p.g = clamp01(state.current.floating(state.colComp + 1, i)) * snap.green();
-                p.b = clamp01(state.current.floating(state.colComp + 2, i)) * snap.blue();
+                p.r = state.current.floating(state.colComp, i) * snap.red();
+                p.g = state.current.floating(state.colComp + 1, i) * snap.green();
+                p.b = state.current.floating(state.colComp + 2, i) * snap.blue();
                 p.a = clamp01(state.current.floating(state.colComp + 3, i)) * snap.alpha();
             } else {
                 p.r = snap.red(); p.g = snap.green(); p.b = snap.blue(); p.a = snap.alpha();
@@ -852,6 +855,9 @@ public final class NiagaraSystemRuntime {
                     ? state.current.floating(state.ageComp, i) : 0f;
             p.lifetime = state.lifeComp >= 0 && state.lifeComp < fCount
                     ? Math.max(0.05f, state.current.floating(state.lifeComp, i)) : 1f;
+            p.curveRandom = state.materialRandomComp >= 0 && state.materialRandomComp < fCount
+                    ? state.current.floating(state.materialRandomComp, i) : 0f;
+            p.setMaterialData(state.spec.materialData());
             state.cpuParticles.add(p);
         }
     }

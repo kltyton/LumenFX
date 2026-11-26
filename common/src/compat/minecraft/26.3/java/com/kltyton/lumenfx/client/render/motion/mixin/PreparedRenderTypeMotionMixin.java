@@ -1,33 +1,36 @@
 package com.kltyton.lumenfx.client.render.motion.mixin;
 
+import com.kltyton.lumenfx.client.render.scene.capture.RenderPassScenePipelineAccess;
 import com.kltyton.lumenfx.client.render.temporal.geometry.GeometryMotionRenderer;
-import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.renderpearl.api.commands.RenderPass;
 import net.minecraft.client.renderer.StagedVertexBuffer;
 import net.minecraft.client.renderer.oit.OitStage;
 import net.minecraft.client.renderer.rendertype.PreparedRenderType;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/** Queues motion capture behind the pass that submitted the original geometry. */
 @Mixin(PreparedRenderType.class)
-public abstract class PreparedRenderTypeMotionMixin {
-    @WrapMethod(method = "drawFromBuffer(Lnet/minecraft/client/renderer/StagedVertexBuffer$ExecuteInfo;Lcom/mojang/renderpearl/api/commands/RenderPass;)V")
-    private void lumenfx$drawThenCapture(
-            StagedVertexBuffer.ExecuteInfo info, RenderPass pass, Operation<Void> original) {
-        original.call(info, pass);
-        GeometryMotionRenderer renderer = GeometryMotionRenderer.active();
-        if (renderer != null) {
-            renderer.draw((PreparedRenderType) (Object) this, info);
-        }
+abstract class PreparedRenderTypeMotionMixin {
+    @Inject(method = "drawFromBuffer", at = @At("RETURN"))
+    private void lumenfx$captureClassic(StagedVertexBuffer.ExecuteInfo info, RenderPass pass, CallbackInfo ci) {
+        lumenfx$queueMotion(info, pass);
     }
 
-    @WrapMethod(method = "drawFromBufferOit(Lnet/minecraft/client/renderer/StagedVertexBuffer$ExecuteInfo;Lnet/minecraft/client/renderer/oit/OitStage;Lcom/mojang/renderpearl/api/commands/RenderPass;)V")
-    private void lumenfx$drawOitThenCapture(
-            StagedVertexBuffer.ExecuteInfo info, OitStage stage, RenderPass pass, Operation<Void> original) {
-        original.call(info, stage, pass);
+    @Inject(method = "drawFromBufferOit", at = @At("RETURN"))
+    private void lumenfx$captureOit(StagedVertexBuffer.ExecuteInfo info, OitStage stage, RenderPass pass, CallbackInfo ci) {
+        if (stage == OitStage.DEPTH_BOUNDS) lumenfx$queueMotion(info, pass);
+    }
+
+    @Unique
+    private void lumenfx$queueMotion(StagedVertexBuffer.ExecuteInfo info, RenderPass pass) {
         GeometryMotionRenderer renderer = GeometryMotionRenderer.active();
-        if (renderer != null) {
-            renderer.draw((PreparedRenderType) (Object) this, info);
+        if (renderer != null && pass instanceof RenderPassScenePipelineAccess scenePass) {
+            var prepared = (PreparedRenderType) (Object) this;
+            scenePass.lumenfx$afterClose(() -> renderer.draw(prepared, info));
         }
     }
 }

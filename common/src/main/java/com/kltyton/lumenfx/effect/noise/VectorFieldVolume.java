@@ -1,5 +1,7 @@
 package com.kltyton.lumenfx.effect.noise;
 
+import com.kltyton.lumenfx.math.HalfFloat;
+
 /** Immutable vector field with source-space bounds and centered trilinear sampling. */
 public final class VectorFieldVolume {
     private final int sizeX, sizeY, sizeZ;
@@ -28,7 +30,7 @@ public final class VectorFieldVolume {
         float[] values = new float[Math.multiplyExact(cells, 3)];
         for (int cell = 0; cell < cells; cell++) {
             for (int axis = 0; axis < 3; axis++) {
-                float value = Float.float16ToFloat(rgba[cell * 4 + axis]);
+                float value = HalfFloat.toFloat(rgba[cell * 4 + axis]);
                 if (!Float.isFinite(value)) throw new IllegalArgumentException("Non-finite vector field value");
                 values[cell * 3 + axis] = value;
             }
@@ -69,7 +71,7 @@ public final class VectorFieldVolume {
         if (sourceHalfRgba != null) return sourceHalfRgba.clone();
         short[] result = new short[Math.multiplyExact(values.length / 3, 4)];
         for (int cell = 0; cell < values.length / 3; cell++)
-            for (int axis = 0; axis < 3; axis++) result[cell * 4 + axis] = Float.floatToFloat16(values[cell * 3 + axis]);
+            for (int axis = 0; axis < 3; axis++) result[cell * 4 + axis] = HalfFloat.fromFloat(values[cell * 3 + axis]);
         return result;
     }
 
@@ -84,9 +86,9 @@ public final class VectorFieldVolume {
     }
 
     public void sampleNearest(double x, double y, double z, double[] output, int offset) {
-        int ix = Math.clamp((int)Math.floor((x - minX) * inverseX), 0, sizeX - 1);
-        int iy = Math.clamp((int)Math.floor((y - minY) * inverseY), 0, sizeY - 1);
-        int iz = Math.clamp((int)Math.floor((z - minZ) * inverseZ), 0, sizeZ - 1);
+        int ix = index(Math.floor((x - minX) * inverseX), sizeX, false);
+        int iy = index(Math.floor((y - minY) * inverseY), sizeY, false);
+        int iz = index(Math.floor((z - minZ) * inverseZ), sizeZ, false);
         int cell = texel(ix, iy, iz);
         output[offset] = values[cell];
         output[offset + 1] = values[cell + 1];
@@ -138,7 +140,7 @@ public final class VectorFieldVolume {
 
     private static int index(double value, int size, boolean tile) {
         if (tile) value -= Math.floor(value / size) * size;
-        return (int)Math.clamp(value, 0, size - 1);
+        return (int) Math.max(0, Math.min(value, size - 1));
     }
     private static double lerp(double a, double b, double fraction) { return a + fraction * (b - a); }
 }

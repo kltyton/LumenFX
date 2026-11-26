@@ -43,7 +43,7 @@ Minecraft **1.20.1 (Forge / Fabric)**, **1.21.1 (NeoForge / Fabric)**, and **26.
 
 ## Optional Mod Compatibility
 
-LumenFX is completely **standalone** — it has zero required external mod dependencies (no mandatory `LDLib2`, `KilaGraph`, rendering mod, or animation mod).
+Fabric builds require Fabric API for the matching Minecraft version. LDLib2, KilaGraph, rendering mods, and animation mods are optional.
 
 | Mod | Dependency Type | Behavior When Installed |
 | :--- | :---: | :--- |

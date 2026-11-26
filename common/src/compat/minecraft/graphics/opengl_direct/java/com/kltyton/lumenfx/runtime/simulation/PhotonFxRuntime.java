@@ -44,6 +44,7 @@ public final class PhotonFxRuntime {
         private float elapsed;
         private float spawnCarry;
         private boolean fallbackBurstFired;
+        private @Nullable Vec3 previousWorldOrigin;
 
         ObjectRuntime(FxObjectSpec spec, Matrix4f localToEffectMatrix, int seed) {
             this.spec = spec;
@@ -135,10 +136,16 @@ public final class PhotonFxRuntime {
 
         Vector3f localOrigin = rt.localToEffectMatrix.getTranslation(new Vector3f());
         Vec3 worldOrigin = pose.transformPosition(new Vec3(localOrigin.x, localOrigin.y, localOrigin.z));
+        Vec3 displacement = spec.localSpace() && rt.previousWorldOrigin != null
+                ? worldOrigin.subtract(rt.previousWorldOrigin) : Vec3.ZERO;
+        rt.previousWorldOrigin = worldOrigin;
 
         for (int i = rt.particles.size() - 1; i >= 0; i--) {
             ParticleInstance p = rt.particles.get(i);
             p.prevX = p.x; p.prevY = p.y; p.prevZ = p.z;
+            p.x += displacement.x;
+            p.y += displacement.y;
+            p.z += displacement.z;
             p.age += dt;
             if (p.age >= p.lifetime) {
                 triggerSubEmitters(ex, "DEATH", p.x, p.y, p.z, snap, pose);
@@ -278,7 +285,7 @@ public final class PhotonFxRuntime {
             toSpawn += spec.burstCount();
         }
 
-        if ((spec.renderMode() == RenderMode.MODEL || spec.renderMode() == RenderMode.BEAM) && rt.particles.isEmpty()) {
+        if (spec.renderMode() == RenderMode.BEAM && rt.particles.isEmpty()) {
             toSpawn = Math.max(1, toSpawn);
         } else if (spec.emissionRate() > 0f) {
             rt.spawnCarry += spec.emissionRate() * dt;
@@ -298,14 +305,14 @@ public final class PhotonFxRuntime {
         FxObjectSpec spec = rt.spec;
         ParticleInstance p = rt.borrow();
         Vec3 shapeOffset = sampleShapeOffset(ex.shape(), rt.rng);
-        Vec3 worldOff = pose.transformDirection(shapeOffset);
+        Vec3 worldOff = transformEmitterDirection(rt, pose, shapeOffset);
         p.x = p.prevX = ox + worldOff.x;
         p.y = p.prevY = oy + worldOff.y;
         p.z = p.prevZ = oz + worldOff.z;
 
-        if (spec.renderMode() != RenderMode.MODEL && spec.renderMode() != RenderMode.BEAM) {
-            Vec3 dir = shapeOffset.lengthSqr() > 1e-6 ? shapeOffset.normalize() : randomConeDirection(ex.shape(), rt.rng);
-            Vec3 worldDir = pose.transformDirection(dir);
+        if (spec.renderMode() != RenderMode.BEAM) {
+            Vec3 dir = shapeDirection(ex.shape(), shapeOffset, rt.rng);
+            Vec3 worldDir = transformEmitterDirection(rt, pose, dir);
             double dl = worldDir.length();
             if (dl > 1e-6) worldDir = worldDir.scale(1.0 / dl);
             p.vx = (float) (worldDir.x * spec.startSpeed());
@@ -316,8 +323,8 @@ public final class PhotonFxRuntime {
         }
         p.age = 0f;
         p.lifetime = Math.max(0.05f, spec.startLifetimeSeconds());
-        p.startWidth = p.width = spec.startSize() * pose.scaleX() * ex.sizeStartMult();
-        p.startHeight = p.height = spec.startSize() * pose.scaleX() * ex.sizeStartMult();
+        p.startWidth = p.width = spec.startSize() * Math.abs(pose.scaleX()) * ex.sizeStartMult();
+        p.startHeight = p.height = p.width;
         p.rotationDeg = ex.startRotationDeg();
         p.angularVelocityDeg = ex.rotationSpeedDeg();
         p.startR = p.r = spec.r() * snap.red();
@@ -331,6 +338,12 @@ public final class PhotonFxRuntime {
         }
         rt.particles.add(p);
         triggerSubEmitters(ex, "BIRTH", p.x, p.y, p.z, snap, pose);
+    }
+
+    private static Vec3 transformEmitterDirection(ObjectRuntime runtime, EffectHandle.Pose pose, Vec3 direction) {
+        var local = runtime.localToEffectMatrix.transformDirection(
+                new Vector3f((float) direction.x, (float) direction.y, (float) direction.z));
+        return pose.transformDirection(new Vec3(local.x, local.y, local.z));
     }
 
     private void triggerSubEmitters(PhysicsExtras ex, String trigger, double wx, double wy, double wz,
@@ -426,6 +439,17 @@ public final class PhotonFxRuntime {
         double rad = Math.toRadians(Math.max(5f, Math.min(89f, sh.angleDeg())));
         double spread = Math.tan(rad) * rng.fraction();
         return new Vec3(Math.cos(az) * spread, 1.0, Math.sin(az) * spread).normalize();
+    }
+
+    private static Vec3 shapeDirection(ShapeSpec shape, Vec3 offset, SourceRandomStream rng) {
+        double distance = offset.length();
+        if (shape.shapeType().equalsIgnoreCase("cone")) {
+            if (distance <= 1e-6 || shape.radius() <= 0f) return new Vec3(0, 1, 0);
+            double tilt = Math.min(1.0, distance / shape.radius()) * Math.toRadians(shape.angleDeg());
+            double outward = Math.sin(tilt) / distance;
+            return new Vec3(offset.x * outward, Math.cos(tilt), offset.z * outward);
+        }
+        return distance > 1e-6 ? offset.scale(1.0 / distance) : randomConeDirection(shape, rng);
     }
 
     private static Matrix4f resolveHierarchyMatrix(TransformSpec t, Map<String, TransformSpec> byId, int depth) {

@@ -148,9 +148,18 @@ public final class ClientVfxEvents {
         drawPhoton(current, PhotonStage.AFTER_TRANSLUCENT_PARTICLES);
     }
 
+    /** RenderPearl's main render pass only needs splitting when LumenFX uses the inter-pass boundary. */
+    public static boolean needsNativeOpaqueStage() {
+        var current = levelFrame;
+        var capture = WorldHdrCapture.INSTANCE;
+        return current != null && !capture.externalSceneOwner() && !IrisParticleRenderScope.isShadowPass()
+                && (current.photon() != null || capture.capturingNative() || VfxEngine.INSTANCE.hasActiveSceneStages());
+    }
+
     private static void drawPhoton(LevelFrame frame, PhotonStage stage) {
         var photon = frame.photon();
-        if (photon != null) IrisParticleRenderScope.withParticlePrograms(() -> photon.execute(stage));
+        if (photon != null) IrisParticleRenderScope.withParticlePrograms(() ->
+                PhotonRenderOutput.withModelView(frame.modelView(), () -> photon.execute(stage)));
     }
 
     private static void drawNativeOpaque() {

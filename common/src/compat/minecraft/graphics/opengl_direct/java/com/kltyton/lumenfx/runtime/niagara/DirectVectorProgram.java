@@ -1,5 +1,8 @@
 package com.kltyton.lumenfx.runtime.niagara;
 
+import com.kltyton.lumenfx.effect.noise.VectorFieldVolume;
+import java.util.function.Function;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -60,7 +63,9 @@ public final class DirectVectorProgram {
         }
     }
 
-    public record External(String name, int inputs, int outputs, String interfaceType, List<CurveLut> curves) { }
+    public record VectorField(VectorFieldVolume volume, boolean tileX, boolean tileY, boolean tileZ) { }
+    public record External(String name, int inputs, int outputs, String interfaceType, List<CurveLut> curves,
+                           @Nullable VectorField field) { }
     public record Instruction(Opcode opcode, int inputCount, int dataset, int function, int[] registers) { }
 
     public final int temporaryRegisters;
@@ -101,7 +106,8 @@ public final class DirectVectorProgram {
         return temporaryRegisters + constantSlots.length + inputs.size() * 2 + outputRegisters;
     }
 
-    public static @Nullable DirectVectorProgram fromJson(@Nullable JsonObject obj) {
+    public static @Nullable DirectVectorProgram fromJson(@Nullable JsonObject obj,
+                                                         Function<String, VectorFieldVolume> fields) {
         if (obj == null || !obj.has("instructions") || !obj.get("instructions").isJsonArray()) return null;
         int temp = readInt(obj, "temporary_registers", 0);
         int outRegs = readInt(obj, "output_registers", 0);
@@ -160,12 +166,19 @@ public final class DirectVectorProgram {
                 if (!el.isJsonObject()) continue;
                 JsonObject ext = el.getAsJsonObject();
                 List<CurveLut> curves = parseCurves(ext.getAsJsonArray("curves"));
+                String name = readString(ext, "name", "");
+                String fieldId = readString(ext, "field", "");
+                VectorField field = null;
+                if (!fieldId.isBlank() && (name.equals("SampleField") || name.equals("LoadField"))) {
+                    var tiling = ext.getAsJsonArray("tile");
+                    field = new VectorField(fields.apply(fieldId), tile(tiling, 0), tile(tiling, 1), tile(tiling, 2));
+                }
                 externals.add(new External(
-                        readString(ext, "name", ""),
+                        name,
                         readInt(ext, "inputs", 0),
                         readInt(ext, "outputs", 0),
                         readString(ext, "interface_type", ""),
-                        curves));
+                        curves, field));
             }
         }
 
@@ -191,6 +204,10 @@ public final class DirectVectorProgram {
         return new DirectVectorProgram(temp, Math.max(outRegs, outputs.size()), maxOutDs,
                 runtimeBytes, interpolated, paramBytes, params, constData, constSlots,
                 inputs, outputs, externals, insns);
+    }
+
+    private static boolean tile(@Nullable JsonArray tiling, int axis) {
+        return tiling != null && axis < tiling.size() && tiling.get(axis).getAsBoolean();
     }
 
     private static List<CurveLut> parseCurves(@Nullable JsonArray arr) {

@@ -8,7 +8,8 @@
 
 1. 下载与你当前 Minecraft 版本及模组加载器（NeoForge、Fabric 或 Forge）对应的单一统一 LumenFX JAR 文件。
 2. 将 JAR 文件放入 `.minecraft/mods` 目录。
-3. 正常启动游戏即可——LumenFX **无需光影模组**，且**无任何强制外部前置模组**（`LDLib2`、`KilaGraph`、`Iris`、`Sodium`、`GeckoLib` 与 `KBR` 均为纯可选兼容）。
+3. 使用 Fabric 时，安装与 Minecraft 版本匹配的 Fabric API。1.20.1、1.21.1、26.1.2、26.2 和 26.3 的最低 Fabric API 版本依次为 `0.92.11`、`0.116.15`、`0.155.3`、`0.161.0` 和 `0.164.0`。
+4. 启动游戏。LDLib2、KilaGraph、Iris、Sodium、GeckoLib 和 KBR 均为可选。
 
 > 在 **Minecraft 26.2 与 26.3** 上，没有“Vulkan 版”与“OpenGL 版”之分。单一统一 JAR 会在环境支持时自动使用 Vulkan，在需要时自动回退至 OpenGL。
 
@@ -20,16 +21,16 @@
 
 | Minecraft 版本 | 加载器 | Artifact ID | 版本 | Java 版本 | 图形后端策略 |
 | :---: | :---: | :--- | :---: | :---: | :--- |
-| **26.3** | NeoForge | `lumenfx-neoforge-26.3` | `0.3.0` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
-| **26.3** | Fabric | `lumenfx-fabric-26.3` | `0.3.0` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
-| **26.2** | NeoForge | `lumenfx-neoforge-26.2` | `0.3.0` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
-| **26.2** | Fabric | `lumenfx-fabric-26.2` | `0.3.0` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
-| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | `0.3.0` | Java 25 | 原生 OpenGL（全特性对等） |
-| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | `0.3.0` | Java 25 | 原生 OpenGL（全特性对等） |
-| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | `0.3.0` | Java 21 | 原生 OpenGL（全特性对等） |
-| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | `0.3.0` | Java 21 | 原生 OpenGL（全特性对等） |
-| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | `0.3.0` | Java 17 | 原生 OpenGL（全特性对等） |
-| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | `0.3.0` | Java 17 | 原生 OpenGL（全特性对等） |
+| **26.3** | NeoForge | `lumenfx-neoforge-26.3` | `0.3.1` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
+| **26.3** | Fabric | `lumenfx-fabric-26.3` | `0.3.1` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
+| **26.2** | NeoForge | `lumenfx-neoforge-26.2` | `0.3.1` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
+| **26.2** | Fabric | `lumenfx-fabric-26.2` | `0.3.1` | Java 25 | 动态 Vulkan 优先 / OpenGL 自动回退 |
+| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | `0.3.1` | Java 25 | 原生 OpenGL（全特性对等） |
+| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | `0.3.1` | Java 25 | 原生 OpenGL（全特性对等） |
+| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | `0.3.1` | Java 21 | 原生 OpenGL（全特性对等） |
+| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | `0.3.1` | Java 21 | 原生 OpenGL（全特性对等） |
+| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | `0.3.1` | Java 17 | 原生 OpenGL（全特性对等） |
+| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | `0.3.1` | Java 17 | 原生 OpenGL（全特性对等） |
 
 ---
 
@@ -46,9 +47,9 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.0'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.1'
     // 可选：通过 jarJar 将 LumenFX 内嵌进你的模组
-    // jarJar('com.kltyton.lumenfx:lumenfx-neoforge-26.3:[0.3.0,)')
+    // jarJar('com.kltyton.lumenfx:lumenfx-neoforge-26.3:[0.3.1,)')
 }
 ```
 
@@ -63,7 +64,7 @@ repositories {
 }
 
 dependencies {
-    modImplementation 'com.kltyton.lumenfx:lumenfx-fabric-26.3:0.3.0'
+    modImplementation 'com.kltyton.lumenfx:lumenfx-fabric-26.3:0.3.1'
 }
 ```
 

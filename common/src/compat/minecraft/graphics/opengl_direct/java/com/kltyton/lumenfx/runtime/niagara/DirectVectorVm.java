@@ -1,5 +1,6 @@
 package com.kltyton.lumenfx.runtime.niagara;
 
+import com.kltyton.lumenfx.math.HalfFloat;
 import com.kltyton.lumenfx.math.SourceRandomStream;
 import com.kltyton.lumenfx.runtime.niagara.DirectVectorProgram.CurveLut;
 import com.kltyton.lumenfx.runtime.niagara.DirectVectorProgram.External;
@@ -18,6 +19,7 @@ import java.util.List;
 public final class DirectVectorVm {
     private static final float EPSILON = 1.0e-8f;
     private static final int CHUNK_SIZE = 256;
+    private final double[] fieldOutput = new double[3];
 
     private static final class Register {
         int[] words;
@@ -271,6 +273,10 @@ public final class DirectVectorVm {
     private void executeExternal(Instruction ins, int[] args, int count) {
         if (ins.function() < 0 || ins.function() >= program.external.size()) return;
         External ext = program.external.get(ins.function());
+        if (ext.field() != null && ext.inputs() == 3 && ext.outputs() == 3) {
+            executeVectorField(ext, args, count);
+            return;
+        }
         List<CurveLut> curves = ext.curves();
         if (!curves.isEmpty() && ext.inputs() >= 1 && ext.outputs() >= 1) {
             Register inReg = registers[args[0]];
@@ -309,6 +315,24 @@ public final class DirectVectorVm {
             if (argIdx < args.length && args[argIdx] != 0xFFFF) {
                 Register dst = registers[args[argIdx]];
                 Arrays.fill(dst.words, dst.offset, dst.offset + count, 0);
+            }
+        }
+    }
+
+    private void executeVectorField(External external, int[] args, int count) {
+        var field = external.field();
+        boolean sample = external.name().equals("SampleField");
+        Register x = registers[args[0]], y = registers[args[1]], z = registers[args[2]];
+        for (int row = 0; row < count; row++) {
+            if (sample) {
+                field.volume().sampleSource(floating(x.get(row)), floating(y.get(row)), floating(z.get(row)),
+                        field.tileX(), field.tileY(), field.tileZ(), fieldOutput, 0);
+            } else {
+                field.volume().loadSource(x.get(row), y.get(row), z.get(row), fieldOutput, 0);
+            }
+            for (int axis = 0; axis < 3; axis++) {
+                int destination = args[3 + axis];
+                if (destination != 0xFFFF) registers[destination].set(row, bits((float) fieldOutput[axis]));
             }
         }
     }

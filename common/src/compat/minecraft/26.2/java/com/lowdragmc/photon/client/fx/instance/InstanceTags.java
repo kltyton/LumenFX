@@ -22,6 +22,8 @@ public final class InstanceTags {
     public static final String ID = "id";
     public static final String PARENT = "_parentId";
     public static final String CHILDREN = "_childrenId";
+    public static final String PREVIOUS_PARENT = "parentId";
+    public static final String PREVIOUS_CHILDREN = "childIds";
     public static final String NAME = "name";
     public static final String VERSION = "version";
 
@@ -76,11 +78,13 @@ public final class InstanceTags {
 
     @Nullable
     public static UUID parent(CompoundTag object) {
-        return InstanceIds.parse(transform(object).getStringOr(PARENT, ""));
+        var transform = transform(object);
+        return InstanceIds.parse(transform.getString(PARENT).or(() -> transform.getString(PREVIOUS_PARENT)).orElse(null));
     }
 
     public static List<UUID> children(CompoundTag object) {
-        var list = transform(object).getListOrEmpty(CHILDREN);
+        var transform = transform(object);
+        var list = transform.getList(CHILDREN).or(() -> transform.getList(PREVIOUS_CHILDREN)).orElseGet(ListTag::new);
         var out = new ArrayList<UUID>(list.size());
         for (int i = 0; i < list.size(); i++) {
             var id = InstanceIds.parse(list.getStringOr(i, ""));

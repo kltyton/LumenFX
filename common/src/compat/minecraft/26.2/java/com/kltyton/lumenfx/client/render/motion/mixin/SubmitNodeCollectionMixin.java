@@ -5,49 +5,22 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.List;
-import net.minecraft.client.model.Model;
 import net.minecraft.client.renderer.SubmitNodeCollection;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.block.MovingBlockRenderState;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.feature.BlockModelFeatureRenderer;
 import net.minecraft.client.renderer.feature.CustomFeatureRenderer;
 import net.minecraft.client.renderer.feature.ItemFeatureRenderer;
-import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
-import net.minecraft.client.renderer.feature.MovingBlockFeatureRenderer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.world.item.ItemDisplayContext;
-import org.joml.Matrix4fc;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /** Attaches owner + stable submission key at native submission creation. */
 @Mixin(SubmitNodeCollection.class)
 public abstract class SubmitNodeCollectionMixin {
-    @WrapOperation(
-            method = "submitModel",
-            at = @At(value = "NEW", target = "Lnet/minecraft/client/renderer/feature/ModelFeatureRenderer$Submit;"))
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private ModelFeatureRenderer.Submit lumenfx$attachModel(
-            RenderType renderType,
-            PoseStack.Pose pose,
-            Model model,
-            Object state,
-            int lightCoords,
-            int overlayCoords,
-            int tintedColor,
-            TextureAtlasSprite sprite,
-            PoseStack.Pose sheetedDecalPose,
-            Operation<ModelFeatureRenderer.Submit> original) {
-        ModelFeatureRenderer.Submit submit = original.call(
-                renderType, pose, model, state, lightCoords, overlayCoords, tintedColor, sprite, sheetedDecalPose);
-        MotionHistory.INSTANCE.attachModelSubmit(submit, renderType, sprite, model.getClass().getName());
-        return submit;
-    }
-
     @WrapOperation(
             method = "submitCustomGeometry",
             at = @At(value = "NEW", target = "Lnet/minecraft/client/renderer/feature/CustomFeatureRenderer$Submit;"))
@@ -128,16 +101,4 @@ public abstract class SubmitNodeCollectionMixin {
         return submit;
     }
 
-    @WrapOperation(
-            method = "submitMovingBlock",
-            at = @At(value = "NEW", target = "Lnet/minecraft/client/renderer/feature/MovingBlockFeatureRenderer$Submit;"))
-    private MovingBlockFeatureRenderer.Submit lumenfx$attachMovingBlock(
-            Matrix4fc pose,
-            MovingBlockRenderState state,
-            int outlineColor,
-            Operation<MovingBlockFeatureRenderer.Submit> original) {
-        MovingBlockFeatureRenderer.Submit submit = original.call(pose, state, outlineColor);
-        MotionHistory.INSTANCE.attachMovingBlockSubmit(submit, state, outlineColor);
-        return submit;
-    }
 }

@@ -9,6 +9,8 @@
     "EntityRenderDispatcherMixin",
     "BlockEntityRenderDispatcherMixin",
     "SubmitNodeCollectionMixin",
+    "ModelSubmissionMixin",
+    "MovingBlockSubmissionMixin",
     "FeatureRenderDispatcherMixin",
     "ModelFeatureRendererMixin",
     "CustomFeatureRendererMixin",

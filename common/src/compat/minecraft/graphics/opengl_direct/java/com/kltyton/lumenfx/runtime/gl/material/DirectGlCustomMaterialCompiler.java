@@ -4,9 +4,13 @@ import com.kltyton.lumenfx.runtime.bridge.McResourceBridge;
 import com.kltyton.lumenfx.runtime.model.MaterialModel;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.lwjgl.opengl.GL20C;
+import org.lwjgl.opengl.GL31C;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Compiles and caches custom GLSL 330 Core material shaders for {@link MaterialModel} definitions
@@ -17,7 +21,10 @@ public final class DirectGlCustomMaterialCompiler {
     public record CompiledMaterial(int program, int viewProjLoc, int modelLoc, int timeLoc,
                                    int hdrLoc, int softFadeLoc, int nearFarLoc, int invViewportLoc,
                                    int paramsLoc, int tintLoc, int tex0Loc, int tex1Loc,
-                                   int sceneDepthLoc, int sceneColorLoc) { }
+                                   int sceneDepthLoc, int sceneColorLoc, int effectFrameBlock,
+                                   Map<String, Integer> samplers) { }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DirectGlCustomMaterialCompiler.class);
 
     private static final String DEFAULT_PARTICLE_VERT = """
             #version 330 core
@@ -30,10 +37,33 @@ public final class DirectGlCustomMaterialCompiler {
             out vec2 vUv;
             out vec4 vColor;
             out vec3 vWorldPos;
+            out vec2 effectUV;
+            out vec2 effectUV1;
+            out vec2 effectNextUV;
+            out vec2 effectUnflippedUV;
+            out vec2 effectNextUnflippedUV;
+            out float effectSubImageLerp;
+            out vec4 effectColor;
+            out vec4 effectParticle;
+            out vec4 effectCustom;
+            out vec3 effectPosition;
+            layout(location = 3) in vec4 aParticle;
+            layout(location = 4) in vec4 aCustom;
+            layout(location = 5) in vec3 aNextSubImage;
             void main() {
                 vUv = aUv;
                 vColor = aColor;
                 vWorldPos = aPos;
+                effectUV = aUv;
+                effectUV1 = aUv;
+                effectNextUV = aUv + aNextSubImage.xy;
+                effectUnflippedUV = aUv;
+                effectNextUnflippedUV = effectNextUV;
+                effectSubImageLerp = aNextSubImage.z;
+                effectColor = aColor;
+                effectPosition = aPos;
+                effectParticle = aParticle;
+                effectCustom = aCustom;
                 gl_Position = uViewProj * vec4(aPos, 1.0);
             }
             """;
@@ -77,8 +107,9 @@ public final class DirectGlCustomMaterialCompiler {
             return null;
         }
         String cacheKey = (customSource != null && !customSource.isBlank())
-                ? "inline:" + Integer.toHexString(customSource.hashCode())
+                ? "inline:" + customSource
                 : "res:" + shaderId;
+        cacheKey += "\n" + material.vertexMaterial() + "\n" + material.customGlslVertex() + "\n" + material.textures().keySet();
         CompiledMaterial existing = cache.get(cacheKey);
         if (existing != null) return existing.program() != 0 ? existing : null;
 
@@ -87,20 +118,34 @@ public final class DirectGlCustomMaterialCompiler {
             fragBody = loadShaderResource(shaderId, ".fsh", bridge);
         }
         if (fragBody == null || fragBody.isBlank()) {
+            LOGGER.error("Missing OpenGL fragment shader {} for material {}", shaderId, material.name());
             cache.put(cacheKey, empty());
             return null;
         }
         String vertSrc = DEFAULT_PARTICLE_VERT;
+        String vertexSourceId = null;
         if (material.customGlslVertex() != null && !material.customGlslVertex().isBlank()) {
             vertSrc = material.customGlslVertex();
         } else if (material.vertexMaterial() != null && !material.vertexMaterial().isBlank() && bridge != null) {
             String loadedVert = loadShaderResource(material.vertexMaterial(), ".vsh", bridge);
             if (loadedVert != null && loadedVert.contains("void main")) {
                 vertSrc = loadedVert;
+                vertexSourceId = shaderResourceId(material.vertexMaterial(), ".vsh");
             }
         }
-        String fullFrag = wrapFragmentSource(fragBody);
-        CompiledMaterial compiled = compileMaterial(vertSrc, fullFrag);
+        CompiledMaterial compiled;
+        try {
+            String fullFrag = wrapFragmentSource(fragBody);
+            if (bridge != null) {
+                String fragmentSourceId = shaderId == null ? null : shaderResourceId(shaderId, ".fsh");
+                fullFrag = DirectGlShaderImports.expand(fullFrag, fragmentSourceId, bridge);
+                vertSrc = DirectGlShaderImports.expand(vertSrc, vertexSourceId, bridge);
+            }
+            compiled = compileMaterial(vertSrc, fullFrag, material, shaderId);
+        } catch (IllegalArgumentException failure) {
+            LOGGER.error("Could not prepare OpenGL material {} ({})", material.name(), shaderId, failure);
+            compiled = empty();
+        }
         cache.put(cacheKey, compiled);
         return compiled.program() != 0 ? compiled : null;
     }
@@ -123,21 +168,24 @@ public final class DirectGlCustomMaterialCompiler {
     }
 
     private static @Nullable String loadShaderResource(String shaderId, String ext, McResourceBridge bridge) {
+        byte[] bytes = bridge.readResource(shaderResourceId(shaderId, ext));
+        return bytes == null ? null : new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private static String shaderResourceId(String shaderId, String ext) {
         String id = shaderId.contains(":") ? shaderId : ("lumenfx:" + shaderId);
         int colon = id.indexOf(':');
         String ns = id.substring(0, colon);
         String path = id.substring(colon + 1);
         String resPath = path.startsWith("shaders/") ? path : ("shaders/" + path);
         if (!resPath.endsWith(ext)) resPath = resPath + ext;
-        byte[] bytes = bridge.readResource(ns + ":" + resPath);
-        if (bytes == null) return null;
-        return new String(bytes, StandardCharsets.UTF_8);
+        return ns + ":" + resPath;
     }
 
-    private static CompiledMaterial compileMaterial(String vertSrc, String fragSrc) {
-        int vs = compileShader(GL20C.GL_VERTEX_SHADER, vertSrc);
+    private static CompiledMaterial compileMaterial(String vertSrc, String fragSrc, MaterialModel material, String shaderId) {
+        int vs = compileShader(GL20C.GL_VERTEX_SHADER, vertSrc, shaderId);
         if (vs == 0) return empty();
-        int fs = compileShader(GL20C.GL_FRAGMENT_SHADER, fragSrc);
+        int fs = compileShader(GL20C.GL_FRAGMENT_SHADER, fragSrc, shaderId);
         if (fs == 0) {
             GL20C.glDeleteShader(vs);
             return empty();
@@ -149,8 +197,14 @@ public final class DirectGlCustomMaterialCompiler {
         GL20C.glDeleteShader(vs);
         GL20C.glDeleteShader(fs);
         if (GL20C.glGetProgrami(prog, GL20C.GL_LINK_STATUS) == 0) {
+            LOGGER.error("Could not link OpenGL material {}: {}", shaderId, GL20C.glGetProgramInfoLog(prog));
             GL20C.glDeleteProgram(prog);
             return empty();
+        }
+        Map<String, Integer> samplers = new LinkedHashMap<>();
+        for (String sampler : material.textures().keySet()) {
+            int location = GL20C.glGetUniformLocation(prog, sampler);
+            if (location >= 0) samplers.put(sampler, location);
         }
         return new CompiledMaterial(
                 prog,
@@ -166,15 +220,17 @@ public final class DirectGlCustomMaterialCompiler {
                 GL20C.glGetUniformLocation(prog, "uTex"),
                 GL20C.glGetUniformLocation(prog, "uTex1"),
                 GL20C.glGetUniformLocation(prog, "uSceneDepth"),
-                GL20C.glGetUniformLocation(prog, "uSceneColor")
+                GL20C.glGetUniformLocation(prog, "uSceneColor"),
+                GL31C.glGetUniformBlockIndex(prog, "EffectFrame"), Map.copyOf(samplers)
         );
     }
 
-    private static int compileShader(int type, String src) {
+    private static int compileShader(int type, String src, String shaderId) {
         int shader = GL20C.glCreateShader(type);
         GL20C.glShaderSource(shader, src);
         GL20C.glCompileShader(shader);
         if (GL20C.glGetShaderi(shader, GL20C.GL_COMPILE_STATUS) == 0) {
+            LOGGER.error("Could not compile OpenGL shader {}: {}", shaderId, GL20C.glGetShaderInfoLog(shader));
             GL20C.glDeleteShader(shader);
             return 0;
         }
@@ -182,7 +238,7 @@ public final class DirectGlCustomMaterialCompiler {
     }
 
     private static CompiledMaterial empty() {
-        return new CompiledMaterial(0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+        return new CompiledMaterial(0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, Map.of());
     }
 
     public void clear() {

@@ -25,7 +25,6 @@ import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.PreparedRenderType;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.context.ContextKey;
@@ -361,9 +360,9 @@ public final class MotionHistory {
     // ---------------------------------------------------------------------------------------------
 
     public void attachModelSubmit(
-            Object submit, @Nullable RenderType renderType, @Nullable TextureAtlasSprite sprite, String modelClass) {
+            Object submit, @Nullable RenderType renderType, @Nullable String textureKey, String modelClass) {
         if (renderType != null) {
-            this.attach(submit, SubmitKind.MODEL, this.renderSignature(renderType, sprite) + '|' + modelClass);
+            this.attach(submit, SubmitKind.MODEL, this.renderSignature(renderType, textureKey) + '|' + modelClass);
         }
     }
 
@@ -705,7 +704,7 @@ public final class MotionHistory {
         return OwnerKey.entity(world, entity.getId(), uuid);
     }
 
-    private String renderSignature(RenderType renderType, @Nullable TextureAtlasSprite sprite) {
+    private String renderSignature(RenderType renderType, @Nullable String textureKey) {
         String base = this.baseSignatures.get(renderType);
         if (base == null) {
             base = renderType.pipeline().getLocation()
@@ -717,7 +716,7 @@ public final class MotionHistory {
                     + "|" + renderType.sortOnUpload();
             this.baseSignatures.put(renderType, base);
         }
-        return sprite == null ? base : base + '|' + sprite.contents().name().toString();
+        return textureKey == null ? base : base + '|' + textureKey;
     }
 
     private void sessionsClear() {

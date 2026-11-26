@@ -1,11 +1,15 @@
 package com.kltyton.lumenfx.runtime.model;
 
+import com.kltyton.lumenfx.effect.noise.VectorFieldFile;
+import com.kltyton.lumenfx.effect.noise.VectorFieldVolume;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.kltyton.lumenfx.runtime.bridge.McResourceBridge;
 import com.kltyton.lumenfx.runtime.niagara.DirectVectorProgram;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -14,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
@@ -74,7 +79,7 @@ public final class NiagaraSystemModel {
                               @Nullable GpuProgramSpec gpuProgram,
                               @Nullable String simCacheId,
                               float explicitSpawnRate,
-                              float defaultLifetime) {
+                              float defaultLifetime, MaterialDataCurves materialData) {
         public boolean isGpu() { return simTarget == SimTarget.GPU && gpuProgram != null; }
         public boolean hasCpuVm() { return simTarget == SimTarget.CPU && spawnProgram != null && updateProgram != null; }
     }
@@ -131,11 +136,14 @@ public final class NiagaraSystemModel {
         String effectNamespace = effectId.contains(":") ? effectId.substring(0, effectId.indexOf(':')) : "lumenfx";
         Map<String, UnityEmitterModel> topByName = new LinkedHashMap<>();
         for (UnityEmitterModel e : topLevelEmitters) topByName.put(e.name(), e);
+        Map<String, VectorFieldVolume> loadedFields = new LinkedHashMap<>();
+        Function<String, VectorFieldVolume> fields = id -> loadedFields.computeIfAbsent(id,
+                key -> readVectorField(effectNamespace, key, bridge));
 
         DirectVectorProgram sysSpawn = niagaraRoot.has("system_spawn") && niagaraRoot.get("system_spawn").isJsonObject()
-                ? DirectVectorProgram.fromJson(niagaraRoot.getAsJsonObject("system_spawn")) : null;
+                ? DirectVectorProgram.fromJson(niagaraRoot.getAsJsonObject("system_spawn"), fields) : null;
         DirectVectorProgram sysUpdate = niagaraRoot.has("system_update") && niagaraRoot.get("system_update").isJsonObject()
-                ? DirectVectorProgram.fromJson(niagaraRoot.getAsJsonObject("system_update")) : null;
+                ? DirectVectorProgram.fromJson(niagaraRoot.getAsJsonObject("system_update"), fields) : null;
         JsonArray sysLayoutArr = niagaraRoot.has("system_layout") && niagaraRoot.get("system_layout").isJsonArray()
                 ? niagaraRoot.getAsJsonArray("system_layout") : niagaraRoot.getAsJsonArray("variables");
         List<VariableSpec> vars = parseVariables(sysLayoutArr);
@@ -151,11 +159,25 @@ public final class NiagaraSystemModel {
             for (int i = 0; i < arr.size(); i++) {
                 if (!arr.get(i).isJsonObject()) continue;
                 JsonObject em = arr.get(i).getAsJsonObject();
-                out.add(parseEmitter(effectNamespace, em, topByName, bridge, "emitter_" + i));
+                out.add(parseEmitter(effectNamespace, em, topByName, bridge, fields, "emitter_" + i));
             }
         }
         return new NiagaraSystemModel(sysSpawn, sysUpdate, vars, spawnInLayout, updateInLayout,
                 spawnBindings, updateBindings, out, niagaraRoot);
+    }
+
+    private static VectorFieldVolume readVectorField(String defaultNamespace, String id, @Nullable McResourceBridge bridge) {
+        int separator = id.indexOf(':');
+        String namespace = separator < 0 ? defaultNamespace : id.substring(0, separator);
+        String path = separator < 0 ? id : id.substring(separator + 1);
+        String resource = namespace + ":lumenfx/vector_fields/" + path + ".lfvf";
+        byte[] bytes = bridge == null ? null : bridge.readResource(resource);
+        if (bytes == null) throw new IllegalArgumentException("Missing Niagara vector field " + resource);
+        try {
+            return VectorFieldFile.read(bytes);
+        } catch (IOException failure) {
+            throw new UncheckedIOException("Could not load Niagara vector field " + resource, failure);
+        }
     }
 
     private static List<VariableSpec> parseVariables(@Nullable JsonArray arr) {
@@ -194,7 +216,8 @@ public final class NiagaraSystemModel {
 
     private static EmitterSpec parseEmitter(String effectNamespace, JsonObject em,
                                             Map<String, UnityEmitterModel> topByName,
-                                            @Nullable McResourceBridge bridge, String fallbackName) {
+                                            @Nullable McResourceBridge bridge,
+                                            Function<String, VectorFieldVolume> fields, String fallbackName) {
         String name = readString(em, "name", fallbackName);
         String sourceName = readString(em, "source_name", name);
         UnityEmitterModel top = topByName.get(name);
@@ -282,10 +305,10 @@ public final class NiagaraSystemModel {
                     Math.max(1, floatComps), Math.max(1, intComps), Math.max(0, halfComps));
         } else {
             if (em.has("spawn") && em.get("spawn").isJsonObject()) {
-                spawnProg = DirectVectorProgram.fromJson(em.getAsJsonObject("spawn"));
+                spawnProg = DirectVectorProgram.fromJson(em.getAsJsonObject("spawn"), fields);
             }
             if (em.has("update") && em.get("update").isJsonObject()) {
-                updateProg = DirectVectorProgram.fromJson(em.getAsJsonObject("update"));
+                updateProg = DirectVectorProgram.fromJson(em.getAsJsonObject("update"), fields);
             }
         }
 
@@ -300,7 +323,7 @@ public final class NiagaraSystemModel {
         return new EmitterSpec(name, sourceName, target, localSpace, randomSeed, deterministic,
                 declaredMax, Math.max(1, floatComps), Math.max(1, intComps), Math.max(0, halfComps),
                 attributes, renderers, spawnInfoVars, spawnProg, updateProg, gpuSpec, simCacheId,
-                explicitSpawnRate, lifetime);
+                explicitSpawnRate, lifetime, top != null ? top.materialData() : MaterialDataCurves.EMPTY);
     }
 
     private static RendererSpec parseRenderer(JsonObject r, String defaultEmitter,

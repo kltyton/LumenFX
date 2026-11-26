@@ -4,6 +4,7 @@ import com.kltyton.lumenfx.client.graphics.RenderPearlCompat;
 import com.kltyton.lumenfx.client.render.light.shadow.geometry.WorldShadowPassScope;
 import com.kltyton.lumenfx.client.render.scene.capture.CapturePipelineFormats;
 import com.kltyton.lumenfx.client.render.scene.capture.SceneSurfacePassAccess;
+import com.kltyton.lumenfx.client.render.scene.capture.RenderPassScenePipelineAccess;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.api.commands.RenderPassDescriptor;
@@ -11,6 +12,7 @@ import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.frontend.FrontendRenderPass;
 import com.mojang.renderpearl.frontend.FrontendRenderPipeline;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +40,20 @@ abstract class RenderPassScenePipelineMixin implements SceneSurfacePassAccess, R
     @Unique private @Nullable UnaryOperator<RenderPipeline> lumenfx$pipelines;
     @Unique private Map<String, GpuBufferSlice> lumenfx$uniformOverrides = Map.of();
     @Unique private boolean lumenfx$applyingOverrides;
+    @Unique private @Nullable List<Runnable> lumenfx$afterClose;
+
+    @Override
+    public void lumenfx$afterClose(Runnable task) {
+        if (this.lumenfx$afterClose == null) this.lumenfx$afterClose = new ArrayList<>();
+        this.lumenfx$afterClose.add(task);
+    }
+
+    @Inject(method = "close", at = @At("RETURN"))
+    private void lumenfx$finishDetachedPasses(CallbackInfo ci) {
+        var tasks = this.lumenfx$afterClose;
+        this.lumenfx$afterClose = null;
+        if (tasks != null) tasks.forEach(Runnable::run);
+    }
 
     @Override
     public void lumenfx$configureSceneCapture(@Nullable UnaryOperator<RenderPipeline> pipelines, Map<String, GpuBufferSlice> uniforms) {

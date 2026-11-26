@@ -344,8 +344,9 @@ public final class PersistedParser {
         if (rom != null && Collection.class.isAssignableFrom(field.getType())) {
             Tag listData = data;
             Tag uidTag = null;
-            if (data instanceof CompoundTag ct && ct.contains("d")) {
-                listData = ct.get("d");
+            if (data instanceof CompoundTag ct) {
+                // Photon exports use payload. Accept the earlier LumenFX reader's d and plain lists too.
+                listData = ct.getList("payload").or(() -> ct.getList("d")).orElse(null);
                 uidTag = ct.get("uid");
             }
             if (listData instanceof ListTag listTag) {

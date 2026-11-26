@@ -8,7 +8,8 @@
 
 1. Download the single unified LumenFX JAR matching your Minecraft version and mod loader (NeoForge, Fabric, or Forge).
 2. Place the JAR into your `.minecraft/mods` directory.
-3. Launch the game normally — LumenFX requires **no shader mod** and has **no mandatory external mod dependencies** (`LDLib2`, `KilaGraph`, `Iris`, `Sodium`, `GeckoLib`, and `KBR` are strictly optional).
+3. On Fabric, install Fabric API for the same Minecraft version. The minimum Fabric API versions are `0.92.11` for Minecraft 1.20.1, `0.116.15` for 1.21.1, `0.155.3` for 26.1.2, `0.161.0` for 26.2, and `0.164.0` for 26.3.
+4. Launch the game. LDLib2, KilaGraph, Iris, Sodium, GeckoLib, and KBR are optional.
 
 > On **Minecraft 26.2 & 26.3**, there is no separate "Vulkan edition" or "OpenGL edition". One unified JAR dynamically selects Vulkan when supported and falls back to OpenGL automatically when needed.
 
@@ -20,16 +21,16 @@ All official artifacts are published to **Sighs Maven** (`https://maven.sighs.cc
 
 | Minecraft | Loader | Artifact ID | Version | Java | Backend |
 | :---: | :---: | :--- | :---: | :---: | :--- |
-| **26.3** | NeoForge | `lumenfx-neoforge-26.3` | `0.3.0` | Java 25 | Dynamic Vulkan-first / OpenGL |
-| **26.3** | Fabric | `lumenfx-fabric-26.3` | `0.3.0` | Java 25 | Dynamic Vulkan-first / OpenGL |
-| **26.2** | NeoForge | `lumenfx-neoforge-26.2` | `0.3.0` | Java 25 | Dynamic Vulkan-first / OpenGL |
-| **26.2** | Fabric | `lumenfx-fabric-26.2` | `0.3.0` | Java 25 | Dynamic Vulkan-first / OpenGL |
-| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | `0.3.0` | Java 25 | Native OpenGL (Full Parity) |
-| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | `0.3.0` | Java 25 | Native OpenGL (Full Parity) |
-| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | `0.3.0` | Java 21 | Native OpenGL (Full Parity) |
-| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | `0.3.0` | Java 21 | Native OpenGL (Full Parity) |
-| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | `0.3.0` | Java 17 | Native OpenGL (Full Parity) |
-| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | `0.3.0` | Java 17 | Native OpenGL (Full Parity) |
+| **26.3** | NeoForge | `lumenfx-neoforge-26.3` | `0.3.1` | Java 25 | Dynamic Vulkan-first / OpenGL |
+| **26.3** | Fabric | `lumenfx-fabric-26.3` | `0.3.1` | Java 25 | Dynamic Vulkan-first / OpenGL |
+| **26.2** | NeoForge | `lumenfx-neoforge-26.2` | `0.3.1` | Java 25 | Dynamic Vulkan-first / OpenGL |
+| **26.2** | Fabric | `lumenfx-fabric-26.2` | `0.3.1` | Java 25 | Dynamic Vulkan-first / OpenGL |
+| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | `0.3.1` | Java 25 | Native OpenGL (Full Parity) |
+| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | `0.3.1` | Java 25 | Native OpenGL (Full Parity) |
+| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | `0.3.1` | Java 21 | Native OpenGL (Full Parity) |
+| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | `0.3.1` | Java 21 | Native OpenGL (Full Parity) |
+| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | `0.3.1` | Java 17 | Native OpenGL (Full Parity) |
+| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | `0.3.1` | Java 17 | Native OpenGL (Full Parity) |
 
 ---
 
@@ -46,9 +47,9 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.0'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.1'
     // Optional: bundle inside your mod using jarJar
-    // jarJar('com.kltyton.lumenfx:lumenfx-neoforge-26.3:[0.3.0,)')
+    // jarJar('com.kltyton.lumenfx:lumenfx-neoforge-26.3:[0.3.1,)')
 }
 ```
 
@@ -63,7 +64,7 @@ repositories {
 }
 
 dependencies {
-    modImplementation 'com.kltyton.lumenfx:lumenfx-fabric-26.3:0.3.0'
+    modImplementation 'com.kltyton.lumenfx:lumenfx-fabric-26.3:0.3.1'
 }
 ```
 

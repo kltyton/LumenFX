@@ -43,6 +43,8 @@ import org.lwjgl.opengl.GL14C;
 import org.lwjgl.opengl.GL15C;
 import org.lwjgl.opengl.GL20C;
 import org.lwjgl.opengl.GL30C;
+import org.lwjgl.opengl.GL31C;
+import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
 /**
@@ -56,7 +58,7 @@ import org.lwjgl.system.MemoryUtil;
  * </ul>
  */
 public final class DirectGlEffectRenderer {
-    private static final int FLOATS_PER_VERTEX = 9; // pos(3) + uv(2) + color(4)
+    private static final int FLOATS_PER_VERTEX = 20; // Position, UV, color, particle/custom data, next subimage
     private static final int MAX_BATCH_VERTICES = 65536;
     private static final int NANITE_AUTO_INDEX_THRESHOLD = 1536; // 512 triangles
 
@@ -76,6 +78,7 @@ public final class DirectGlEffectRenderer {
 
     private int quadVao;
     private int quadVbo;
+    private int effectFrameUbo;
     private FloatBuffer vertexBuf;
     private final FloatBuffer matBuf = MemoryUtil.memAllocFloat(16);
     private final Matrix4f viewProj = new Matrix4f();
@@ -111,6 +114,12 @@ public final class DirectGlEffectRenderer {
             GL20C.glVertexAttribPointer(1, 2, GL11C.GL_FLOAT, false, stride, 3L * Float.BYTES);
             GL20C.glEnableVertexAttribArray(2);
             GL20C.glVertexAttribPointer(2, 4, GL11C.GL_FLOAT, false, stride, 5L * Float.BYTES);
+            GL20C.glEnableVertexAttribArray(3);
+            GL20C.glVertexAttribPointer(3, 4, GL11C.GL_FLOAT, false, stride, 9L * Float.BYTES);
+            GL20C.glEnableVertexAttribArray(4);
+            GL20C.glVertexAttribPointer(4, 4, GL11C.GL_FLOAT, false, stride, 13L * Float.BYTES);
+            GL20C.glEnableVertexAttribArray(5);
+            GL20C.glVertexAttribPointer(5, 3, GL11C.GL_FLOAT, false, stride, 17L * Float.BYTES);
             GL30C.glBindVertexArray(0);
         }
     }
@@ -136,6 +145,7 @@ public final class DirectGlEffectRenderer {
         boolean needsColor = false;
         boolean hasHdr = false;
         boolean usesRvt = false;
+        int textureUnits = GlStateGuard.MATERIAL_TEXTURE_START;
         for (EffectRuntimeInstance inst : instances) {
             EffectModel em = inst.model();
             if (!em.volumes().isEmpty() || !em.decals().isEmpty() || !em.lights().isEmpty()) {
@@ -147,6 +157,7 @@ public final class DirectGlEffectRenderer {
                 if (m.hdr()) hasHdr = true;
                 if (m.softParticles() || m.hasCustomShader()) needsDepth = true;
                 if (m.refraction() || m.hasCustomShader()) needsColor = true;
+                textureUnits = Math.max(textureUnits, materialTextureUnits(m));
                 if (m.rvt()) usesRvt = true;
             }
             NiagaraSystemRuntime nr = inst.niagaraRuntime();
@@ -156,6 +167,7 @@ public final class DirectGlEffectRenderer {
                     if (m.hdr()) hasHdr = true;
                     if (m.softParticles() || m.hasCustomShader()) needsDepth = true;
                     if (m.refraction() || m.hasCustomShader()) needsColor = true;
+                    textureUnits = Math.max(textureUnits, materialTextureUnits(m));
                     if (m.rvt()) usesRvt = true;
                     RendererKind rk = e.primaryRenderer.kind();
                     if (rk == RendererKind.VOLUME || rk == RendererKind.DECAL || rk == RendererKind.LIGHT) {
@@ -166,6 +178,7 @@ public final class DirectGlEffectRenderer {
             PhotonFxRuntime pr = inst.photonRuntime();
             if (pr != null) {
                 for (PhotonFxRuntime.ObjectRuntime o : pr.objects()) {
+                    textureUnits = Math.max(textureUnits, materialTextureUnits(o.spec.material()));
                     PhotonFxModel.PhysicsExtras ex = o.spec.extras();
                     if (ex != null) {
                         if (ex.hdr()) hasHdr = true;
@@ -177,7 +190,7 @@ public final class DirectGlEffectRenderer {
 
         frameTimeSeconds = (float) (((System.nanoTime() - startNanos) * 1e-9) % 10000.0);
 
-        try (GlStateGuard guard = new GlStateGuard()) {
+        try (GlStateGuard guard = new GlStateGuard(textureUnits)) {
             ensureBuffers();
             activeVpWidth = Math.max(1, guard.viewportWidth());
             activeVpHeight = Math.max(1, guard.viewportHeight());
@@ -216,6 +229,10 @@ public final class DirectGlEffectRenderer {
                 }
             }
         }
+    }
+
+    private static int materialTextureUnits(MaterialModel material) {
+        return GlStateGuard.MATERIAL_TEXTURE_START + (material.hasCustomShader() ? material.textures().size() : 0);
     }
 
     private void renderInstancesPass(List<EffectRuntimeInstance> instances, boolean hdrPass,
@@ -429,7 +446,12 @@ public final class DirectGlEffectRenderer {
 
             if ((spec.renderMode() == PhotonFxModel.RenderMode.MODEL || spec.renderMode() == PhotonFxModel.RenderMode.MESH)
                     && spec.authoredModel() != null) {
-                renderPhotonAuthoredModel(obj, spec.authoredModel(), mat, tex, snap, camX, camY, camZ);
+                var pose = snap.pose();
+                float unit = Math.max(0.0001f, Math.abs(pose.scaleX()));
+                var basis = new Matrix4f().rotation(new org.joml.Quaternionf(pose.x(), pose.y(), pose.z(), pose.w()))
+                        .scale(pose.scaleX() / unit, pose.scaleY() / unit, pose.scaleZ() / unit)
+                        .mul(obj.localToEffectMatrix).setTranslation(0f, 0f, 0f);
+                renderMeshParticles(obj.particles, spec.authoredModel(), mat, tex, camX, camY, camZ, pt, basis);
                 continue;
             }
             vertexBuf.clear();
@@ -450,58 +472,14 @@ public final class DirectGlEffectRenderer {
         }
     }
 
-    private void renderPhotonAuthoredModel(PhotonFxRuntime.ObjectRuntime obj, StaticMeshModel mesh,
-                                           MaterialModel mat, int tex,
-                                           EffectHandle.Snapshot snap, double camX, double camY, double camZ) {
-        GpuMesh gpu = meshes.resolve(mesh);
-        if (gpu.vao() == 0 || gpu.indexCount() <= 0) return;
-        boolean useNanite = mat.nanite() || mesh.indexCount() >= NANITE_AUTO_INDEX_THRESHOLD;
-        EffectHandle.Pose pose = snap.pose();
-
-        if (useNanite) {
-            for (ParticleInstance p : obj.particles) {
-                float rx = (float) (pose.position().x - camX);
-                float ry = (float) (pose.position().y - camY);
-                float rz = (float) (pose.position().z - camZ);
-                modelMat.identity().translate(rx, ry, rz)
-                        .rotate(new org.joml.Quaternionf(pose.x(), pose.y(), pose.z(), pose.w()))
-                        .scale(pose.scaleX(), pose.scaleY(), pose.scaleZ())
-                        .mul(obj.localToEffectMatrix)
-                        .scale(gpu.unitScale());
-                naniteRenderer.drawInstance(mesh, mat, viewProj, modelMat, rx, ry, rz,
-                        pose.scaleX() * gpu.unitScale(), activeVpHeight, tex, meshes, p.r, p.g, p.b, p.a);
-            }
-            return;
-        }
-
-        GL20C.glUseProgram(shaders.meshProgram);
-        matBuf.clear();
-        viewProj.get(matBuf);
-        GL20C.glUniformMatrix4fv(shaders.meshViewProjLoc, false, matBuf);
-        GL20C.glUniform1i(shaders.meshTexLoc, 0);
-        GL20C.glUniform1f(shaders.meshHdrLoc, mat.hdr() ? Math.max(1.5f, mat.emissiveScale()) : 1.0f);
-        GL30C.glBindVertexArray(gpu.vao());
-        GL15C.glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, gpu.ebo());
-
-        for (ParticleInstance p : obj.particles) {
-            modelMat.identity()
-                    .translate((float) (pose.position().x - camX), (float) (pose.position().y - camY),
-                            (float) (pose.position().z - camZ))
-                    .rotate(new org.joml.Quaternionf(pose.x(), pose.y(), pose.z(), pose.w()))
-                    .scale(pose.scaleX(), pose.scaleY(), pose.scaleZ())
-                    .mul(obj.localToEffectMatrix)
-                    .scale(gpu.unitScale());
-            matBuf.clear();
-            modelMat.get(matBuf);
-            GL20C.glUniformMatrix4fv(shaders.meshModelLoc, false, matBuf);
-            GL20C.glUniform4f(shaders.meshTintLoc, p.r, p.g, p.b, p.a);
-            GL11C.glDrawElements(GL11C.GL_TRIANGLES, gpu.indexCount(), GL11C.GL_UNSIGNED_INT, 0L);
-        }
-        GL30C.glBindVertexArray(0);
+    private void renderMeshParticles(List<ParticleInstance> particles, StaticMeshModel mesh, MaterialModel mat,
+                                     int tex, double camX, double camY, double camZ, float pt) {
+        renderMeshParticles(particles, mesh, mat, tex, camX, camY, camZ, pt, null);
     }
 
     private void renderMeshParticles(List<ParticleInstance> particles, StaticMeshModel mesh, MaterialModel mat,
-                                     int tex, double camX, double camY, double camZ, float pt) {
+                                     int tex, double camX, double camY, double camZ, float pt,
+                                     @Nullable Matrix4f basis) {
         GpuMesh gpu = meshes.resolve(mesh);
         if (gpu.vao() == 0 || gpu.indexCount() <= 0) return;
         boolean useNanite = mat.nanite() || mesh.indexCount() >= NANITE_AUTO_INDEX_THRESHOLD;
@@ -512,9 +490,10 @@ public final class DirectGlEffectRenderer {
                 float z = (float) (p.lerpZ(pt) - camZ);
                 float sx = Math.max(0.01f, p.width) * gpu.unitScale();
                 float sy = Math.max(0.01f, p.height) * gpu.unitScale();
-                modelMat.identity().translate(x, y, z).rotateZ((float) Math.toRadians(p.rotationDeg)).scale(sx, sy, sx);
+                meshParticleTransform(x, y, z, p.rotationDeg, sx, sy, basis);
                 naniteRenderer.drawInstance(mesh, mat, viewProj, modelMat, x, y, z,
-                        Math.max(sx, sy), activeVpHeight, tex, meshes, p.r, p.g, p.b, p.a);
+                        meshParticleScale(modelMat),
+                        activeVpHeight, tex, meshes, p.r, p.g, p.b, p.a);
             }
             return;
         }
@@ -534,7 +513,7 @@ public final class DirectGlEffectRenderer {
             float z = (float) (p.lerpZ(pt) - camZ);
             float sx = Math.max(0.01f, p.width) * gpu.unitScale();
             float sy = Math.max(0.01f, p.height) * gpu.unitScale();
-            modelMat.identity().translate(x, y, z).rotateZ((float) Math.toRadians(p.rotationDeg)).scale(sx, sy, sx);
+            meshParticleTransform(x, y, z, p.rotationDeg, sx, sy, basis);
             matBuf.clear();
             modelMat.get(matBuf);
             GL20C.glUniformMatrix4fv(shaders.meshModelLoc, false, matBuf);
@@ -542,6 +521,20 @@ public final class DirectGlEffectRenderer {
             GL11C.glDrawElements(GL11C.GL_TRIANGLES, gpu.indexCount(), GL11C.GL_UNSIGNED_INT, 0L);
         }
         GL30C.glBindVertexArray(0);
+    }
+
+    private static float meshParticleScale(Matrix4f transform) {
+        float x = transform.m00() * transform.m00() + transform.m01() * transform.m01() + transform.m02() * transform.m02();
+        float y = transform.m10() * transform.m10() + transform.m11() * transform.m11() + transform.m12() * transform.m12();
+        float z = transform.m20() * transform.m20() + transform.m21() * transform.m21() + transform.m22() * transform.m22();
+        return (float) Math.sqrt(Math.max(x, Math.max(y, z)));
+    }
+
+    private void meshParticleTransform(float x, float y, float z, float angle, float sx, float sy,
+                                       @Nullable Matrix4f basis) {
+        modelMat.translation(x, y, z);
+        if (basis != null) modelMat.mul(basis);
+        modelMat.rotateZ((float) Math.toRadians(angle)).scale(sx, sy, sx);
     }
 
     private int appendBillboard(ParticleInstance p, boolean stretched, MaterialModel mat,
@@ -585,25 +578,31 @@ public final class DirectGlEffectRenderer {
         float uX = ux * hh, uY = uy * hh, uZ = uz * hh;
 
         float u0 = 0f, v0 = 0f, u1 = 1f, v1 = 1f;
+        float nextU = 0f, nextV = 0f, subImageLerp = 0f;
         int rows = mat.subUvRows();
         int cols = mat.subUvCols();
         if (rows > 1 || cols > 1) {
             int total = rows * cols;
-            int frame = Math.min(total - 1, Math.max(0, (int) (p.normalizedAge() * total)));
+            float frameProgress = Math.min(total - 1, Math.max(0f, p.normalizedAge() * total));
+            int frame = (int) frameProgress;
+            int nextFrame = Math.min(total - 1, frame + 1);
             int col = frame % cols;
             int row = frame / cols;
             u0 = (float) col / cols;
             u1 = (float) (col + 1) / cols;
             v0 = (float) row / rows;
             v1 = (float) (row + 1) / rows;
+            nextU = (float) (nextFrame % cols - col) / cols;
+            nextV = (float) (nextFrame / cols - row) / rows;
+            subImageLerp = frameProgress - frame;
         }
 
-        putVert(cx - rX - uX, cy - rY - uY, cz - rZ - uZ, u0, v1, p.r, p.g, p.b, p.a);
-        putVert(cx + rX - uX, cy + rY - uY, cz + rZ - uZ, u1, v1, p.r, p.g, p.b, p.a);
-        putVert(cx + rX + uX, cy + rY + uY, cz + rZ + uZ, u1, v0, p.r, p.g, p.b, p.a);
-        putVert(cx - rX - uX, cy - rY - uY, cz - rZ - uZ, u0, v1, p.r, p.g, p.b, p.a);
-        putVert(cx + rX + uX, cy + rY + uY, cz + rZ + uZ, u1, v0, p.r, p.g, p.b, p.a);
-        putVert(cx - rX + uX, cy - rY + uY, cz - rZ + uZ, u0, v0, p.r, p.g, p.b, p.a);
+        putVert(cx - rX - uX, cy - rY - uY, cz - rZ - uZ, u0, v1, p.r, p.g, p.b, p.a, p, nextU, nextV, subImageLerp);
+        putVert(cx + rX - uX, cy + rY - uY, cz + rZ - uZ, u1, v1, p.r, p.g, p.b, p.a, p, nextU, nextV, subImageLerp);
+        putVert(cx + rX + uX, cy + rY + uY, cz + rZ + uZ, u1, v0, p.r, p.g, p.b, p.a, p, nextU, nextV, subImageLerp);
+        putVert(cx - rX - uX, cy - rY - uY, cz - rZ - uZ, u0, v1, p.r, p.g, p.b, p.a, p, nextU, nextV, subImageLerp);
+        putVert(cx + rX + uX, cy + rY + uY, cz + rZ + uZ, u1, v0, p.r, p.g, p.b, p.a, p, nextU, nextV, subImageLerp);
+        putVert(cx - rX + uX, cy - rY + uY, cz - rZ + uZ, u0, v0, p.r, p.g, p.b, p.a, p, nextU, nextV, subImageLerp);
         return verts + 6;
     }
 
@@ -622,7 +621,7 @@ public final class DirectGlEffectRenderer {
             verts = appendSegmentQuad(ax, ay, az, bx, by, bz,
                     Math.max(0.02f, a.width * 0.5f), Math.max(0.02f, b.width * 0.5f),
                     (float) i / (n - 1), (float) (i + 1) / (n - 1),
-                    a.r, a.g, a.b, a.a, b.r, b.g, b.b, b.a, verts);
+                    a.r, a.g, a.b, a.a, b.r, b.g, b.b, b.a, a, b, verts);
         }
         return verts;
     }
@@ -638,7 +637,7 @@ public final class DirectGlEffectRenderer {
             float w0 = Math.max(0.01f, p.width * 0.35f * (1f - t0 * 0.85f));
             float w1 = Math.max(0.01f, p.width * 0.35f * (1f - t1 * 0.85f));
             verts = appendSegmentQuad(ax, ay, az, bx, by, bz, w0, w1, t0, t1,
-                    p.r, p.g, p.b, p.a * (1f - t0 * 0.7f), p.r, p.g, p.b, p.a * (1f - t1 * 0.7f), verts);
+                    p.r, p.g, p.b, p.a * (1f - t0 * 0.7f), p.r, p.g, p.b, p.a * (1f - t1 * 0.7f), p, p, verts);
         }
         return verts;
     }
@@ -646,7 +645,8 @@ public final class DirectGlEffectRenderer {
     private int appendSegmentQuad(float ax, float ay, float az, float bx, float by, float bz,
                                   float wa, float wb, float u0, float u1,
                                   float r0, float g0, float b0, float a0,
-                                  float r1, float g1, float b1, float a1, int verts) {
+                                  float r1, float g1, float b1, float a1,
+                                  ParticleInstance start, ParticleInstance end, int verts) {
         float dx = bx - ax, dy = by - ay, dz = bz - az;
         float sx = dy * camForward.z - dz * camForward.y;
         float sy = dz * camForward.x - dx * camForward.z;
@@ -655,17 +655,27 @@ public final class DirectGlEffectRenderer {
         if (sl < 1e-4f) { sx = camRight.x; sy = camRight.y; sz = camRight.z; }
         else { sx /= sl; sy /= sl; sz /= sl; }
 
-        putVert(ax - sx * wa, ay - sy * wa, az - sz * wa, u0, 0f, r0, g0, b0, a0);
-        putVert(ax + sx * wa, ay + sy * wa, az + sz * wa, u0, 1f, r0, g0, b0, a0);
-        putVert(bx + sx * wb, by + sy * wb, bz + sz * wb, u1, 1f, r1, g1, b1, a1);
-        putVert(ax - sx * wa, ay - sy * wa, az - sz * wa, u0, 0f, r0, g0, b0, a0);
-        putVert(bx + sx * wb, by + sy * wb, bz + sz * wb, u1, 1f, r1, g1, b1, a1);
-        putVert(bx - sx * wb, by - sy * wb, bz - sz * wb, u1, 0f, r1, g1, b1, a1);
+        putVert(ax - sx * wa, ay - sy * wa, az - sz * wa, u0, 0f, r0, g0, b0, a0, start);
+        putVert(ax + sx * wa, ay + sy * wa, az + sz * wa, u0, 1f, r0, g0, b0, a0, start);
+        putVert(bx + sx * wb, by + sy * wb, bz + sz * wb, u1, 1f, r1, g1, b1, a1, end);
+        putVert(ax - sx * wa, ay - sy * wa, az - sz * wa, u0, 0f, r0, g0, b0, a0, start);
+        putVert(bx + sx * wb, by + sy * wb, bz + sz * wb, u1, 1f, r1, g1, b1, a1, end);
+        putVert(bx - sx * wb, by - sy * wb, bz - sz * wb, u1, 0f, r1, g1, b1, a1, end);
         return verts + 6;
     }
 
-    private void putVert(float x, float y, float z, float u, float v, float r, float g, float b, float a) {
-        vertexBuf.put(x).put(y).put(z).put(u).put(v).put(r).put(g).put(b).put(a);
+    private void putVert(float x, float y, float z, float u, float v, float r, float g, float b, float a,
+                         ParticleInstance particle) {
+        putVert(x, y, z, u, v, r, g, b, a, particle, 0f, 0f, 0f);
+    }
+
+    private void putVert(float x, float y, float z, float u, float v, float r, float g, float b, float a,
+                         ParticleInstance particle, float nextU, float nextV, float subImageLerp) {
+        vertexBuf.put(x).put(y).put(z).put(u).put(v).put(r).put(g).put(b).put(a)
+                .put(particle.normalizedAge()).put(particle.curveRandom).put(particle.lifetime)
+                .put(frameTimeSeconds - particle.age)
+                .put(particle.customX).put(particle.customY).put(particle.customZ).put(particle.customW)
+                .put(nextU).put(nextV).put(subImageLerp);
     }
 
     private void flushParticles(int verts, MaterialModel mat, @Nullable McResourceBridge bridge) {
@@ -710,6 +720,7 @@ public final class DirectGlEffectRenderer {
             if (custom.sceneDepthLoc() >= 0) GL20C.glUniform1i(custom.sceneDepthLoc(), 1);
             if (custom.sceneColorLoc() >= 0) GL20C.glUniform1i(custom.sceneColorLoc(), 2);
             if (custom.tex1Loc() >= 0) GL20C.glUniform1i(custom.tex1Loc(), 3);
+            bindAuthoredMaterial(custom, mat, bridge);
         } else {
             GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
             GL20C.glUseProgram(shaders.particleProgram);
@@ -729,6 +740,28 @@ public final class DirectGlEffectRenderer {
         GL15C.glBufferSubData(GL15C.GL_ARRAY_BUFFER, 0L, vertexBuf);
         GL11C.glDrawArrays(GL11C.GL_TRIANGLES, 0, verts);
         GL30C.glBindVertexArray(0);
+    }
+
+    private void bindAuthoredMaterial(CompiledMaterial custom, MaterialModel material, @Nullable McResourceBridge bridge) {
+        int unit = GlStateGuard.MATERIAL_TEXTURE_START;
+        for (var sampler : custom.samplers().entrySet()) {
+            GL13C.glActiveTexture(GL13C.GL_TEXTURE0 + unit);
+            GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, textures.resolve(material.textures().get(sampler.getKey()), bridge));
+            GL20C.glUniform1i(sampler.getValue(), unit++);
+        }
+        GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
+        if (custom.effectFrameBlock() < 0) return;
+
+        if (effectFrameUbo == 0) effectFrameUbo = GL15C.glGenBuffers();
+        GL15C.glBindBuffer(GL31C.GL_UNIFORM_BUFFER, effectFrameUbo);
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            float[] params = material.parameters();
+            GL15C.glBufferData(GL31C.GL_UNIFORM_BUFFER,
+                    stack.floats(frameTimeSeconds, 0f, 0f, 0f, params[0], params[1], params[2], params[3]),
+                    GL15C.GL_STREAM_DRAW);
+        }
+        GL31C.glUniformBlockBinding(custom.program(), custom.effectFrameBlock(), 0);
+        GL30C.glBindBufferBase(GL31C.GL_UNIFORM_BUFFER, 0, effectFrameUbo);
     }
 
     private static void applyMaterialState(MaterialModel mat) {
@@ -781,6 +814,10 @@ public final class DirectGlEffectRenderer {
         volumeLightRenderer.dispose();
         rvt.dispose();
         niagaraGpuRunner.shutdown();
+        if (effectFrameUbo != 0) {
+            GL15C.glDeleteBuffers(effectFrameUbo);
+            effectFrameUbo = 0;
+        }
         if (quadVao != 0) {
             GL30C.glDeleteVertexArrays(quadVao);
             quadVao = 0;

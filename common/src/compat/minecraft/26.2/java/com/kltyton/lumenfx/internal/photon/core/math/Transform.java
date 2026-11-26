@@ -1,10 +1,15 @@
 package com.kltyton.lumenfx.internal.photon.core.math;
 
 import com.kltyton.lumenfx.internal.photon.core.editor.ui.sceneeditor.sceneobject.ISceneObject;
-import com.kltyton.lumenfx.internal.photon.core.syncdata.IPersistedSerializable;
-import com.kltyton.lumenfx.internal.photon.core.syncdata.annotation.Persisted;
+import com.kltyton.lumenfx.internal.photon.core.utils.LDLibExtraCodecs;
+import com.lowdragmc.photon.client.fx.instance.InstanceIds;
+import com.lowdragmc.photon.client.fx.instance.InstanceTags;
+import com.lowdragmc.photon.utils.PhotonValueSerializable;
 import lombok.Getter;
 import lombok.experimental.Accessors;
+import net.minecraft.util.ExtraCodecs;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -17,18 +22,17 @@ import java.util.List;
 import java.util.UUID;
 
 @Accessors(fluent = true)
-public final class Transform implements IPersistedSerializable {
-    @Getter @Persisted
+public final class Transform implements PhotonValueSerializable {
+    @Getter
     private UUID id = UUID.randomUUID();
-    @Getter @Persisted
+    @Getter
     private Vector3f localPosition = new Vector3f();
-    @Getter @Persisted
+    @Getter
     private Quaternionf localRotation = new Quaternionf();
-    @Getter @Persisted
+    @Getter
     private Vector3f localScale = new Vector3f(1f, 1f, 1f);
-    @Nullable @Persisted
+    @Nullable
     private UUID parentId;
-    @Persisted
     private List<UUID> childIds = new ArrayList<>();
 
     @Getter @Nullable
@@ -41,6 +45,30 @@ public final class Transform implements IPersistedSerializable {
 
     public Transform(ISceneObject sceneObject) {
         this.sceneObject = sceneObject;
+    }
+
+    @Override
+    public void serialize(ValueOutput output) {
+        output.store(InstanceTags.ID, LDLibExtraCodecs.UUID, id);
+        output.store("localPosition", ExtraCodecs.VECTOR3F, localPosition);
+        output.store("localRotation", ExtraCodecs.QUATERNIONF, localRotation);
+        output.store("localScale", ExtraCodecs.VECTOR3F, localScale);
+        if (parentId != null) output.store(InstanceTags.PARENT, LDLibExtraCodecs.UUID, parentId);
+        output.store(InstanceTags.CHILDREN, LDLibExtraCodecs.UUID.listOf(), childIds);
+    }
+
+    @Override
+    public void deserialize(ValueInput input) {
+        id = input.read(InstanceTags.ID, LDLibExtraCodecs.UUID).orElse(id);
+        localPosition = input.read("localPosition", ExtraCodecs.VECTOR3F).map(Vector3f::new).orElse(localPosition);
+        localRotation = input.read("localRotation", ExtraCodecs.QUATERNIONF).map(Quaternionf::new).orElse(localRotation);
+        localScale = input.read("localScale", ExtraCodecs.VECTOR3F).map(Vector3f::new).orElse(localScale);
+        // Older Photon projects use "_NULL_" on a root, so read the parent as a string.
+        parentId = InstanceIds.parse(input.getString(InstanceTags.PARENT)
+                .or(() -> input.getString(InstanceTags.PREVIOUS_PARENT)).orElse(null));
+        childIds = new ArrayList<>(input.read(InstanceTags.CHILDREN, LDLibExtraCodecs.UUID.listOf())
+                .or(() -> input.read(InstanceTags.PREVIOUS_CHILDREN, LDLibExtraCodecs.UUID.listOf()))
+                .orElseGet(List::of));
     }
 
     public List<Transform> children() {
