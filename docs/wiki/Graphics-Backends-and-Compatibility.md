@@ -49,8 +49,10 @@ Fabric builds require Fabric API for the matching Minecraft version. LDLib2, Kil
 | :--- | :---: | :--- |
 | **Iris** | Optional | On 26.2 & 26.3, automatically selects OpenGL and integrates scene color, depth, and exposure with active shader packs. |
 | **Sodium** | Optional | Compatible on both Vulkan (26.2 / 26.3) and OpenGL paths with full chunk-depth & scene compositing. |
-| **GeckoLib (4.x / 5.x)** | Optional | Enables Blockbench `particle_effects` keyframe routing to LumenFX with 3D locator/bone position & rotation tracking across all 10 targets (see [[GeckoLib & KBR Keyframes\|GeckoLib-and-KBR-Keyframes]]). |
-| **KBR (KltytonBedrockRuntime)** | Optional | Full rendering co-install compatibility plus seamless keyframe coexistence (unmatched IDs pass through to KBR Bedrock/SnowStorm particles, and KBR native animation fallbacks route to LumenFX). |
+| **GeckoLib (4.x / 5.x)** | Optional | Preserves native callback-only semantics (no unsolicited auto-spawning); calling `LumenFxKeyframeBridge.trigger(...)` inside a callback automatically enables 3D locator/bone tracking and reset cleanup (see [[Animation Particle Keyframes\|GeckoLib-and-KBR-Keyframes]]). |
+| **KBR / KBR-Lite (KltytonBedrockRuntime)** | Optional | Full rendering co-install compatibility plus seamless keyframe coexistence at KBR's dispatchers (prevents KBR unknown-ID errors independent of Mixin apply order), and routes full KBR native animation fallbacks to LumenFX. |
+| **PAL / PALMore** | Optional | Preserves native callback-only semantics (no unsolicited auto-spawning); calling `LumenFxKeyframeBridge.trigger(...)` inside a PAL/PALMore callback automatically tracks animated player bones (including native X-bend and PALMore 3-axis bend/position/scale) and cleans up on controller reset/stop. |
+| **AnimCue (`interactive_animation` 0.1.2+)** | Optional | Follows Vanilla → KBR → LumenFX priority to auto-play LumenFX keyframes in both local client and server-synced multiplayer scenes, with per-participant locator isolation, 3D bone/bend tracking, and automatic cleanup on scene finish. |
 | **KilaGraph** | Optional (NeoForge 26.2) | When both `kilagraph` and `ldlib2` are installed alongside LumenFX, Photon `.fx` shader-graph materials automatically activate via reflective soft-compat bridge. |
 
 All optional dependencies are declared with open compatible version ranges (never pinned to a single exact release).

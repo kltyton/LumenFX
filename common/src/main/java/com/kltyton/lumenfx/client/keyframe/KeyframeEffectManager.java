@@ -3,9 +3,10 @@ package com.kltyton.lumenfx.client.keyframe;
 import com.kltyton.lumenfx.api.client.keyframe.KeyframeEffectParams;
 import com.kltyton.lumenfx.api.client.keyframe.KeyframeEffectRequest;
 import com.kltyton.lumenfx.api.client.keyframe.LumenFxKeyframeBridge;
+import java.lang.ref.WeakReference;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,9 +38,152 @@ public final class KeyframeEffectManager {
     private static final List<LumenFxKeyframeBridge.Filter> FILTERS = new CopyOnWriteArrayList<>();
     private static final List<LumenFxKeyframeBridge.SpawnListener> LISTENERS = new CopyOnWriteArrayList<>();
 
+    /** Source authority for 3D locator samples; lower-priority fallback samples never overwrite rendered model poses. */
+    public enum LocatorSource {
+        FALLBACK(0),
+        ANIMATION_BONE(1),
+        RENDERED_MODEL(2);
+
+        final int priority;
+
+        LocatorSource(int priority) {
+            this.priority = priority;
+        }
+    }
+
     /** Guarded by LOCK; weak host keys prevent retaining dead animatables if tick cleanup is bypassed. */
     private static final Object LOCK = new Object();
     private static final Map<Object, HostState> HOSTS = new WeakHashMap<>();
+
+    /**
+     * Deterministic per-dispatch opposite-polarity pairing table (guarded by LOCK).
+     * Pairs a single keyframe's manual {@link LumenFxKeyframeBridge#trigger} invocation with its KBR auto-hook
+     * counterpart (in either callback order and regardless of callback duration), keyed by host identity,
+     * controller identity, canonical effect ID, locator, stop flag, and optional event token.
+     * Consumed on match and invalidated on client tick, host/controller stop, or clearAll.
+     */
+    private static final int MAX_PENDING_PAIRS = 64;
+    private static final List<PendingDispatchPair> PENDING_PAIRS = new ArrayList<>();
+    private static long clientTickEpoch = 0L;
+
+    /**
+     * Thread-local stack of active keyframe dispatch scopes opened by GeckoLib 4/5 mixins so public
+     * {@link LumenFxKeyframeBridge#trigger} calls inside a custom handler inherit the exact same event token as
+     * KBR's automatic hook for that single keyframe, while standalone manual calls outside any dispatch keep a null token.
+     */
+    private static final ThreadLocal<ArrayDeque<DispatchFrame>> DISPATCH_SCOPES = new ThreadLocal<>();
+
+    private static final class DispatchFrame {
+        final @Nullable Object owner;
+        final Object token;
+
+        DispatchFrame(@Nullable Object owner, Object token) {
+            this.owner = owner;
+            this.token = token;
+        }
+    }
+
+    /** Enters a new per-event dispatch scope with a fresh unique token and returns that token. */
+    public static Object enterDispatchScope(@Nullable Object owner) {
+        Object token = new Object();
+        enterDispatchScope(owner, token);
+        return token;
+    }
+
+    /** Enters a new per-event dispatch scope bound to {@code token} (LIFO stack supporting nested/re-entrant dispatches). */
+    public static void enterDispatchScope(@Nullable Object owner, Object token) {
+        Objects.requireNonNull(token, "token");
+        ArrayDeque<DispatchFrame> stack = DISPATCH_SCOPES.get();
+        if (stack == null) {
+            stack = new ArrayDeque<>();
+            DISPATCH_SCOPES.set(stack);
+        }
+        stack.push(new DispatchFrame(owner, token));
+    }
+
+    /** Exits the active dispatch scope matching {@code token} and prunes any unconsumed pairs for that token. */
+    public static void exitDispatchScope(@Nullable Object token) {
+        if (token == null) return;
+        ArrayDeque<DispatchFrame> stack = DISPATCH_SCOPES.get();
+        if (stack != null && !stack.isEmpty()) {
+            Iterator<DispatchFrame> it = stack.iterator();
+            while (it.hasNext()) {
+                DispatchFrame frame = it.next();
+                if (frame.token == token) {
+                    it.remove();
+                    break;
+                }
+            }
+            if (stack.isEmpty()) {
+                DISPATCH_SCOPES.remove();
+            }
+        }
+        prunePairsForToken(token);
+    }
+
+    /** Exits the top dispatch scope owned by {@code owner} (safe no-op if already exited). */
+    public static void exitDispatchScopeForOwner(@Nullable Object owner) {
+        if (owner == null) return;
+        ArrayDeque<DispatchFrame> stack = DISPATCH_SCOPES.get();
+        if (stack == null || stack.isEmpty()) return;
+        if (stack.peek().owner == owner) {
+            DispatchFrame popped = stack.pop();
+            if (stack.isEmpty()) {
+                DISPATCH_SCOPES.remove();
+            }
+            prunePairsForToken(popped.token);
+        }
+    }
+
+    /** Returns the active keyframe dispatch token on the current thread, or {@code null} outside any dispatch scope. */
+    public static @Nullable Object currentDispatchToken() {
+        ArrayDeque<DispatchFrame> stack = DISPATCH_SCOPES.get();
+        return (stack != null && !stack.isEmpty()) ? stack.peek().token : null;
+    }
+
+    private static void prunePairsForToken(Object token) {
+        synchronized (LOCK) {
+            PENDING_PAIRS.removeIf(entry -> {
+                if (entry.hostRef.get() == null) return true;
+                if (!entry.hasEventToken) return false;
+                Object entryToken = entry.eventTokenRef.get();
+                return entryToken == null || entryToken == token;
+            });
+        }
+    }
+
+    private static final class PendingDispatchPair {
+        final long threadId;
+        final long tickEpoch;
+        final WeakReference<Object> hostRef;
+        final @Nullable WeakReference<Entity> entityRef;
+        final boolean hasController;
+        final @Nullable WeakReference<Object> controllerRef;
+        final String canonicalId;
+        final @Nullable String locator;
+        final boolean stopRequest;
+        final boolean fromAutoHook;
+        final boolean hasEventToken;
+        final @Nullable WeakReference<Object> eventTokenRef;
+
+        PendingDispatchPair(long threadId, long tickEpoch,
+                            Object host, @Nullable Entity entity, @Nullable Object controllerKey,
+                            String canonicalId, @Nullable String locator,
+                            boolean stopRequest, boolean fromAutoHook, @Nullable Object eventToken) {
+            this.threadId = threadId;
+            this.tickEpoch = tickEpoch;
+            this.hostRef = new WeakReference<>(host);
+            this.entityRef = entity != null ? new WeakReference<>(entity) : null;
+            this.hasController = controllerKey != null;
+            this.controllerRef = controllerKey != null ? new WeakReference<>(controllerKey) : null;
+            this.canonicalId = canonicalId;
+            this.locator = locator;
+            this.stopRequest = stopRequest;
+            this.fromAutoHook = fromAutoHook;
+            this.hasEventToken = eventToken != null;
+            this.eventTokenRef = eventToken != null ? new WeakReference<>(eventToken) : null;
+        }
+    }
 
     private KeyframeEffectManager() { }
 
@@ -76,6 +220,143 @@ public final class KeyframeEffectManager {
     }
 
     /**
+     * Returns {@code true} if {@code rawEffect} (optionally with {@code preEffectScript}) would be claimed
+     * by LumenFX under current auto-intercept settings (either explicitly prefixed with {@code lumenfx:} /
+     * {@code lumenfx/} or matching a currently loaded LumenFX effect).
+     */
+    public static boolean isManagedEffect(@Nullable String rawEffect, @Nullable String preEffectScript) {
+        if (!AUTO_INTERCEPT.get()) {
+            return false;
+        }
+        KeyframeEffectPlaybackAdapter activeAdapter = adapter;
+        if (activeAdapter == null) {
+            return false;
+        }
+        LumenFxKeyframeBridge.ParsedEffectId parsed = LumenFxKeyframeBridge.parseEffectId(rawEffect);
+        if (parsed == null) {
+            return false;
+        }
+        if (parsed.explicitLumenFx()) {
+            return true;
+        }
+        String canonicalId = resolveCanonicalId(activeAdapter, rawEffect, parsed);
+        if (activeAdapter.hasEffect(canonicalId)) {
+            return true;
+        }
+        KeyframeEffectParams params = KeyframeEffectParams.parse(preEffectScript, null, false);
+        return params.stop() && hasActiveEffectId(canonicalId);
+    }
+
+    private static boolean consumeMatchingOppositePair(Object host,
+                                                       @Nullable Entity entity,
+                                                       @Nullable Object controllerKey,
+                                                       String canonicalId,
+                                                       @Nullable String locator,
+                                                       boolean stopRequest,
+                                                       boolean fromAutoHook,
+                                                       @Nullable Object eventToken) {
+        long currentThreadId = Thread.currentThread().getId();
+        synchronized (LOCK) {
+            if (PENDING_PAIRS.isEmpty()) {
+                return false;
+            }
+            Iterator<PendingDispatchPair> it = PENDING_PAIRS.iterator();
+            while (it.hasNext()) {
+                PendingDispatchPair entry = it.next();
+                Object entryHost = entry.hostRef.get();
+                if (entryHost == null || entry.tickEpoch != clientTickEpoch) {
+                    it.remove();
+                    continue;
+                }
+                if (entry.hasController && entry.controllerRef.get() == null) {
+                    it.remove();
+                    continue;
+                }
+                if (entry.threadId != currentThreadId || entry.fromAutoHook == fromAutoHook) {
+                    continue;
+                }
+                Entity entryEntity = entry.entityRef != null ? entry.entityRef.get() : null;
+                boolean sameHost = (entryHost == host) || (entity != null && entryEntity == entity);
+                if (!sameHost) {
+                    continue;
+                }
+                Object entryController = entry.hasController ? entry.controllerRef.get() : null;
+                if (entryController != controllerKey) {
+                    continue;
+                }
+                if (entry.stopRequest != stopRequest
+                        || !canonicalId.equals(entry.canonicalId)
+                        || !Objects.equals(locator, entry.locator)) {
+                    continue;
+                }
+                boolean incomingHasToken = eventToken != null;
+                if (entry.hasEventToken != incomingHasToken) {
+                    continue;
+                }
+                if (incomingHasToken) {
+                    Object entryToken = entry.eventTokenRef.get();
+                    if (entryToken != eventToken) {
+                        continue;
+                    }
+                }
+                it.remove();
+                return true;
+            }
+            return false;
+        }
+    }
+
+    private static void recordPendingPair(Object host,
+                                          @Nullable Entity entity,
+                                          @Nullable Object controllerKey,
+                                          String canonicalId,
+                                          @Nullable String locator,
+                                          boolean stopRequest,
+                                          boolean fromAutoHook,
+                                          @Nullable Object eventToken) {
+        long currentThreadId = Thread.currentThread().getId();
+        synchronized (LOCK) {
+            if (PENDING_PAIRS.size() >= MAX_PENDING_PAIRS) {
+                PENDING_PAIRS.remove(0);
+            }
+            PENDING_PAIRS.add(new PendingDispatchPair(
+                    currentThreadId, clientTickEpoch,
+                    host, entity, controllerKey,
+                    canonicalId, locator,
+                    stopRequest, fromAutoHook, eventToken));
+        }
+    }
+
+    private static void prunePairsForHost(Object host) {
+        PENDING_PAIRS.removeIf(entry -> {
+            Object entryHost = entry.hostRef.get();
+            return entryHost == null || entryHost == host;
+        });
+    }
+
+    private static void prunePairsForController(@Nullable Object host, Object controllerKey) {
+        PENDING_PAIRS.removeIf(entry -> {
+            Object entryHost = entry.hostRef.get();
+            if (entryHost == null) return true;
+            if (host != null && entryHost != host) return false;
+            return entry.hasController && entry.controllerRef.get() == controllerKey;
+        });
+    }
+
+    private static boolean hasActiveEffectId(String canonicalId) {
+        synchronized (LOCK) {
+            for (HostState state : HOSTS.values()) {
+                for (ActiveBinding binding : state.bindings) {
+                    if (binding.isAliveOrPending() && canonicalId.equals(binding.effectId)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Evaluates a particle keyframe event.
      *
      * @return {@code true} if LumenFX claimed/handled this keyframe; {@code false} so KBR or other handlers proceed untouched.
@@ -91,6 +372,28 @@ public final class KeyframeEffectManager {
                                          @Nullable Boolean bindToActor,
                                          double fallbackX, double fallbackY, double fallbackZ,
                                          boolean fromAutoHook) {
+        return handleKeyframe(level, host, entity, controllerKey, controllerName,
+                rawEffect, locator, preEffectScript, bindToActor,
+                fallbackX, fallbackY, fallbackZ, fromAutoHook, null);
+    }
+
+    /**
+     * Evaluates a particle keyframe event with an optional dispatch/event token for deterministic coexistence dedup.
+     *
+     * @return {@code true} if LumenFX claimed/handled this keyframe; {@code false} so KBR or other handlers proceed untouched.
+     */
+    public static boolean handleKeyframe(@Nullable ClientLevel level,
+                                         @Nullable Object host,
+                                         @Nullable Entity entity,
+                                         @Nullable Object controllerKey,
+                                         @Nullable String controllerName,
+                                         @Nullable String rawEffect,
+                                         @Nullable String locator,
+                                         @Nullable String preEffectScript,
+                                         @Nullable Boolean bindToActor,
+                                         double fallbackX, double fallbackY, double fallbackZ,
+                                         boolean fromAutoHook,
+                                         @Nullable Object eventToken) {
         if (fromAutoHook && !AUTO_INTERCEPT.get()) {
             return false;
         }
@@ -107,16 +410,26 @@ public final class KeyframeEffectManager {
         boolean hasLocator = locator != null && !locator.isBlank();
         String normLocator = hasLocator ? locator.trim() : null;
         KeyframeEffectParams params = KeyframeEffectParams.parse(preEffectScript, bindToActor, hasLocator);
+        Object effectiveToken = eventToken != null ? eventToken : currentDispatchToken();
+
+        if (consumeMatchingOppositePair(host, entity, controllerKey, canonicalId, normLocator, params.stop(), fromAutoHook, effectiveToken)) {
+            return true;
+        }
 
         if (params.stop()) {
             boolean stopped = stopMatching(host, controllerKey, parsed.explicitLumenFx() || activeAdapter.hasEffect(canonicalId) ? canonicalId : null, normLocator);
-            return stopped || parsed.explicitLumenFx();
+            boolean handledStop = stopped || parsed.explicitLumenFx();
+            if (handledStop) {
+                recordPendingPair(host, entity, controllerKey, canonicalId, normLocator, true, fromAutoHook, effectiveToken);
+            }
+            return handledStop;
         }
 
         boolean exists = activeAdapter.hasEffect(canonicalId);
         if (!exists) {
             if (parsed.explicitLumenFx()) {
                 LOGGER.warn("Explicit LumenFX particle keyframe '{}' not found in loaded effects", canonicalId);
+                recordPendingPair(host, entity, controllerKey, canonicalId, normLocator, false, fromAutoHook, effectiveToken);
                 return true;
             }
             // Unknown to LumenFX -> hand back to KBR Bedrock/SnowStorm/3D particles or mod custom handler.
@@ -146,7 +459,11 @@ public final class KeyframeEffectManager {
         String finalId = request.resolvedEffectId();
         KeyframeEffectParams finalParams = request.params();
         if (!activeAdapter.hasEffect(finalId)) {
-            return parsed.explicitLumenFx();
+            if (parsed.explicitLumenFx()) {
+                recordPendingPair(host, entity, controllerKey, canonicalId, normLocator, false, fromAutoHook, effectiveToken);
+                return true;
+            }
+            return false;
         }
 
         if (finalParams.restart()) {
@@ -184,6 +501,7 @@ public final class KeyframeEffectManager {
                 if (finalParams.follow()) {
                     for (ActiveBinding b : state.bindings) {
                         if (b.matches(controllerKey, finalId, normLocator) && b.isAliveOrPending()) {
+                            recordPendingPair(host, entity, controllerKey, canonicalId, normLocator, false, fromAutoHook, effectiveToken);
                             return true;
                         }
                     }
@@ -192,6 +510,7 @@ public final class KeyframeEffectManager {
                         level, controllerKey, finalId, normLocator, finalParams, request, null,
                         computeSeed(host, entity, finalId, normLocator, finalParams));
                 state.bindings.add(pending);
+                recordPendingPair(host, entity, controllerKey, canonicalId, normLocator, false, fromAutoHook, effectiveToken);
                 return true;
             }
 
@@ -199,6 +518,7 @@ public final class KeyframeEffectManager {
                 for (ActiveBinding b : state.bindings) {
                     if (b.matches(controllerKey, finalId, normLocator) && b.isAliveOrPending()) {
                         // Refresh already-bound locator effect without spawning a duplicate
+                        recordPendingPair(host, entity, controllerKey, canonicalId, normLocator, false, fromAutoHook, effectiveToken);
                         return true;
                     }
                 }
@@ -208,6 +528,7 @@ public final class KeyframeEffectManager {
             KeyframeEffectPlaybackAdapter.BoundHandle handle = activeAdapter.spawn(
                     level, finalId, spawnX, spawnY, spawnZ, seed, finalParams, finalParams.follow() && normLocator != null);
             if (handle == null) {
+                recordPendingPair(host, entity, controllerKey, canonicalId, normLocator, false, fromAutoHook, effectiveToken);
                 return true;
             }
             float entityScale = resolveEntityScale(entity) * finalParams.scale();
@@ -226,6 +547,7 @@ public final class KeyframeEffectManager {
                 state.bindings.add(new ActiveBinding(
                         level, controllerKey, finalId, normLocator, finalParams, request, handle, seed));
             }
+            recordPendingPair(host, entity, controllerKey, canonicalId, normLocator, false, fromAutoHook, effectiveToken);
             notifySpawnListeners(request, handle.rawHandle());
         }
         return true;
@@ -237,18 +559,6 @@ public final class KeyframeEffectManager {
         synchronized (LOCK) {
             HostState state = HOSTS.get(host);
             if (state == null || state.bindings.isEmpty()) return Collections.emptySet();
-            Set<String> names = null;
-            for (ActiveBinding binding : state.bindings) {
-                if (!binding.isAliveOrPending()) continue;
-                if (binding.locator != null) {
-                    if (names == null) names = Collections.newSetFromMap(new IdentityHashMap<>());
-                    // Use normal HashSet for string equality
-                    break;
-                }
-                if (binding.params.beamEndLocator() != null) {
-                    break;
-                }
-            }
             java.util.HashSet<String> result = new java.util.HashSet<>();
             for (ActiveBinding binding : state.bindings) {
                 if (!binding.isAliveOrPending()) continue;
@@ -274,14 +584,29 @@ public final class KeyframeEffectManager {
     }
 
     /**
-     * Publishes a rendered 3D locator/bone transform sample for {@code host} during entity rendering.
+     * Publishes an authoritative rendered 3D locator/bone transform sample for {@code host} during entity rendering.
      */
     public static void onLocatorSample(@Nullable Object host, @Nullable Entity entity, String locatorName,
                                        double worldX, double worldY, double worldZ,
                                        float qx, float qy, float qz, float qw,
                                        @Nullable Vec3 actorPosition) {
+        onLocatorSample(host, entity, locatorName, worldX, worldY, worldZ, qx, qy, qz, qw,
+                actorPosition, LocatorSource.RENDERED_MODEL);
+    }
+
+    /**
+     * Publishes a 3D locator/bone transform sample for {@code host} tagged with its {@link LocatorSource} authority.
+     * Lower-priority sources (e.g., procedural humanoid bone or actor-anchor fallbacks) never overwrite an existing
+     * higher-priority sample (e.g., an authoritative GeckoLib {@code GeoLocator}/{@code GeoBone} render pose).
+     */
+    public static void onLocatorSample(@Nullable Object host, @Nullable Entity entity, String locatorName,
+                                       double worldX, double worldY, double worldZ,
+                                       float qx, float qy, float qz, float qw,
+                                       @Nullable Vec3 actorPosition,
+                                       LocatorSource source) {
         if (host == null || locatorName == null || locatorName.isBlank()) return;
         if (!Double.isFinite(worldX) || !Double.isFinite(worldY) || !Double.isFinite(worldZ)) return;
+        LocatorSource resolvedSource = source != null ? source : LocatorSource.RENDERED_MODEL;
         KeyframeEffectPlaybackAdapter activeAdapter = adapter;
         if (activeAdapter == null) return;
 
@@ -289,7 +614,12 @@ public final class KeyframeEffectManager {
         synchronized (LOCK) {
             HostState state = HOSTS.computeIfAbsent(host, k -> new HostState(entity));
             if (entity != null) state.entity = entity;
-            state.lastLocatorPoses.put(locatorName, new LocatorPose(worldX, worldY, worldZ, qx, qy, qz, qw));
+            LocatorPose existing = state.lastLocatorPoses.get(locatorName);
+            if (existing != null && existing.source.priority > resolvedSource.priority) {
+                return;
+            }
+            state.lastLocatorPoses.put(locatorName,
+                    new LocatorPose(worldX, worldY, worldZ, qx, qy, qz, qw, resolvedSource));
 
             if (state.bindings.isEmpty()) return;
             Entity resolvedEntity = entity != null ? entity : state.entity;
@@ -360,6 +690,8 @@ public final class KeyframeEffectManager {
     /** Updates non-locator actor-following bindings on client tick and prunes removed/world-mismatched hosts. */
     public static void onClientTick(@Nullable ClientLevel activeLevel) {
         synchronized (LOCK) {
+            clientTickEpoch++;
+            PENDING_PAIRS.clear();
             if (HOSTS.isEmpty()) return;
             Iterator<Map.Entry<Object, HostState>> it = HOSTS.entrySet().iterator();
             while (it.hasNext()) {
@@ -406,6 +738,7 @@ public final class KeyframeEffectManager {
     public static void stopForHost(@Nullable Object host) {
         if (host == null) return;
         synchronized (LOCK) {
+            prunePairsForHost(host);
             HostState state = HOSTS.remove(host);
             if (state != null) state.closeAll();
         }
@@ -413,7 +746,28 @@ public final class KeyframeEffectManager {
 
     public static void stopForController(@Nullable Object host, @Nullable Object controllerKey) {
         if (host == null || controllerKey == null) return;
+        synchronized (LOCK) {
+            prunePairsForController(host, controllerKey);
+        }
         stopMatching(host, controllerKey, null, null);
+    }
+
+    /** Stops all active or pending keyframe effects associated with {@code controllerKey} across any host. */
+    public static void stopForControllerKey(@Nullable Object controllerKey) {
+        if (controllerKey == null) return;
+        synchronized (LOCK) {
+            prunePairsForController(null, controllerKey);
+            for (HostState state : HOSTS.values()) {
+                Iterator<ActiveBinding> it = state.bindings.iterator();
+                while (it.hasNext()) {
+                    ActiveBinding b = it.next();
+                    if (b.controllerKey == controllerKey) {
+                        b.close();
+                        it.remove();
+                    }
+                }
+            }
+        }
     }
 
     public static boolean stopMatching(@Nullable Object host, @Nullable Object controllerKey,
@@ -446,7 +800,10 @@ public final class KeyframeEffectManager {
     }
 
     public static void clearAll() {
+        DISPATCH_SCOPES.remove();
         synchronized (LOCK) {
+            clientTickEpoch++;
+            PENDING_PAIRS.clear();
             for (HostState state : HOSTS.values()) {
                 state.closeAll();
             }
@@ -518,7 +875,8 @@ public final class KeyframeEffectManager {
         }
     }
 
-    private record LocatorPose(double x, double y, double z, float qx, float qy, float qz, float qw) { }
+    private record LocatorPose(double x, double y, double z, float qx, float qy, float qz, float qw,
+                               LocatorSource source) { }
 
     private record SpawnNotification(KeyframeEffectRequest request, Object rawHandle) { }
 

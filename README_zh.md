@@ -22,7 +22,7 @@
 
 - **极致轻量、无重型外部前置与游戏内编辑器**——彻底解耦外部 `LDLib2` 与 `KilaGraph` 强依赖（KilaGraph 着色器图仍以纯可选软兼容方式保留），运行 JAR 不含编辑器、演示贴图或重复冗余文件，所有特效均以标准 Minecraft 资源包形式加载（`assets/<namespace>/lumenfx/...`）。
 - **跨引擎资产兼容与前端编辑器插件**——同时运行 LumenFX 原生 JSON、Photon `.fx`、**Unity ParticleSystem（Shuriken）**（配套标准 **Unity UPM 编辑器插件**）与 **Unreal Engine Niagara**（CPU VectorVM、GPU SPIR-V 计算与 SimCache `.lfsc`，配套 **UE5 编辑器插件** 与离线编译器）。
-- **原生软兼容 GeckoLib（4.x / 5.x）与 KBR 粒子关键帧系统**——全部 10 个目标均可在 Blockbench 动画 `particle_effects` 关键帧中直接触发 LumenFX 粒子与拖尾，支持 3D 定位点位置与旋转跟随，并与 KBR 原生暴雪/3D 粒子和平共存。
+- **原生软兼容 GeckoLib（4.x / 5.x）、KBR / KBR-Lite、PAL / PALMore 与合拍（AnimCue）粒子关键帧**——全部 10 个目标均为零前置纯可选联动：独立 GeckoLib 与 PAL / PALMore 保持原生回调接口语义（回调中调用 `LumenFxKeyframeBridge.trigger(...)` 即可自动追踪 3D 定位点、玩家骨骼与 bend 变形并在停止/重置时自动清理）；共装 KBR / KBR-Lite 与合拍（AnimCue 0.1.2+）时按原版 → KBR → LumenFX 优先级自动分流且支持联机服务端同步与多参与者定位点隔离。
 - **多版本多加载器统一交付**——完整覆盖 Minecraft **1.20.1、1.21.1、26.1.2、26.2 与 26.3**（Forge、NeoForge、Fabric），每个目标仅交付单一统一 JAR；26.2 与 26.3 提供**动态 Vulkan 优先 / OpenGL 自动回退**，1.20.1 / 1.21.1 / 26.1.2 提供全特性原生 OpenGL 管线。
 
 源自 Photon 26.2 的代码文件完整保留 KilaBash 的署名与版权声明，遵循随附的 [Photon 许可证（CC BY-NC-SA 4.0）](licenses/photon/LICENSE)；LumenFX 原创代码与离线工具采用 [MIT 许可证](LICENSE)。
@@ -117,8 +117,8 @@
   - 当系统显卡驱动及已装渲染模组支持 Vulkan 时（包含独立运行与 Sodium 共装），**默认自动启用 Vulkan**；
   - 当环境不支持 Vulkan 或检测到必须使用 OpenGL 的渲染模组（如 Iris）时，**自动无缝回退至 OpenGL**；
   - 始终尊重用户的显式图形后端参数（`--graphicsBackend`）、视频设置及原版崩溃恢复。
-- **Fabric API 与可选兼容**：Fabric 版需要对应 Minecraft 版本的 Fabric API。LDLib2、KilaGraph、Iris、Sodium、GeckoLib 和 KBR 均为可选。
-- **GeckoLib 与 KBR 粒子关键帧兼容**：直接在 Blockbench 动画的 `particle_effects` 关键帧中触发 LumenFX 特效，自动按 ID 分流（未命中时交还 KBR 原生暴雪/3D 粒子），支持 3D 定位点位置/旋转跟随、`pre_effect_script` 参数指令与 `LumenFxKeyframeBridge` 公开 Java API。
+- **Fabric API 与可选兼容**：Fabric 版需要对应 Minecraft 版本的 Fabric API。LDLib2、KilaGraph、Iris、Sodium、GeckoLib、KBR / KBR-Lite、PAL / PALMore 与合拍（AnimCue）均为可选。
+- **动画粒子关键帧兼容（GeckoLib、KBR / KBR-Lite、PAL / PALMore、合拍 AnimCue）**：独立 GeckoLib 与 PAL / PALMore 保持原有回调接口、不做自动生成粒子，通过 `LumenFxKeyframeBridge.trigger(...)` 触发后自动提供 3D 定位点、玩家弯曲骨骼（含 PALMore 3 轴 bend）姿态跟随与重置清理；共装 KBR / KBR-Lite 时自动分流并避免未知 ID 报错；支持合拍（AnimCue 0.1.2+）本地与联机场景按原版 → KBR → LumenFX 优先级自动播放与骨骼跟随。
 - **无锁工作窃取多线程模拟与零拷贝 GPU 上传**：全版本采用持久化无锁工作窃取线程池、LPT 负载排序、主线程重叠调度、预编译 Niagara 参数绑定、指令提升 VectorVM 与多帧环形缓冲直写。
 
 ---
@@ -156,7 +156,7 @@ repositories {
 
 dependencies {
     // 按需替换为上表中对应版本与加载器的 Artifact ID
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.2'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.3'
 }
 ```
 

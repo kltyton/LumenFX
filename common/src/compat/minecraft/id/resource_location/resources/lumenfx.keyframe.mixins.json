@@ -10,7 +10,15 @@
     "Gecko41201AnimationProcessorMixin",
     "Gecko41211AnimationProcessorMixin",
     "Gecko4GeoBoneMixin",
-    "KbrBedrockParticlesMixin"
+    "Kbr1201GeckoLibHelperMixin",
+    "Kbr1211GeckoLibHelperMixin",
+    "KbrBedrockParticlesMixin",
+    "PalAnimationControllerMixin",
+    "PalMore1201KeyframePlayerMixin",
+    "PalMore1201PoseSampleMixin",
+    "AnimCueKbrParticleCompatMixin",
+    "AnimCueEffectDispatcherMixin",
+    "AnimCueClientSceneMixin"
   ],
   "injectors": {
     "defaultRequire": 0

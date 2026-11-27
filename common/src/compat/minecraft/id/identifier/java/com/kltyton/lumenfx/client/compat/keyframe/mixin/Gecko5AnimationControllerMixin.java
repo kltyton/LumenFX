@@ -6,22 +6,15 @@ import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Hooks GeckoLib 5 AnimationController particle keyframe dispatch and controller reset cleanup. */
+/**
+ * Hooks GeckoLib 5 AnimationController reset cleanup for any LumenFX effects bound to that controller
+ * (either via manual {@code LumenFxKeyframeBridge.trigger(...)} in a callback or via KBR coexistence).
+ * Intentionally does NOT wrap {@code particleKeyframeHandler} so standalone GeckoLib stays callback-only.
+ */
 @Pseudo
 @Mixin(targets = "com.geckolib.animation.AnimationController", remap = false)
 public abstract class Gecko5AnimationControllerMixin {
-    @Inject(method = "checkControllerState", at = @At("HEAD"), remap = false)
-    private void lumenfx$ensureParticleHandler(CallbackInfoReturnable<Boolean> cir) {
-        Gecko5KeyframeBridge.ensureParticleHandlerWrapped(this);
-    }
-
-    @Inject(method = "setParticleKeyframeHandler", at = @At("TAIL"), remap = false)
-    private void lumenfx$wrapCustomParticleHandler(CallbackInfoReturnable<Object> cir) {
-        Gecko5KeyframeBridge.ensureParticleHandlerWrapped(this);
-    }
-
     @Inject(method = "reset", at = @At("HEAD"), remap = false)
     private void lumenfx$onControllerReset(CallbackInfo ci) {
         Gecko5KeyframeBridge.onControllerReset(this);

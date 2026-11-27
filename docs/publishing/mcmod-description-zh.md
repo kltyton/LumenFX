@@ -74,8 +74,8 @@
 - **单一统一包，26.2 / 26.3 动态 Vulkan 优先 / OpenGL 自动回退**：玩家无需纠结下载“Vulkan 版”还是“OpenGL 版”！在 Minecraft 26.2 与 26.3 中，LumenFX 会在显卡驱动与模组环境支持时**默认启用 Vulkan**，在不支持 Vulkan 或安装了仅支持 OpenGL 的光影模组（如 Iris）时**自动无缝回退至 OpenGL**，并通过无损着色器打包（`compute.lfpack`）大幅精简包体。
 - **1.20.1 / 1.21.1 / 26.1.2 原生 OpenGL 全特性对等**：历史版本同样提供内置 HDR 泛光、自定义 GLSL 着色器材质、深度软粒子、完整 Photon `.fx` 时间线/力场/碰撞/子发射器、Niagara GPU 零回读直出绘制（无粒子数量回读上限）、Nanite 簇级 LOD、3D 高斯泼溅、RVT、Groom 毛发、体积雾/贴花/动态光与 3D 空间音频。
 - **高吞吐无锁多线程模拟与高效 GPU 上传**：全 10 目标配备无锁工作窃取线程池、LPT 负载排序、主线程重叠调度、预编译 Niagara 参数绑定、指令提升 VectorVM 与多帧环形直写上传。
-- **轻量运行库与可选兼容**：Fabric 版需要对应 Minecraft 版本的 Fabric API。LDLib2、Iris、Sodium、GeckoLib（4.x / 5.x）、KBR 和 KilaGraph 均为可选。运行 JAR 不含游戏内编辑器。
-- **原生兼容 GeckoLib 与 KBR 粒子关键帧**：全版本支持在 Blockbench 动画 `particle_effects` 关键帧中直接触发 LumenFX 粒子与拖尾，支持 3D 定位点位置与旋转跟随、`pre_effect_script` 参数指令，并与 KBR 原生暴雪/3D 粒子自动分流、和平共存。
+- **轻量运行库与可选兼容**：Fabric 版需要对应 Minecraft 版本的 Fabric API。LDLib2、Iris、Sodium、GeckoLib（4.x / 5.x）、KBR / KBR-Lite、PAL / PALMore、合拍（AnimCue）和 KilaGraph 均为可选。运行 JAR 不含游戏内编辑器。
+- **全版本动画粒子关键帧软兼容**：零硬前置支持 **GeckoLib（4.x / 5.x）**、**KBR / KBR-Lite**、**PAL / PALMore** 与 **合拍（AnimCue 0.1.2+）**——独立 GeckoLib 与 PAL / PALMore 保持原生回调语义，通过 `LumenFxKeyframeBridge.trigger(...)` 触发后自动获得 3D 定位点、玩家骨骼与 3 轴 bend 跟随和重置清理；共装 KBR / KBR-Lite 自动分流和平共存；合拍本地与联机场景遵循原版 → KBR → LumenFX 优先级自动播放。
 - **跨引擎生态与官方 Unity / UE5 编辑器插件**：同时支持 LumenFX JSON、Photon `.fx`、**Unity ParticleSystem（Shuriken）**（仓库提供 **Unity UPM 编辑器插件**，含预设模板、MC 单方块网格参照与批量导出）以及 **Unreal Engine Niagara**（CPU VectorVM、GPU 计算着色器与 SimCache，仓库提供 **UE5 编辑器插件** 与离线编译器）。
 
 ---
@@ -96,7 +96,7 @@
 
 - **GitHub 开源仓库（含官方示例特效包、Unity UPM / UE5 编辑器插件与离线编译器）：** [https://github.com/kltyton/LumenFX](https://github.com/kltyton/LumenFX)
 - **完整 Wiki 文档、关键帧兼容与 Java API 教程：** [https://github.com/kltyton/LumenFX/wiki](https://github.com/kltyton/LumenFX/wiki)
-- **Maven 仓库（Sighs Maven）：** `https://maven.sighs.cc/repository/maven-public/`（坐标 `com.kltyton.lumenfx:lumenfx-<加载器>-<MC版本>:0.3.2`）
+- **Maven 仓库（Sighs Maven）：** `https://maven.sighs.cc/repository/maven-public/`（坐标 `com.kltyton.lumenfx:lumenfx-<加载器>-<MC版本>:0.3.3`）
 
 ---
 

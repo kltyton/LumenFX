@@ -7,9 +7,15 @@
   "client": [
     "Gecko5ActorParticleEffectMixin",
     "Gecko5AnimationControllerMixin",
+    "Gecko5AnimationTimelineMixin",
     "Gecko5RenderPassInfoMixin",
     "Gecko5GeoLocatorMixin",
-    "KbrBedrockParticlesMixin"
+    "KbrGeckoLibHelperMixin",
+    "KbrBedrockParticlesMixin",
+    "PalAnimationControllerMixin",
+    "AnimCueKbrParticleCompatMixin",
+    "AnimCueEffectDispatcherMixin",
+    "AnimCueClientSceneMixin"
   ],
   "injectors": {
     "defaultRequire": 0

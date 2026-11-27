@@ -49,8 +49,10 @@ Fabric 版需要对应 Minecraft 版本的 Fabric API。LDLib2、KilaGraph、渲
 | :--- | :---: | :--- |
 | **Iris** | 可选（Optional） | 26.2 与 26.3 下自动选择 OpenGL 后端，并将场景颜色、深度与曝光与活动光影包正确合成。 |
 | **Sodium** | 可选（Optional） | 同时兼容 26.2 / 26.3 Vulkan 与 OpenGL 管线，完整保留区块深度与透明粒子合成。 |
-| **GeckoLib（4.x / 5.x）** | 可选（Optional） | 全 10 目标自动启用 Blockbench `particle_effects` 关键帧播放与 3D 定位点/骨骼姿态跟随（详见 [[GeckoLib 与 KBR 粒子关键帧\|GeckoLib-and-KBR-Keyframes-zh]]）。 |
-| **KBR（KltytonBedrockRuntime）** | 可选（Optional） | 共享渲染兼容，且与 KBR 暴雪/3D 粒子自动分流和平共存，并支持 KBR 原生基岩动画未命中时回落至 LumenFX。 |
+| **GeckoLib（4.x / 5.x）** | 可选（Optional） | 保留原生回调接口语义（不做自动生成粒子）；回调中调用 `LumenFxKeyframeBridge.trigger(...)` 时自动启用 3D 定位点/骨骼姿态跟随与重置清理（详见 [[动画粒子关键帧集成\|GeckoLib-and-KBR-Keyframes-zh]]）。 |
+| **KBR / KBR-Lite（KltytonBedrockRuntime）** | 可选（Optional） | 共享渲染兼容，并在 KBR 自动关键帧入口自动分流 LumenFX 与 KBR 暴雪/3D 粒子（避免 KBR 对非 KBR ID 报错，且不受 Mixin 顺序影响），并支持完整版 KBR 原生基岩动画回落。 |
+| **PAL / PALMore（PlayerAnimationLibrary / MoreRotation）** | 可选（Optional） | 保留原生回调接口语义（不做自动生成粒子）；回调中调用 `LumenFxKeyframeBridge.trigger(...)` 时自动逐帧追踪玩家骨骼（含原生及 PALMore 3 轴 bend 变形）与动画停止清理。 |
+| **合拍（AnimCue，`interactive_animation` 0.1.2+）** | 可选（Optional） | 遵循原版粒子 → KBR → LumenFX 优先级自动播放本地与联机服务端同步场景中的 LumenFX 关键帧，支持多参与者同名定位点隔离、骨骼/bend 3D 跟随与场景结束自动清理。 |
 | **KilaGraph** | 可选（NeoForge 26.2） | 当环境中同时安装了 `kilagraph` 与 `ldlib2` 时，自动通过软兼容桥接启用 Photon `.fx` 着色器图材质；未安装时完全零依赖。 |
 
 所有可选依赖均使用开放兼容版本范围声明，不锁死单一发行版本。

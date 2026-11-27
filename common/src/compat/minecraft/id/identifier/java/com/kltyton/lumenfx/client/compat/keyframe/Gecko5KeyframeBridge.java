@@ -1,8 +1,10 @@
 package com.kltyton.lumenfx.client.compat.keyframe;
 
+import com.kltyton.lumenfx.client.keyframe.KbrParticleProbe;
 import com.kltyton.lumenfx.client.keyframe.KeyframeEffectManager;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayDeque;
@@ -15,6 +17,7 @@ import java.util.WeakHashMap;
 import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -23,17 +26,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Pure soft-compatibility runtime bridge for GeckoLib 5.x and KBR on Minecraft 26.1.2 / 26.2.
+ * Pure soft-compatibility runtime bridge for GeckoLib 5.x and KBR / KBR-Lite on Minecraft 26.1.2 / 26.2 / 26.3.
  * Holds zero compile-time references to GeckoLib or KBR classes and caches reflective handles once on first use.
+ *
+ * <p>Standalone GeckoLib keeps its native callback-only particle keyframe semantics (no unsolicited auto-spawning);
+ * developers calling {@code LumenFxKeyframeBridge.trigger(...)} in a GeckoLib callback automatically receive
+ * 3D locator/bone pose tracking and controller-reset cleanup. When KBR / KBR-Lite is installed, LumenFX hooks
+ * KBR's automatic particle dispatchers so LumenFX effects play smoothly without KBR throwing on unknown IDs.</p>
  */
 public final class Gecko5KeyframeBridge {
     private static final Logger LOGGER = LoggerFactory.getLogger("LumenFX/Gecko5Keyframe");
-    private static final String PROXY_MARKER = "$lumenfx$keyframeProxy";
 
     private record BakedMeta(@Nullable String locator, @Nullable String preEffectScript, @Nullable Boolean bindToActor) { }
 
     private static final Map<Object, BakedMeta> BAKED_META = Collections.synchronizedMap(new WeakHashMap<>());
-    private static final Map<Object, Object> CONTROLLER_HOSTS = Collections.synchronizedMap(new WeakHashMap<>());
     private static final Map<Object, Entity> MANAGER_ENTITIES = Collections.synchronizedMap(new WeakHashMap<>());
     private static final Map<Object, Set<String>> PASS_ATTACHED_LOCATORS = Collections.synchronizedMap(new WeakHashMap<>());
     private static final Map<Object, Map<String, Quaternionf>> PASS_LOCATOR_ROTATIONS = Collections.synchronizedMap(new WeakHashMap<>());
@@ -42,10 +48,8 @@ public final class Gecko5KeyframeBridge {
     private static volatile boolean reflectionInitAttempted;
     private static volatile boolean reflectionReady;
 
-    private static Field controllerHandlerField;
     private static Method controllerGetNameMethod;
-    private static Class<?> keyframeHandlerInterface;
-    private static Method keyframeHandlerHandleMethod;
+    private static volatile @Nullable Method keyframeHandlerHandleMethod;
     private static Method eventAnimatableMethod;
     private static Method eventRenderStateMethod;
     private static Method eventControllerMethod;
@@ -58,6 +62,7 @@ public final class Gecko5KeyframeBridge {
     private static Method renderStateGetDataMethod;
     private static Object ticketAnimatableManager;
     private static Object ticketPosition;
+    private static Object ticketEntity;
     private static Method renderPassStateMethod;
     private static Method renderPassAddLocatorListenerMethod;
     private static Method renderPassAddBoneListenerMethod;
@@ -79,44 +84,64 @@ public final class Gecko5KeyframeBridge {
         }
     }
 
-    public static void ensureParticleHandlerWrapped(@Nullable Object controller) {
+    public static void onControllerReset(@Nullable Object controller) {
         if (controller == null) return;
-        if (!ensureReflection(controller.getClass().getClassLoader())) return;
+        KeyframeEffectManager.stopForControllerKey(controller);
+    }
+
+    /**
+     * Invokes GeckoLib 5's {@code KeyframeEventHandler.handle(KeyFrameEvent)} inside an exception-safe
+     * {@code try/finally} per-event dispatch scope, propagating any callback exception unchanged.
+     */
+    public static void dispatchWithScope(@Nullable Object owner, @Nullable Object handler, @Nullable Object event) {
+        if (handler == null) return;
+        ClassLoader loader = event != null ? event.getClass().getClassLoader() : handler.getClass().getClassLoader();
+        Method handleMethod = resolveKeyframeHandlerHandle(loader, handler);
+        if (handleMethod == null) {
+            return;
+        }
+        Object token = KeyframeEffectManager.enterDispatchScope(owner);
         try {
-            Object current = controllerHandlerField.get(controller);
-            if (isOurProxy(current)) {
-                return;
-            }
-            Object original = current;
-            Object proxy = Proxy.newProxyInstance(
-                    keyframeHandlerInterface.getClassLoader(),
-                    new Class<?>[] { keyframeHandlerInterface },
-                    (p, method, args) -> {
-                        String name = method.getName();
-                        if ("toString".equals(name)) return PROXY_MARKER;
-                        if ("equals".equals(name)) return p == (args != null && args.length > 0 ? args[0] : null);
-                        if ("hashCode".equals(name)) return System.identityHashCode(p);
-                        if ("handle".equals(name) && args != null && args.length == 1) {
-                            boolean handled = handleKeyframeEvent(args[0]);
-                            if (!handled && original != null) {
-                                keyframeHandlerHandleMethod.invoke(original, args[0]);
-                            }
-                            return null;
-                        }
-                        return null;
-                    });
-            controllerHandlerField.set(controller, proxy);
-        } catch (Throwable error) {
-            LOGGER.warn("Failed to wrap GeckoLib 5 AnimationController particle handler", error);
+            handleMethod.invoke(handler, event);
+        } catch (InvocationTargetException wrapped) {
+            rethrowUnchecked(wrapped.getCause() != null ? wrapped.getCause() : wrapped);
+        } catch (IllegalAccessException error) {
+            throw new IllegalStateException("Unable to invoke GeckoLib 5 KeyframeEventHandler.handle", error);
+        } finally {
+            KeyframeEffectManager.exitDispatchScope(token);
         }
     }
 
-    public static void onControllerReset(@Nullable Object controller) {
-        if (controller == null) return;
-        Object host = CONTROLLER_HOSTS.get(controller);
-        if (host != null) {
-            KeyframeEffectManager.stopForController(host, controller);
+    private static @Nullable Method resolveKeyframeHandlerHandle(ClassLoader loader, Object handler) {
+        Method cached = keyframeHandlerHandleMethod;
+        if (cached != null) return cached;
+        synchronized (Gecko5KeyframeBridge.class) {
+            cached = keyframeHandlerHandleMethod;
+            if (cached != null) return cached;
+            try {
+                Class<?> handlerCls = Class.forName(
+                        "com.geckolib.animation.AnimationController$KeyframeEventHandler", false, loader);
+                Class<?> eventCls = Class.forName("com.geckolib.animation.state.KeyFrameEvent", false, loader);
+                Method m = handlerCls.getMethod("handle", eventCls);
+                keyframeHandlerHandleMethod = m;
+                return m;
+            } catch (Throwable error) {
+                for (Class<?> iface : handler.getClass().getInterfaces()) {
+                    for (Method m : iface.getMethods()) {
+                        if ("handle".equals(m.getName()) && m.getParameterCount() == 1) {
+                            return m;
+                        }
+                    }
+                }
+                LOGGER.warn("Unable to resolve GeckoLib 5 KeyframeEventHandler.handle: {}", error.toString());
+                return null;
+            }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <E extends Throwable> void rethrowUnchecked(Throwable throwable) throws E {
+        throw (E) throwable;
     }
 
     public static void enterRenderPass(@Nullable Object renderPassInfo) {
@@ -147,16 +172,22 @@ public final class Gecko5KeyframeBridge {
         try {
             Object renderState = renderPassStateMethod.invoke(renderPassInfo);
             if (renderState == null) return;
-            Object host = getRenderStateData(renderState, ticketAnimatableManager);
-            if (host == null || !KeyframeEffectManager.hasTrackedLocators(host)) {
+            Object manager = getRenderStateData(renderState, ticketAnimatableManager);
+            Entity entity = resolveRenderStateEntity(manager, renderState);
+
+            boolean trackManager = manager != null && KeyframeEffectManager.hasTrackedLocators(manager);
+            boolean trackEntity = entity != null && entity != manager && KeyframeEffectManager.hasTrackedLocators(entity);
+            if (!trackManager && !trackEntity) {
                 return;
             }
-            Set<String> tracked = KeyframeEffectManager.trackedLocators(host);
+
+            Set<String> tracked = new HashSet<>();
+            if (trackManager) tracked.addAll(KeyframeEffectManager.trackedLocators(manager));
+            if (trackEntity) tracked.addAll(KeyframeEffectManager.trackedLocators(entity));
             if (tracked.isEmpty()) return;
 
             Set<String> alreadyAttached = PASS_ATTACHED_LOCATORS.computeIfAbsent(
                     renderPassInfo, ignored -> Collections.synchronizedSet(new HashSet<>()));
-            Entity entity = MANAGER_ENTITIES.get(host);
             Vec3 fallbackBase = resolveBasePosition(entity, renderState);
 
             for (String locatorName : tracked) {
@@ -178,13 +209,23 @@ public final class Gecko5KeyframeBridge {
                                 }
                                 if (target != null) {
                                     Quaternionf rot = lookupLocatorRotation(renderPassInfo, locatorName);
-                                    Entity resolvedEntity = MANAGER_ENTITIES.get(host);
+                                    Entity resolvedEntity = resolveRenderStateEntity(manager, renderState);
                                     Vec3 actorPos = resolvedEntity != null ? resolvedEntity.position() : fallbackBase;
-                                    KeyframeEffectManager.onLocatorSample(
-                                            host, resolvedEntity, locatorName,
-                                            target.x, target.y, target.z,
-                                            rot.x, rot.y, rot.z, rot.w,
-                                            actorPos);
+                                    if (manager != null && KeyframeEffectManager.hasTrackedLocators(manager)) {
+                                        KeyframeEffectManager.onLocatorSample(
+                                                manager, resolvedEntity, locatorName,
+                                                target.x, target.y, target.z,
+                                                rot.x, rot.y, rot.z, rot.w,
+                                                actorPos);
+                                    }
+                                    if (resolvedEntity != null && resolvedEntity != manager
+                                            && KeyframeEffectManager.hasTrackedLocators(resolvedEntity)) {
+                                        KeyframeEffectManager.onLocatorSample(
+                                                resolvedEntity, resolvedEntity, locatorName,
+                                                target.x, target.y, target.z,
+                                                rot.x, rot.y, rot.z, rot.w,
+                                                actorPos);
+                                    }
                                 }
                             }
                             return null;
@@ -214,6 +255,48 @@ public final class Gecko5KeyframeBridge {
                     .put(name, rot);
         } catch (Throwable error) {
             LOGGER.debug("Failed to capture GeckoLib 5 locator rotation", error);
+        }
+    }
+
+    /**
+     * Guard invoked at the head of KBR / KBR-Lite's {@code GeckoLibHelper.processParticleEffect(KeyFrameEvent)}.
+     *
+     * @return {@code true} to cancel KBR's handler (either because LumenFX handled this effect, or because the
+     *         keyframe effect is not registered in KBR's MolangParticleEngine and would otherwise throw).
+     */
+    public static boolean shouldCancelKbrGeckoLibHelper(@Nullable Object event) {
+        if (event == null) return false;
+        if (!ensureReflection(event.getClass().getClassLoader())) return false;
+        try {
+            Object data = eventKeyframeDataMethod.invoke(event);
+            if (data == null) return false;
+
+            String effect = (String) dataGetEffectMethod.invoke(data);
+            if (effect == null || effect.isBlank()) return false;
+
+            BakedMeta meta = BAKED_META.get(data);
+            String script = meta != null ? meta.preEffectScript() : null;
+
+            // 1. If LumenFX owns this effect ID, dispatch to LumenFX and cancel KBR so KBR never throws on it.
+            if (KeyframeEffectManager.isManagedEffect(effect, script)) {
+                handleKeyframeEvent(event);
+                return true;
+            }
+
+            // 2. Otherwise, check whether KBR actually defines this particle before letting KBR parse/throw.
+            Object animatable = eventAnimatableMethod.invoke(event);
+            Object renderState = eventRenderStateMethod.invoke(event);
+            Entity entity = resolveEntity(animatable);
+            if (entity == null && renderState != null) {
+                entity = resolveRenderStateEntity(getRenderStateData(renderState, ticketAnimatableManager), renderState);
+            }
+            Identifier parsedId = Identifier.tryParse(effect.trim());
+            boolean registeredInKbr = KbrParticleProbe.isRegisteredInKbr(
+                    event.getClass().getClassLoader(), entity, effect, parsedId);
+            return !registeredInKbr;
+        } catch (Throwable error) {
+            LOGGER.debug("Failed to evaluate KBR GeckoLib 5 coexistence guard", error);
+            return false;
         }
     }
 
@@ -255,11 +338,11 @@ public final class Gecko5KeyframeBridge {
             Object manager = renderState != null ? getRenderStateData(renderState, ticketAnimatableManager) : null;
             Object host = manager != null ? manager : animatable;
             if (host == null) return false;
-            if (controller != null) {
-                CONTROLLER_HOSTS.put(controller, host);
-            }
 
             Entity entity = resolveEntity(animatable);
+            if (entity == null && renderState != null) {
+                entity = resolveRenderStateEntity(manager, renderState);
+            }
             if (entity != null && manager != null) {
                 MANAGER_ENTITIES.put(manager, entity);
             }
@@ -277,10 +360,11 @@ public final class Gecko5KeyframeBridge {
                 if (n instanceof String s) controllerName = s;
             }
 
+            Object dispatchToken = KeyframeEffectManager.currentDispatchToken();
             boolean handled = KeyframeEffectManager.handleKeyframe(
                     level, host, entity, controller, controllerName,
                     effect, locator, script, bindToActor,
-                    fx, fy, fz, true);
+                    fx, fy, fz, true, dispatchToken != null ? dispatchToken : event);
 
             if (handled && locator != null && !locator.isBlank()) {
                 ArrayDeque<Object> stack = RENDER_PASS_STACK.get();
@@ -308,6 +392,19 @@ public final class Gecko5KeyframeBridge {
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    private static @Nullable Entity resolveRenderStateEntity(@Nullable Object manager, @Nullable Object renderState) {
+        if (manager != null) {
+            Entity cached = MANAGER_ENTITIES.get(manager);
+            if (cached != null) return cached;
+        }
+        Object fromTicket = getRenderStateData(renderState, ticketEntity);
+        if (fromTicket instanceof Entity e) {
+            if (manager != null) MANAGER_ENTITIES.put(manager, e);
+            return e;
+        }
+        return null;
     }
 
     private static @Nullable Entity resolveEntity(@Nullable Object animatable) {
@@ -347,10 +444,6 @@ public final class Gecko5KeyframeBridge {
         return null;
     }
 
-    private static boolean isOurProxy(@Nullable Object candidate) {
-        return candidate != null && Proxy.isProxyClass(candidate.getClass()) && PROXY_MARKER.equals(candidate.toString());
-    }
-
     private static boolean ensureReflection(ClassLoader loader) {
         if (reflectionReady) return true;
         if (reflectionInitAttempted) return false;
@@ -360,15 +453,14 @@ public final class Gecko5KeyframeBridge {
             reflectionInitAttempted = true;
             try {
                 Class<?> controllerCls = Class.forName("com.geckolib.animation.AnimationController", false, loader);
-                controllerHandlerField = controllerCls.getDeclaredField("particleKeyframeHandler");
-                controllerHandlerField.setAccessible(true);
                 try {
                     controllerGetNameMethod = controllerCls.getMethod("getName");
                 } catch (NoSuchMethodException ignored) { }
 
-                keyframeHandlerInterface = Class.forName("com.geckolib.animation.AnimationController$KeyframeEventHandler", false, loader);
                 Class<?> eventCls = Class.forName("com.geckolib.animation.state.KeyFrameEvent", false, loader);
-                keyframeHandlerHandleMethod = keyframeHandlerInterface.getMethod("handle", eventCls);
+                Class<?> handlerCls = Class.forName(
+                        "com.geckolib.animation.AnimationController$KeyframeEventHandler", false, loader);
+                keyframeHandlerHandleMethod = handlerCls.getMethod("handle", eventCls);
                 eventAnimatableMethod = eventCls.getMethod("animatable");
                 eventRenderStateMethod = eventCls.getMethod("renderState");
                 eventControllerMethod = eventCls.getMethod("controller");
@@ -395,6 +487,9 @@ public final class Gecko5KeyframeBridge {
                 ticketAnimatableManager = ticketsCls.getField("ANIMATABLE_MANAGER").get(null);
                 try {
                     ticketPosition = ticketsCls.getField("POSITION").get(null);
+                } catch (NoSuchFieldException ignored) { }
+                try {
+                    ticketEntity = ticketsCls.getField("ENTITY").get(null);
                 } catch (NoSuchFieldException ignored) { }
 
                 Class<?> renderPassCls = Class.forName("com.geckolib.renderer.base.RenderPassInfo", false, loader);

@@ -8,12 +8,16 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
 
 /**
- * Public entry point for integrating LumenFX with GeckoLib (4.x / 5.x) and KBR animation particle keyframes.
+ * Public entry point for integrating LumenFX with GeckoLib (4.x / 5.x), KBR / KBR-Lite,
+ * Player Animation Library (PAL), {@code PlayerAnimationLibraryMoreRotation} (PALMore), and
+ * AnimCue ({@code interactive_animation}) particle keyframes.
  *
- * <p>By default, LumenFX automatically observes particle keyframes whose effect ID matches a loaded LumenFX
- * effect (or carries an explicit {@code lumenfx:} prefix such as {@code lumenfx:my_mod:slash}), leaving all
- * KBR Bedrock/SnowStorm/3D particles and custom handlers untouched. Mod developers can customize routing,
- * override parameters, observe spawned handles, or trigger/stop keyframe effects manually through this API.
+ * <p>Standalone GeckoLib and PAL / PALMore keep their native callback-only particle keyframe model (LumenFX does not
+ * auto-spawn particles there); mods trigger LumenFX inside their particle keyframe callback via {@link #trigger},
+ * automatically gaining per-frame 3D locator/bone/bend pose tracking and controller reset/stop cleanup.
+ * When KBR / KBR-Lite or AnimCue (0.1.2+) is installed (which perform automatic particle keyframe playback), LumenFX
+ * hooks their particle dispatchers to play loaded LumenFX effects (or explicit {@code lumenfx:} prefixes) cleanly
+ * while preserving vanilla particles, KBR Bedrock/SnowStorm/3D particles, and custom callbacks.</p>
  */
 public final class LumenFxKeyframeBridge {
     @FunctionalInterface
@@ -69,9 +73,9 @@ public final class LumenFxKeyframeBridge {
         boolean explicit = false;
         String lower = trimmed.toLowerCase(Locale.ROOT);
         if (lower.startsWith("lumenfx:")) {
+            explicit = true;
             String rest = trimmed.substring("lumenfx:".length());
             if (rest.indexOf(':') > 0) {
-                explicit = true;
                 trimmed = rest;
             }
         } else if (lower.startsWith("lumenfx/")) {
