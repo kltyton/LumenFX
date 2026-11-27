@@ -1,0 +1,832 @@
+{
+  "format_version": 1,
+  "materials": {
+    "hologram_fox": {
+      "fragment_shader": "lumenfx_showcase:vfx/hologram_scanline",
+      "blend": "alpha",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.05,
+      "bloom_intensity": 0.22
+    },
+    "holo_mote": {
+      "fragment_shader": "lumenfx:core/effect",
+      "textures": {
+        "Sampler0": "lumenfx_showcase:textures/vfx/soft_glow.png"
+      },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.1,
+      "bloom_intensity": 0.32
+    }
+  },
+  "lights": [
+    {
+      "position": [
+        0.0,
+        0.8,
+        0.2
+      ],
+      "color": [
+        0.18,
+        0.88,
+        1.0
+      ],
+      "radius": 8.0,
+      "intensity": 0.42,
+      "type": "point"
+    }
+  ],
+  "emitters": [
+    {
+      "name": "holo_fox_0",
+      "renderer": "mesh",
+      "material": "hologram_fox",
+      "local_space": false,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.25,
+      "height": 1.25,
+      "start_speed": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            -3.3,
+            0.05,
+            0.5
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:hologram_fox"
+          }
+        ]
+      },
+      "velocity_over_life": [
+        0.0,
+        {
+          "keys": [
+            {
+              "time": 0.0,
+              "value": 0.18
+            },
+            {
+              "time": 0.25,
+              "value": -0.18
+            },
+            {
+              "time": 0.5,
+              "value": 0.18
+            },
+            {
+              "time": 0.75,
+              "value": -0.18
+            },
+            {
+              "time": 1.0,
+              "value": 0.18
+            }
+          ]
+        },
+        0.0
+      ],
+      "color": [
+        0.45,
+        0.96,
+        1.0,
+        0.92
+      ]
+    },
+    {
+      "name": "holo_fox_1",
+      "renderer": "mesh",
+      "material": "hologram_fox",
+      "local_space": false,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.33,
+      "height": 1.33,
+      "start_speed": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            -2.1,
+            0.08,
+            -0.7
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:hologram_fox"
+          }
+        ]
+      },
+      "velocity_over_life": [
+        0.0,
+        {
+          "keys": [
+            {
+              "time": 0.0,
+              "value": 0.18
+            },
+            {
+              "time": 0.25,
+              "value": -0.18
+            },
+            {
+              "time": 0.5,
+              "value": 0.18
+            },
+            {
+              "time": 0.75,
+              "value": -0.18
+            },
+            {
+              "time": 1.0,
+              "value": 0.18
+            }
+          ]
+        },
+        0.0
+      ],
+      "color": [
+        0.45,
+        0.96,
+        1.0,
+        0.92
+      ]
+    },
+    {
+      "name": "holo_fox_2",
+      "renderer": "mesh",
+      "material": "hologram_fox",
+      "local_space": false,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.41,
+      "height": 1.41,
+      "start_speed": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            -1.2,
+            0.05,
+            0.9
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:hologram_fox"
+          }
+        ]
+      },
+      "velocity_over_life": [
+        0.0,
+        {
+          "keys": [
+            {
+              "time": 0.0,
+              "value": 0.18
+            },
+            {
+              "time": 0.25,
+              "value": -0.18
+            },
+            {
+              "time": 0.5,
+              "value": 0.18
+            },
+            {
+              "time": 0.75,
+              "value": -0.18
+            },
+            {
+              "time": 1.0,
+              "value": 0.18
+            }
+          ]
+        },
+        0.0
+      ],
+      "color": [
+        0.45,
+        0.96,
+        1.0,
+        0.92
+      ]
+    },
+    {
+      "name": "holo_fox_3",
+      "renderer": "mesh",
+      "material": "hologram_fox",
+      "local_space": false,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.25,
+      "height": 1.25,
+      "start_speed": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            -0.3,
+            0.1,
+            -0.3
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:hologram_fox"
+          }
+        ]
+      },
+      "velocity_over_life": [
+        0.0,
+        {
+          "keys": [
+            {
+              "time": 0.0,
+              "value": 0.18
+            },
+            {
+              "time": 0.25,
+              "value": -0.18
+            },
+            {
+              "time": 0.5,
+              "value": 0.18
+            },
+            {
+              "time": 0.75,
+              "value": -0.18
+            },
+            {
+              "time": 1.0,
+              "value": 0.18
+            }
+          ]
+        },
+        0.0
+      ],
+      "color": [
+        0.45,
+        0.96,
+        1.0,
+        0.92
+      ]
+    },
+    {
+      "name": "holo_fox_4",
+      "renderer": "mesh",
+      "material": "hologram_fox",
+      "local_space": false,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.33,
+      "height": 1.33,
+      "start_speed": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            0.6,
+            0.05,
+            1.1
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:hologram_fox"
+          }
+        ]
+      },
+      "velocity_over_life": [
+        0.0,
+        {
+          "keys": [
+            {
+              "time": 0.0,
+              "value": 0.18
+            },
+            {
+              "time": 0.25,
+              "value": -0.18
+            },
+            {
+              "time": 0.5,
+              "value": 0.18
+            },
+            {
+              "time": 0.75,
+              "value": -0.18
+            },
+            {
+              "time": 1.0,
+              "value": 0.18
+            }
+          ]
+        },
+        0.0
+      ],
+      "color": [
+        0.45,
+        0.96,
+        1.0,
+        0.92
+      ]
+    },
+    {
+      "name": "holo_fox_5",
+      "renderer": "mesh",
+      "material": "hologram_fox",
+      "local_space": false,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.41,
+      "height": 1.41,
+      "start_speed": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            1.4,
+            0.08,
+            -0.8
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:hologram_fox"
+          }
+        ]
+      },
+      "velocity_over_life": [
+        0.0,
+        {
+          "keys": [
+            {
+              "time": 0.0,
+              "value": 0.18
+            },
+            {
+              "time": 0.25,
+              "value": -0.18
+            },
+            {
+              "time": 0.5,
+              "value": 0.18
+            },
+            {
+              "time": 0.75,
+              "value": -0.18
+            },
+            {
+              "time": 1.0,
+              "value": 0.18
+            }
+          ]
+        },
+        0.0
+      ],
+      "color": [
+        0.45,
+        0.96,
+        1.0,
+        0.92
+      ]
+    },
+    {
+      "name": "holo_fox_6",
+      "renderer": "mesh",
+      "material": "hologram_fox",
+      "local_space": false,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.25,
+      "height": 1.25,
+      "start_speed": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            2.2,
+            0.05,
+            0.4
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:hologram_fox"
+          }
+        ]
+      },
+      "velocity_over_life": [
+        0.0,
+        {
+          "keys": [
+            {
+              "time": 0.0,
+              "value": 0.18
+            },
+            {
+              "time": 0.25,
+              "value": -0.18
+            },
+            {
+              "time": 0.5,
+              "value": 0.18
+            },
+            {
+              "time": 0.75,
+              "value": -0.18
+            },
+            {
+              "time": 1.0,
+              "value": 0.18
+            }
+          ]
+        },
+        0.0
+      ],
+      "color": [
+        0.45,
+        0.96,
+        1.0,
+        0.92
+      ]
+    },
+    {
+      "name": "holo_fox_7",
+      "renderer": "mesh",
+      "material": "hologram_fox",
+      "local_space": false,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.33,
+      "height": 1.33,
+      "start_speed": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            3.1,
+            0.08,
+            -0.4
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:hologram_fox"
+          }
+        ]
+      },
+      "velocity_over_life": [
+        0.0,
+        {
+          "keys": [
+            {
+              "time": 0.0,
+              "value": 0.18
+            },
+            {
+              "time": 0.25,
+              "value": -0.18
+            },
+            {
+              "time": 0.5,
+              "value": 0.18
+            },
+            {
+              "time": 0.75,
+              "value": -0.18
+            },
+            {
+              "time": 1.0,
+              "value": 0.18
+            }
+          ]
+        },
+        0.0
+      ],
+      "color": [
+        0.45,
+        0.96,
+        1.0,
+        0.92
+      ]
+    },
+    {
+      "name": "holo_fox_8",
+      "renderer": "mesh",
+      "material": "hologram_fox",
+      "local_space": false,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.41,
+      "height": 1.41,
+      "start_speed": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            3.7,
+            0.05,
+            0.9
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:hologram_fox"
+          }
+        ]
+      },
+      "velocity_over_life": [
+        0.0,
+        {
+          "keys": [
+            {
+              "time": 0.0,
+              "value": 0.18
+            },
+            {
+              "time": 0.25,
+              "value": -0.18
+            },
+            {
+              "time": 0.5,
+              "value": 0.18
+            },
+            {
+              "time": 0.75,
+              "value": -0.18
+            },
+            {
+              "time": 1.0,
+              "value": 0.18
+            }
+          ]
+        },
+        0.0
+      ],
+      "color": [
+        0.45,
+        0.96,
+        1.0,
+        0.92
+      ]
+    },
+    {
+      "name": "holo_sparks",
+      "renderer": "sprite",
+      "material": "holo_mote",
+      "local_space": false,
+      "duration": 10.0,
+      "loop": true,
+      "max_particles": 50,
+      "rate": 16.0,
+      "lifetime": {
+        "min": 1.0,
+        "max": 1.8
+      },
+      "width": 0.12,
+      "height": 0.12,
+      "start_speed": 0.3,
+      "start_direction": [
+        0,
+        1,
+        0
+      ],
+      "shape": {
+        "type": "box",
+        "size": [
+          3.5,
+          0.3,
+          1.6
+        ],
+        "unity": {
+          "position": [
+            0.0,
+            0.25,
+            0.2
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": {
+        "stops": [
+          {
+            "time": 0.0,
+            "color": [
+              0.35,
+              0.95,
+              1.0,
+              0.0
+            ]
+          },
+          {
+            "time": 0.25,
+            "color": [
+              0.35,
+              0.95,
+              1.0,
+              0.72
+            ]
+          },
+          {
+            "time": 1.0,
+            "color": [
+              0.25,
+              0.85,
+              1.0,
+              0.0
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

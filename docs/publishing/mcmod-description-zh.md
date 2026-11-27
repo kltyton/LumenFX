@@ -2,12 +2,12 @@
 <!-- 一句话简介 / About（可直接填入 MC百科 简介栏）                           -->
 <!-- ====================================================================== -->
 <!--
-基于 Photon 26.2 的轻量级跨引擎粒子特效运行库，支持 Unity、Unreal Niagara、Photon 特效与自定义着色器，26.2 支持动态 Vulkan/OpenGL 自动切换。
+基于 Photon 26.2 的轻量级跨引擎粒子特效运行库，支持 Unity、Unreal Niagara、Photon 特效、动态光源、体积雾与自定义着色器，26.2/26.3 支持动态 Vulkan/OpenGL 自动切换。
 -->
 
 # ✨ LumenFX
 
-**面向 Minecraft 的轻量级、纯资源驱动次世代粒子特效运行库——原生支持 Unity ParticleSystem、Unreal Engine Niagara 与 Photon `.fx` 特效，内置炫目泛光与自定义着色器渲染，并在 26.2 自动适配 Vulkan / OpenGL。**
+**面向 Minecraft 的轻量级、纯资源驱动次世代粒子特效运行库——原生支持 Unity ParticleSystem、Unreal Engine Niagara、Photon `.fx`、动态光源、体积光雾、3D 网格粒子与自定义着色器渲染，内置炫目 HDR 泛光，并在 26.2 / 26.3 自动适配 Vulkan / OpenGL。**
 
 > **分支与衍生说明：** 本模组是 **[Photon](https://github.com/Low-Drag-MC/Photon)**（原作者 **KilaBash** / Low-Drag-MC，Photon 26.2）的独立衍生分支（Fork）。在保留 Photon `.fx` 特效播放与模拟核心的基础上，移除了游戏内编辑器以保持运行库轻量化，并将特效管线扩展至 **Unity / UE Niagara 跨引擎资产** 与 **多版本统一架构**（支持 1.20.1、1.21.1、26.1.2、26.2 与 26.3 的 Forge / NeoForge / Fabric）。
 
@@ -15,37 +15,57 @@
 
 ## 🌟 实机特效展示
 
-*以下图片均为 LumenFX 原生引擎在游戏内实时渲染截图——**无需安装任何光影模组即可呈现泛光与着色器效果！***
+*以下全部 10 组图片均为 LumenFX 原生引擎在游戏内实时渲染截图——**无需安装任何光影模组即可呈现动态光源、体积光雾、HDR 泛光与自定义着色器效果！** 所有特效均已开源收录于仓库 [`examples/showcase-pack`](https://github.com/kltyton/LumenFX/tree/main/examples/showcase-pack) 示例资源包。*
 
-### 🔮 符文光环与多色丝带拖尾
-支持高精度丝带（Ribbon）拖尾、螺旋轨迹与立体魔法阵，在夜色下勾勒流畅绚丽的能量流光。
+### 💡 动态点光源与聚光灯（Dynamic Lights）
+实时彩色点光源与聚光灯照亮方块、石柱与神殿建筑立面，结合青色菲涅尔能量球、金色垂直光柱与紫色五芒星法阵。
 
-![符文光环与多色丝带拖尾](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/01_rune_ribbon_stream.png)
-*(本地图文件：`docs/publishing/screenshots/01_rune_ribbon_stream.png`)*
+![动态点光源与聚光灯](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/01_dynamic_lights.png)
 
-### 🌌 星界能量漩涡与传送门氛围
-将类 Unity / UE 的多层粒子、径向爆发与柔和辉光融入祭坛、Boss 战与传送门场景，大幅提升画面表现力。
+### 🌫️ 体积光与体积雾（Volumetric Lights & Fog Volumes）
+3D 光线步进体积雾与深度软边缘丁达尔光束穿过神殿门洞洒向广场，伴随浮动的受光尘埃微粒。
 
-![星界能量漩涡](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/02_astral_vortex_portal.png)
-*(本地图文件：`docs/publishing/screenshots/02_astral_vortex_portal.png`)*
+![体积光与体积雾](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/02_volumetric_light_shafts.png)
 
-### 🔥 内置泛光效果（无需光影模组）
-炽烈火球、跃动火星与升腾烟羽开箱即享自然泛光质感，不装光影也能耀眼夺目；安装光影后亦可和谐共存。
+### 🎨 全能程序化 VFX 材质（自定义 GLSL 着色器矩阵）
+支持自定义 GLSL 片元着色器，呈现三渲二卡通火焰、锐利白光能量环、分支电弧闪电、青色菲涅尔护盾、星界漩涡、蜂窝溶解紫核、扰动火焰与发光五芒星法阵。
 
-![内置泛光炽焰火球](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/03_blazing_ember_fireball.png)
-*(本地图文件：`docs/publishing/screenshots/03_blazing_ember_fireball.png`)*
+![全能程序化 VFX 材质](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/03_kila_material_gallery.png)
 
-### 🎨 自定义着色器材质（渲染过程完全可定制）
-支持资源包与模组自带 GLSL 片元着色器，自由打造流光等离子彗尾、能量波纹与各类程序化特效材质。
+### 💥 实时粒子世界碰撞（Particle Collision）
+金色星光粒子在重力下倾泻，与真实 Minecraft 楼梯、台阶与石墙碰撞弹跳、逐级滑落并散落在草地上。
 
-![自定义着色器材质拖尾](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/04_emerald_plasma_comet.png)
-*(本地图文件：`docs/publishing/screenshots/04_emerald_plasma_comet.png`)*
+![实时粒子世界碰撞](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/04_particle_collision.png)
 
-### 💧 物理模拟与重力粒子喷泉
-支持重力抛物线、速度与外力曲线、阻力、旋度噪声及碰撞溅射，由有界多线程引擎高效驱动。
+### 🦊 3D 全息网格粒子群（3D Mesh / glTF Swarms）
+自定义 3D `.lfmesh` 与 glTF 模型作为粒子群组渲染，叠加动态水平全息扫描线、边缘高光与青色地面照明。
 
-![物理模拟光泉粒子](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/05_luminous_physics_fountain.png)
-*(本地图文件：`docs/publishing/screenshots/05_luminous_physics_fountain.png`)*
+![3D 全息网格粒子群](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/05_hologram_fox_swarm.png)
+
+### 🕳️ 引力黑洞与相对论吸积盘
+深邃事件视界黑核、耀眼爱因斯坦光子环、倾斜旋转吸积盘着色器、双极相对论喷流与环绕星尘。
+
+![引力黑洞与相对论吸积盘](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/06_supernova_black_hole.png)
+
+### 🔮 奥术六芒法阵与三色螺旋丝带拖尾
+双层旋转金青奥术法阵，交织释放青、品红、金三色螺旋丝带（Ribbon）流光与星芒微粒。
+
+![奥术六芒法阵与三色螺旋丝带拖尾](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/07_arcane_prism_ribbons.png)
+
+### ⚡ 轨道等离子天基光束与冲击波
+贯通天地的 HDR 青白等离子光柱、上升紫色蓄能环、地面扩散冲击波、延迟贴花焦痕、体积雾与弹跳火星。
+
+![轨道等离子天基光束与冲击波](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/08_orbital_plasma_beam.png)
+
+### ❄️ 凛冬冰霜新星（3D 晶体 + 低温雾）
+破土而出的半透明多面体 3D 冰晶尖刺、发光雪花法阵、低温体积雾与飞舞冰晶雪花。
+
+![凛冬冰霜新星](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/09_frost_nova_shatter.png)
+
+### 🌸 月夜樱花与金萤圣域
+噪声风场驱动飘落的樱花花瓣、HDR 暖金萤火虫、多色柔和局部动态照明与梦幻月夜薄雾。
+
+![月夜樱花与金萤圣域](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/10_celestial_sakura_sanctuary.png)
 
 ---
 
@@ -74,7 +94,7 @@
 
 ## 🛠️ 模组开发者与创作者资源
 
-- **GitHub 开源仓库（含 Unity UPM / UE5 编辑器插件与离线编译器）：** [https://github.com/kltyton/LumenFX](https://github.com/kltyton/LumenFX)
+- **GitHub 开源仓库（含官方示例特效包、Unity UPM / UE5 编辑器插件与离线编译器）：** [https://github.com/kltyton/LumenFX](https://github.com/kltyton/LumenFX)
 - **完整 Wiki 文档、关键帧兼容与 Java API 教程：** [https://github.com/kltyton/LumenFX/wiki](https://github.com/kltyton/LumenFX/wiki)
 - **Maven 仓库（Sighs Maven）：** `https://maven.sighs.cc/repository/maven-public/`（坐标 `com.kltyton.lumenfx:lumenfx-<加载器>-<MC版本>:0.3.2`）
 

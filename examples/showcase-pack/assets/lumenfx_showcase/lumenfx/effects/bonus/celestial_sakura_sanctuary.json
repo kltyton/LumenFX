@@ -1,0 +1,414 @@
+{
+  "format_version": 1,
+  "materials": {
+    "sakura": {
+      "fragment_shader": "lumenfx:core/effect",
+      "textures": {
+        "Sampler0": "lumenfx_showcase:textures/vfx/sakura_petal.png"
+      },
+      "blend": "alpha",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": false
+    },
+    "firefly": {
+      "fragment_shader": "lumenfx:core/effect",
+      "textures": {
+        "Sampler0": "lumenfx_showcase:textures/vfx/soft_glow.png"
+      },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.25,
+      "bloom_intensity": 0.5
+    },
+    "wisp": {
+      "fragment_shader": "lumenfx:core/effect",
+      "textures": {
+        "Sampler0": "lumenfx_showcase:textures/vfx/sparkle_star.png"
+      },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.18,
+      "bloom_intensity": 0.42
+    }
+  },
+  "lights": [
+    {
+      "position": [
+        -2.6,
+        1.6,
+        1.2
+      ],
+      "color": [
+        1.0,
+        0.78,
+        0.35
+      ],
+      "radius": 7.5,
+      "intensity": 0.4,
+      "type": "point"
+    },
+    {
+      "position": [
+        2.6,
+        1.8,
+        -0.4
+      ],
+      "color": [
+        1.0,
+        0.55,
+        0.82
+      ],
+      "radius": 8.0,
+      "intensity": 0.38,
+      "type": "point"
+    },
+    {
+      "position": [
+        0.0,
+        2.8,
+        -1.8
+      ],
+      "color": [
+        0.78,
+        0.72,
+        1.0
+      ],
+      "radius": 9.5,
+      "intensity": 0.36,
+      "type": "point"
+    }
+  ],
+  "volumes": [
+    {
+      "position": [
+        0.0,
+        1.5,
+        0.0
+      ],
+      "size": [
+        9.0,
+        3.0,
+        7.0
+      ],
+      "color": [
+        0.95,
+        0.65,
+        0.88
+      ],
+      "density": 0.1,
+      "anisotropy": 0.45
+    }
+  ],
+  "emitters": [
+    {
+      "name": "sakura_petals",
+      "renderer": "sprite",
+      "material": "sakura",
+      "local_space": false,
+      "duration": 10.0,
+      "loop": true,
+      "max_particles": 240,
+      "rate": 62.0,
+      "lifetime": {
+        "min": 2.5,
+        "max": 4.2
+      },
+      "width": {
+        "min": 0.22,
+        "max": 0.4
+      },
+      "height": {
+        "min": 0.22,
+        "max": 0.4
+      },
+      "rotation": {
+        "min": 0.0,
+        "max": 360.0
+      },
+      "angular_velocity": {
+        "min": -95.0,
+        "max": 95.0
+      },
+      "velocity_min": [
+        -0.8,
+        -0.7,
+        -0.5
+      ],
+      "velocity_max": [
+        1.2,
+        -0.25,
+        0.6
+      ],
+      "shape": {
+        "type": "box",
+        "size": [
+          4.5,
+          1.8,
+          3.8
+        ],
+        "unity": {
+          "position": [
+            0.0,
+            3.8,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "noise": {
+        "strength": [
+          1.1,
+          0.35,
+          0.9
+        ],
+        "frequency": 1.1
+      },
+      "color": {
+        "stops": [
+          {
+            "time": 0.0,
+            "color": [
+              1.0,
+              0.82,
+              0.92,
+              0.0
+            ]
+          },
+          {
+            "time": 0.18,
+            "color": [
+              1.0,
+              0.82,
+              0.92,
+              0.96
+            ]
+          },
+          {
+            "time": 0.85,
+            "color": [
+              1.0,
+              0.78,
+              0.9,
+              0.9
+            ]
+          },
+          {
+            "time": 1.0,
+            "color": [
+              1.0,
+              0.76,
+              0.88,
+              0.0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "golden_fireflies",
+      "renderer": "sprite",
+      "material": "firefly",
+      "local_space": false,
+      "duration": 10.0,
+      "loop": true,
+      "max_particles": 90,
+      "rate": 26.0,
+      "lifetime": {
+        "min": 2.0,
+        "max": 3.5
+      },
+      "width": {
+        "min": 0.18,
+        "max": 0.34
+      },
+      "height": {
+        "min": 0.18,
+        "max": 0.34
+      },
+      "velocity_min": [
+        -0.35,
+        0.05,
+        -0.35
+      ],
+      "velocity_max": [
+        0.35,
+        0.45,
+        0.35
+      ],
+      "shape": {
+        "type": "box",
+        "size": [
+          4.2,
+          1.5,
+          3.4
+        ],
+        "unity": {
+          "position": [
+            0.0,
+            1.6,
+            0.2
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "noise": {
+        "strength": [
+          0.95,
+          0.65,
+          0.95
+        ],
+        "frequency": 1.4
+      },
+      "color": {
+        "stops": [
+          {
+            "time": 0.0,
+            "color": [
+              1.0,
+              0.86,
+              0.32,
+              0.0
+            ]
+          },
+          {
+            "time": 0.3,
+            "color": [
+              1.0,
+              0.86,
+              0.32,
+              0.95
+            ]
+          },
+          {
+            "time": 0.7,
+            "color": [
+              1.0,
+              0.82,
+              0.28,
+              0.85
+            ]
+          },
+          {
+            "time": 1.0,
+            "color": [
+              1.0,
+              0.78,
+              0.24,
+              0.0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "spirit_wisps",
+      "renderer": "sprite",
+      "material": "wisp",
+      "local_space": false,
+      "duration": 10.0,
+      "loop": true,
+      "max_particles": 75,
+      "rate": 22.0,
+      "lifetime": {
+        "min": 1.5,
+        "max": 2.5
+      },
+      "width": {
+        "min": 0.16,
+        "max": 0.3
+      },
+      "height": {
+        "min": 0.16,
+        "max": 0.3
+      },
+      "velocity_min": [
+        -0.4,
+        0.6,
+        -0.4
+      ],
+      "velocity_max": [
+        0.4,
+        1.4,
+        0.4
+      ],
+      "shape": {
+        "type": "cylinder",
+        "size": [
+          1.8,
+          0.4,
+          1.8
+        ],
+        "unity": {
+          "position": [
+            0.0,
+            0.8,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "noise": {
+        "strength": [
+          0.6,
+          0.2,
+          0.6
+        ],
+        "frequency": 1.5
+      },
+      "color": {
+        "stops": [
+          {
+            "time": 0.0,
+            "color": [
+              1.0,
+              0.72,
+              0.95,
+              0.0
+            ]
+          },
+          {
+            "time": 0.25,
+            "color": [
+              1.0,
+              0.72,
+              0.95,
+              0.88
+            ]
+          },
+          {
+            "time": 1.0,
+            "color": [
+              1.0,
+              0.65,
+              0.88,
+              0.0
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

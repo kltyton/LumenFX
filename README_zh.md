@@ -5,11 +5,11 @@
 <h1 align="center">LumenFX</h1>
 
 <p align="center">
-  <strong>面向 Minecraft 的资源驱动跨引擎粒子特效运行库——原生支持 Unity ParticleSystem、Unreal Engine Niagara 与 Photon <code>.fx</code>，并在 26.2 提供动态 Vulkan / OpenGL 自动渲染。</strong>
+  <strong>面向 Minecraft 的资源驱动跨引擎粒子特效运行库——原生支持 Unity ParticleSystem、Unreal Engine Niagara、Photon <code>.fx</code>、动态光源、体积光雾、自定义 GLSL 着色器与 3D 网格粒子，并在 26.2 / 26.3 自动适配 Vulkan / OpenGL 渲染。</strong>
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> | <strong>简体中文</strong> | <a href="https://github.com/kltyton/LumenFX/wiki/Home-zh">中文 Wiki 文档</a>
+  <a href="README.md">English</a> | <strong>简体中文</strong> | <a href="https://github.com/kltyton/LumenFX/wiki/Home-zh">中文 Wiki 文档</a> | <a href="examples/showcase-pack/README.md">官方示例特效包</a>
 </p>
 
 ---
@@ -31,20 +31,79 @@
 
 ## 实机特效展示
 
-以下所有画面均由 LumenFX 在游戏内实时渲染截屏——**无需安装任何光影模组即可呈现泛光与自定义着色器效果**。
+以下全部 10 组画面均由 LumenFX 在游戏内实时渲染截屏——**无需安装任何光影模组即可呈现动态光源、体积雾、HDR 泛光与自定义着色器效果**。展示中涉及的所有特效资产均已整理至可直接加载的 [`examples/showcase-pack/`](examples/showcase-pack/README.md) 资源包中。
 
-| 符文光环与多色螺旋丝带拖尾 | 星界能量漩涡（末地传送门祭坛） |
-| :---: | :---: |
-| ![符文光环与多色螺旋丝带拖尾](docs/publishing/screenshots/01_rune_ribbon_stream.png) | ![星界能量漩涡](docs/publishing/screenshots/02_astral_vortex_portal.png) |
+### 核心能力展示（Photon 同款场景对标）
 
-| 内置泛光炽焰火球与火星烟雾 | 自定义 GLSL 着色器翡翠等离子彗尾 |
-| :---: | :---: |
-| ![内置泛光炽焰火球与火星烟雾](docs/publishing/screenshots/03_blazing_ember_fireball.png) | ![自定义 GLSL 着色器翡翠等离子彗尾](docs/publishing/screenshots/04_emerald_plasma_comet.png) |
+<table>
+<tr>
+<td width="50%">
+<img src="docs/publishing/screenshots/01_dynamic_lights.png" alt="动态点光源与聚光灯广场" /><br/>
+<strong>动态点光源与聚光灯（Dynamic Lights）</strong><br/>
+实时彩色点光源/聚光灯照亮方块、石柱与建筑立面，结合青色菲涅尔能量球、金色光柱核心与紫色五芒星法阵。
+</td>
+<td width="50%">
+<img src="docs/publishing/screenshots/02_volumetric_light_shafts.png" alt="体积光束与体积雾" /><br/>
+<strong>体积光与体积雾（Volumetric Lights &amp; Fog Volumes）</strong><br/>
+3D 光线步进体积雾、暖金室内光源与深度软边缘丁达尔光束穿过神殿门洞洒向广场，伴随光束尘埃粒子。
+</td>
+</tr>
+<tr>
+<td width="50%">
+<img src="docs/publishing/screenshots/03_kila_material_gallery.png" alt="全能程序化 VFX 材质陈列" /><br/>
+<strong>全能程序化 VFX 材质（Custom GLSL 着色器矩阵）</strong><br/>
+三渲二卡通火焰、锐利白光能量环、分支电弧闪电球、青色菲涅尔护盾球、极坐标星界漩涡、蜂窝溶解紫核、扰动火焰灵火与大型发光五芒星阵。
+</td>
+<td width="50%">
+<img src="docs/publishing/screenshots/04_particle_collision.png" alt="粒子实时方块碰撞" /><br/>
+<strong>实时粒子世界碰撞（Particle Collision）</strong><br/>
+星光粒子在重力下倾泻并与真实 Minecraft 木楼梯、台阶及石墙碰撞弹跳、逐级滑落并散落在草地上。
+</td>
+</tr>
+<tr>
+<td colspan="2" align="center">
+<img src="docs/publishing/screenshots/05_hologram_fox_swarm.png" width="780" alt="3D 全息扫描线网格粒子群" /><br/>
+<strong>3D 全息网格粒子群（3D Mesh / glTF Swarms）</strong><br/>
+自定义 3D <code>.lfmesh</code> 与 glTF 模型作为粒子群组渲染，叠加动态水平全息扫描线、边缘高光与青色地面照明。
+</td>
+</tr>
+</table>
 
-<p align="center">
-  <img src="docs/publishing/screenshots/05_luminous_physics_fountain.png" width="760" alt="重力物理模拟光泉粒子" /><br/>
-  <em>重力抛物线物理光泉与地面溅射环</em>
-</p>
+### 更多次世代进阶特效展示
+
+<table>
+<tr>
+<td width="50%">
+<img src="docs/publishing/screenshots/06_supernova_black_hole.png" alt="黑洞与吸积盘" /><br/>
+<strong>引力黑洞与相对论吸积盘</strong><br/>
+深邃事件视界黑核、耀眼爱因斯坦光子环、倾斜旋转吸积盘着色器、双极相对论喷流与环绕星尘。
+</td>
+<td width="50%">
+<img src="docs/publishing/screenshots/07_arcane_prism_ribbons.png" alt="奥术法阵与三色螺旋丝带" /><br/>
+<strong>奥术六芒法阵与三色螺旋丝带拖尾</strong><br/>
+双层旋转金青奥术法阵，交织释放青、品红、金三色螺旋丝带（Ribbon）流光与星芒微粒。
+</td>
+</tr>
+<tr>
+<td width="50%">
+<img src="docs/publishing/screenshots/08_orbital_plasma_beam.png" alt="轨道等离子光束炮" /><br/>
+<strong>轨道等离子天基光束与冲击波</strong><br/>
+贯通天地的 HDR 青白等离子光柱、上升紫色蓄能环、地面扩散冲击波、延迟贴花焦痕、体积雾与弹跳火星。
+</td>
+<td width="50%">
+<img src="docs/publishing/screenshots/09_frost_nova_shatter.png" alt="冰霜新星 3D 晶体" /><br/>
+<strong>凛冬冰霜新星（3D 晶体 + 低温雾）</strong><br/>
+破土而出的半透明多面体 3D 冰晶尖刺、发光雪花法阵、低温体积雾与飞舞冰晶雪花。
+</td>
+</tr>
+<tr>
+<td colspan="2" align="center">
+<img src="docs/publishing/screenshots/10_celestial_sakura_sanctuary.png" width="780" alt="月夜樱花与萤火圣域" /><br/>
+<strong>月夜樱花与金萤圣域</strong><br/>
+噪声风场驱动飘落的樱花花瓣、HDR 暖金萤火虫、多色柔和局部动态照明与梦幻月夜薄雾。
+</td>
+</tr>
+</table>
 
 ---
 
@@ -106,7 +165,7 @@ dependencies {
 ```java
 EffectHandle effect = VfxEffects.spawn(
         clientLevel,
-        Identifier.parse("my_mod:magic/trail"),
+        Identifier.parse("lumenfx_showcase:photon/kila_material_gallery"),
         position,
         seed
 );
@@ -127,8 +186,31 @@ effect.close(); // 停止新粒子发射，让已有粒子自然播放完毕后�
 
 ---
 
+## 仓库目录结构
+
+```text
+LumenFX/
+├── common/                 # 跨版本共享 VFX 核心、渲染管线、内置着色器与原生数学/音频库
+├── targets/                # 10 个版本与加载器目标工程（1.20.1–26.3 × Forge/NeoForge/Fabric）
+├── examples/
+│   └── showcase-pack/      # 官方示例特效资源包（含 README 与 CurseForge 展示的全部 10 组特效）
+├── tools/
+│   ├── unity/              # Unity UPM 编辑器插件（com.kltyton.lumenfx.exporter）
+│   ├── unreal/             # Unreal Engine 5 编辑器插件（LumenFxExporter.uplugin）与导出脚本
+│   ├── compiler/           # UE5 Niagara 离线命令行编译器（C#）
+│   └── shaders/            # SPIR-V 与计算着色器离线烘焙清单
+├── docs/
+│   ├── wiki/               # GitHub Wiki 中英双语文档源
+│   └── publishing/         # CurseForge / MC百科 简介文案、图标与实机展示截图
+├── buildSrc/ & gradle/     # 多目标构建约定插件与配置
+└── licenses/               # 第三方署名与许可证（Photon CC BY-NC-SA 4.0、expr）
+```
+
+---
+
 ## 文档与离线制作工具
 
+- **[官方示例特效资源包](examples/showcase-pack/README.md)** — 包含全部 10 组实机展示特效的 JSON、自定义 GLSL 着色器、程序化贴图与 3D `.lfmesh` 模型。
 - **[GitHub 中文 Wiki 完整文档](https://github.com/kltyton/LumenFX/wiki/Home-zh)**（同步存档于 [`docs/wiki/`](docs/wiki/Home-zh.md)）：
   - [快速入门与 API 指南](docs/wiki/Getting-Started-zh.md)
   - [效果 JSON 与自定义 GLSL 材质参考](docs/wiki/Effect-Format-Reference-zh.md)

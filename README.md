@@ -5,11 +5,11 @@
 <h1 align="center">LumenFX</h1>
 
 <p align="center">
-  <strong>Resource-driven cross-engine VFX runtime for Minecraft — supporting Unity ParticleSystem, Unreal Engine Niagara, and Photon <code>.fx</code> with dynamic Vulkan / OpenGL rendering.</strong>
+  <strong>Resource-driven cross-engine VFX runtime for Minecraft — supporting Unity ParticleSystem, Unreal Engine Niagara, Photon <code>.fx</code>, dynamic lights, volumetric fog, custom GLSL shaders, and 3D meshes with automatic Vulkan / OpenGL rendering.</strong>
 </p>
 
 <p align="center">
-  <strong>English</strong> | <a href="README_zh.md">简体中文</a> | <a href="https://github.com/kltyton/LumenFX/wiki">Wiki</a>
+  <strong>English</strong> | <a href="README_zh.md">简体中文</a> | <a href="https://github.com/kltyton/LumenFX/wiki">Wiki</a> | <a href="examples/showcase-pack/README.md">Showcase Pack</a>
 </p>
 
 ---
@@ -29,22 +29,81 @@ Photon-derived source files retain KilaBash's attribution and are governed by th
 
 ---
 
-## Showcase
+## Visual Showcase
 
-All screenshots below were captured live in-game using LumenFX's native runtime — **no shader pack required**.
+All 10 screenshots below were captured live in-game using LumenFX's native runtime — **no shader pack required**. Every effect shown is included in the ready-to-load [`examples/showcase-pack/`](examples/showcase-pack/README.md) resource pack.
 
-| Arcane Rune Circle & Multi-Ribbon Trails | Astral Vortex Portal |
-| :---: | :---: |
-| ![Arcane Rune Circle & Multi-Ribbon Trails](docs/publishing/screenshots/01_rune_ribbon_stream.png) | ![Astral Vortex Portal](docs/publishing/screenshots/02_astral_vortex_portal.png) |
+### Signature VFX Capabilities (Photon-Style Showcase)
 
-| Built-in Bloom Fireball & Rising Embers | Custom GLSL Shader Plasma Trail |
-| :---: | :---: |
-| ![Built-in Bloom Fireball & Rising Embers](docs/publishing/screenshots/03_blazing_ember_fireball.png) | ![Custom GLSL Shader Plasma Trail](docs/publishing/screenshots/04_emerald_plasma_comet.png) |
+<table>
+<tr>
+<td width="50%">
+<img src="docs/publishing/screenshots/01_dynamic_lights.png" alt="Dynamic Lights Plaza" /><br/>
+<strong>Dynamic Point &amp; Spot Lights</strong><br/>
+Real-time colored point and spot lights that illuminate blocks, pillars, and world geometry — paired with glowing Fresnel orbs, vertical light beams, and pentagram magic seals.
+</td>
+<td width="50%">
+<img src="docs/publishing/screenshots/02_volumetric_light_shafts.png" alt="Volumetric Lights and Fog Volumes" /><br/>
+<strong>Volumetric Lights &amp; Fog Volumes</strong><br/>
+3D raymarched fog volumes, warm interior point/spot lights, and depth-soft volumetric light shafts streaming through temple doorways with illuminated dust motes.
+</td>
+</tr>
+<tr>
+<td width="50%">
+<img src="docs/publishing/screenshots/03_kila_material_gallery.png" alt="Procedural VFX Materials Gallery" /><br/>
+<strong>All-in-One Procedural VFX Materials (Custom GLSL)</strong><br/>
+Cel-shaded toon fireballs, crisp HDR energy rings, crackling lightning arcs, Fresnel forcefield orbs, polar astral vortices, cellular dissolve cores, organic flames, and neon ground sigils.
+</td>
+<td width="50%">
+<img src="docs/publishing/screenshots/04_particle_collision.png" alt="Real-Time Particle Collision" /><br/>
+<strong>Real-Time Particle Collision</strong><br/>
+Gravity-driven sparkle showers colliding against real Minecraft stairs, slabs, and walls — bouncing, damping, cascading across every step, and spilling onto the terrain.
+</td>
+</tr>
+<tr>
+<td colspan="2" align="center">
+<img src="docs/publishing/screenshots/05_hologram_fox_swarm.png" width="780" alt="3D Hologram Mesh Swarm" /><br/>
+<strong>3D Hologram Mesh Swarms</strong><br/>
+Custom 3D <code>.lfmesh</code> &amp; glTF models rendered as particle swarms with animated horizontal hologram scanlines, edge glow, and dynamic ground lighting.
+</td>
+</tr>
+</table>
 
-<p align="center">
-  <img src="docs/publishing/screenshots/05_luminous_physics_fountain.png" width="760" alt="Luminous Physics Particle Fountain" /><br/>
-  <em>Gravity-arcing luminous particle jet & ground splash</em>
-</p>
+### Extended Next-Gen Showcase
+
+<table>
+<tr>
+<td width="50%">
+<img src="docs/publishing/screenshots/06_supernova_black_hole.png" alt="Supernova Black Hole" /><br/>
+<strong>Black Hole &amp; Relativistic Accretion Disk</strong><br/>
+Pitch-black event horizon, blazing Einstein photon ring, tilted swirling accretion disk shader, twin relativistic polar jets, and orbiting star dust.
+</td>
+<td width="50%">
+<img src="docs/publishing/screenshots/07_arcane_prism_ribbons.png" alt="Arcane Mandala and Helical Prism Ribbons" /><br/>
+<strong>Arcane Mandala &amp; Multi-Ribbon Trails</strong><br/>
+Double-layered rotating golden-cyan arcane hexagram seals weaving intertwined tri-color helical ribbons and shimmering arcane star motes.
+</td>
+</tr>
+<tr>
+<td width="50%">
+<img src="docs/publishing/screenshots/08_orbital_plasma_beam.png" alt="Orbital Plasma Cannon Beam" /><br/>
+<strong>Orbital Plasma Cannon &amp; Shockwave Impact</strong><br/>
+Sky-to-ground HDR plasma pillar, rising violet charge rings, expanding shockwave rings, deferred ground scorch decal, volumetric mist, and bouncing sparks.
+</td>
+<td width="50%">
+<img src="docs/publishing/screenshots/09_frost_nova_shatter.png" alt="Crystalline 3D Frost Nova" /><br/>
+<strong>Crystalline 3D Frost Nova</strong><br/>
+Erupting faceted 3D hexagonal ice crystal spires with translucent glacial Fresnel shading, snowflake mandala ground seal, cryogenic fog, and snowflakes.
+</td>
+</tr>
+<tr>
+<td colspan="2" align="center">
+<img src="docs/publishing/screenshots/10_celestial_sakura_sanctuary.png" width="780" alt="Celestial Sakura and Firefly Sanctuary" /><br/>
+<strong>Celestial Sakura &amp; Golden Firefly Sanctuary</strong><br/>
+Noise-driven drifting cherry blossom petals, HDR glowing golden fireflies, multi-color localized dynamic lighting, and ethereal moonlit mist.
+</td>
+</tr>
+</table>
 
 ---
 
@@ -106,7 +165,7 @@ dependencies {
 ```java
 EffectHandle effect = VfxEffects.spawn(
         clientLevel,
-        Identifier.parse("my_mod:magic/trail"),
+        Identifier.parse("lumenfx_showcase:photon/kila_material_gallery"),
         position,
         seed
 );
@@ -127,8 +186,31 @@ Effect ID `my_mod:magic/trail` resolves to `assets/my_mod/lumenfx/effects/magic/
 
 ---
 
+## Repository Structure
+
+```text
+LumenFX/
+├── common/                 # Shared multi-version VFX engine, renderers, shaders & native math/audio
+├── targets/                # 10 loader/version targets (1.20.1–26.3 × Forge/NeoForge/Fabric)
+├── examples/
+│   └── showcase-pack/      # Ready-to-load showcase resource pack (all 10 README/CurseForge effects)
+├── tools/
+│   ├── unity/              # Unity UPM Editor Plugin (com.kltyton.lumenfx.exporter)
+│   ├── unreal/             # Unreal Engine 5 Editor Plugin (LumenFxExporter.uplugin) & exporters
+│   ├── compiler/           # Offline UE5 Niagara CLI compiler (C#)
+│   └── shaders/            # Offline SPIR-V / compute shader baking manifests
+├── docs/
+│   ├── wiki/               # Bilingual GitHub Wiki mirror (English & 简体中文)
+│   └── publishing/         # CurseForge / MCMod descriptions, icon & showcase screenshots
+├── buildSrc/ & gradle/     # Multi-target Gradle convention plugins & build definitions
+└── licenses/               # Bundled third-party attribution & licenses (Photon CC BY-NC-SA 4.0, expr)
+```
+
+---
+
 ## Documentation & Offline Authoring Tools
 
+- **[Official Showcase Pack](examples/showcase-pack/README.md)** — Ready-to-load resource pack with all 10 showcase effects, custom GLSL shaders, procedural textures, and `.lfmesh` 3D models.
 - **[GitHub Wiki](https://github.com/kltyton/LumenFX/wiki)** (also mirrored in [`docs/wiki/`](docs/wiki/Home.md)):
   - [Getting Started & API](docs/wiki/Getting-Started.md)
   - [Effect JSON & GLSL Reference](docs/wiki/Effect-Format-Reference.md)

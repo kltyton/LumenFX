@@ -1,0 +1,517 @@
+{
+  "format_version": 1,
+  "materials": {
+    "cyan_orb": {
+      "fragment_shader": "lumenfx_showcase:vfx/kila_fresnel_orb",
+      "blend": "alpha",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.12,
+      "bloom_intensity": 0.42
+    },
+    "gold_core": {
+      "fragment_shader": "lumenfx:core/effect",
+      "textures": {
+        "Sampler0": "lumenfx_showcase:textures/vfx/soft_glow.png"
+      },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.25,
+      "bloom_intensity": 0.55
+    },
+    "gold_beam": {
+      "fragment_shader": "lumenfx_showcase:vfx/golden_pillar_beam",
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.15,
+      "bloom_intensity": 0.42
+    },
+    "pentagram": {
+      "fragment_shader": "lumenfx_showcase:vfx/pentagram_circle",
+      "textures": {
+        "Sampler0": "lumenfx_showcase:textures/vfx/pentagram_circle.png"
+      },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.12,
+      "bloom_intensity": 0.4
+    },
+    "motes": {
+      "fragment_shader": "lumenfx:core/effect",
+      "textures": {
+        "Sampler0": "lumenfx_showcase:textures/vfx/sparkle_star.png"
+      },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.18,
+      "bloom_intensity": 0.42
+    }
+  },
+  "lights": [
+    {
+      "position": [
+        -3.4,
+        1.4,
+        0.0
+      ],
+      "color": [
+        0.15,
+        0.85,
+        1.0
+      ],
+      "radius": 8.0,
+      "intensity": 0.62,
+      "type": "point"
+    },
+    {
+      "position": [
+        0.0,
+        1.6,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.78,
+        0.35
+      ],
+      "radius": 10.5,
+      "intensity": 0.82,
+      "type": "point"
+    },
+    {
+      "position": [
+        3.4,
+        1.4,
+        0.0
+      ],
+      "color": [
+        0.85,
+        0.28,
+        1.0
+      ],
+      "radius": 8.0,
+      "intensity": 0.64,
+      "type": "point"
+    },
+    {
+      "position": [
+        0.0,
+        1.9,
+        -4.6
+      ],
+      "color": [
+        1.0,
+        0.82,
+        0.42
+      ],
+      "radius": 7.5,
+      "intensity": 0.72,
+      "type": "point"
+    }
+  ],
+  "volumes": [
+    {
+      "position": [
+        -3.4,
+        1.4,
+        0.0
+      ],
+      "size": [
+        3.0,
+        3.0,
+        3.0
+      ],
+      "color": [
+        0.18,
+        0.82,
+        1.0
+      ],
+      "density": 0.14,
+      "anisotropy": 0.35
+    },
+    {
+      "position": [
+        0.0,
+        1.7,
+        0.0
+      ],
+      "size": [
+        3.6,
+        3.6,
+        3.6
+      ],
+      "color": [
+        1.0,
+        0.82,
+        0.38
+      ],
+      "density": 0.18,
+      "anisotropy": 0.45
+    },
+    {
+      "position": [
+        3.4,
+        1.35,
+        0.0
+      ],
+      "size": [
+        3.0,
+        2.8,
+        3.0
+      ],
+      "color": [
+        0.82,
+        0.3,
+        1.0
+      ],
+      "density": 0.14,
+      "anisotropy": 0.35
+    }
+  ],
+  "emitters": [
+    {
+      "name": "cyan_orb_visual",
+      "renderer": "sprite",
+      "material": "cyan_orb",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.55,
+      "height": 1.55,
+      "start_speed": 0.0,
+      "rotation": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            -3.4,
+            1.4,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.55,
+        0.96,
+        1.0,
+        0.95
+      ]
+    },
+    {
+      "name": "gold_core_visual",
+      "renderer": "sprite",
+      "material": "gold_core",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 2.85,
+      "height": 2.85,
+      "start_speed": 0.0,
+      "rotation": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            0.0,
+            1.55,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        1.0,
+        0.86,
+        0.48,
+        0.88
+      ]
+    },
+    {
+      "name": "gold_vertical_pillar",
+      "renderer": "mesh",
+      "material": "gold_beam",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 0.85,
+      "height": 14.0,
+      "start_speed": 0.0,
+      "rotation": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            0.0,
+            0.25,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        1.0,
+        0.86,
+        0.48,
+        0.78
+      ],
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:vertical_beam"
+          }
+        ]
+      }
+    },
+    {
+      "name": "right_pentagram",
+      "renderer": "mesh",
+      "material": "pentagram",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 3.4,
+      "height": 3.4,
+      "start_speed": 0.0,
+      "rotation": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            3.4,
+            0.05,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.42,
+        0.86,
+        1.0,
+        0.98
+      ],
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:horizontal_quad"
+          }
+        ]
+      }
+    },
+    {
+      "name": "purple_sigil_glow",
+      "renderer": "sprite",
+      "material": "gold_core",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.7,
+      "height": 1.7,
+      "start_speed": 0.0,
+      "rotation": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            3.4,
+            1.05,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.88,
+        0.35,
+        1.0,
+        0.62
+      ]
+    },
+    {
+      "name": "center_sparks",
+      "renderer": "sprite",
+      "material": "motes",
+      "local_space": false,
+      "duration": 10.0,
+      "loop": true,
+      "max_particles": 60,
+      "rate": 16.0,
+      "lifetime": {
+        "min": 1.2,
+        "max": 2.2
+      },
+      "width": {
+        "min": 0.12,
+        "max": 0.22
+      },
+      "height": {
+        "min": 0.12,
+        "max": 0.22
+      },
+      "start_speed": {
+        "min": 0.4,
+        "max": 1.0
+      },
+      "start_direction": [
+        0,
+        1,
+        0
+      ],
+      "shape": {
+        "type": "sphere",
+        "size": [
+          0.5,
+          0.3,
+          0.5
+        ],
+        "unity": {
+          "position": [
+            0.0,
+            0.9,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "noise": {
+        "strength": [
+          0.5,
+          0.2,
+          0.5
+        ],
+        "frequency": 1.4
+      },
+      "color": {
+        "stops": [
+          {
+            "time": 0.0,
+            "color": [
+              1.0,
+              0.86,
+              0.45,
+              0.0
+            ]
+          },
+          {
+            "time": 0.2,
+            "color": [
+              1.0,
+              0.86,
+              0.45,
+              0.9
+            ]
+          },
+          {
+            "time": 1.0,
+            "color": [
+              1.0,
+              0.65,
+              0.25,
+              0.0
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

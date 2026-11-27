@@ -1,0 +1,693 @@
+{
+  "format_version": 1,
+  "materials": {
+    "frost_crystal": {
+      "fragment_shader": "lumenfx_showcase:vfx/frost_crystal",
+      "blend": "alpha",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.05,
+      "bloom_intensity": 0.22
+    },
+    "frost_mandala": {
+      "fragment_shader": "lumenfx_showcase:vfx/pentagram_circle",
+      "textures": {
+        "Sampler0": "lumenfx_showcase:textures/vfx/frost_mandala.png"
+      },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.1,
+      "bloom_intensity": 0.35
+    },
+    "snowflake": {
+      "fragment_shader": "lumenfx:core/effect",
+      "textures": {
+        "Sampler0": "lumenfx_showcase:textures/vfx/sparkle_star.png"
+      },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.15,
+      "bloom_intensity": 0.38
+    }
+  },
+  "lights": [
+    {
+      "position": [
+        0.0,
+        1.6,
+        0.0
+      ],
+      "color": [
+        0.28,
+        0.82,
+        1.0
+      ],
+      "radius": 10.5,
+      "intensity": 0.52,
+      "type": "point"
+    }
+  ],
+  "volumes": [
+    {
+      "position": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "size": [
+        7.0,
+        2.0,
+        7.0
+      ],
+      "color": [
+        0.38,
+        0.84,
+        1.0
+      ],
+      "density": 0.14,
+      "anisotropy": 0.45
+    }
+  ],
+  "emitters": [
+    {
+      "name": "ice_spire_0",
+      "renderer": "mesh",
+      "material": "frost_crystal",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 0.95,
+      "height": 1.65,
+      "start_speed": 0.0,
+      "rotation": -22.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            2.05,
+            0.75,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.65,
+        0.94,
+        1.0,
+        0.9
+      ],
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:ice_crystal"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ice_spire_1",
+      "renderer": "mesh",
+      "material": "frost_crystal",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.17,
+      "height": 2.3,
+      "start_speed": 0.0,
+      "rotation": -22.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            1.7677669529663689,
+            0.75,
+            1.7677669529663689
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.65,
+        0.94,
+        1.0,
+        0.9
+      ],
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:ice_crystal"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ice_spire_2",
+      "renderer": "mesh",
+      "material": "frost_crystal",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.39,
+      "height": 1.65,
+      "start_speed": 0.0,
+      "rotation": -22.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            1.2552629691260368e-16,
+            0.75,
+            2.05
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.65,
+        0.94,
+        1.0,
+        0.9
+      ],
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:ice_crystal"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ice_spire_3",
+      "renderer": "mesh",
+      "material": "frost_crystal",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 0.95,
+      "height": 2.3,
+      "start_speed": 0.0,
+      "rotation": 22.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            -1.7677669529663687,
+            0.75,
+            1.7677669529663689
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.65,
+        0.94,
+        1.0,
+        0.9
+      ],
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:ice_crystal"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ice_spire_4",
+      "renderer": "mesh",
+      "material": "frost_crystal",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.17,
+      "height": 1.65,
+      "start_speed": 0.0,
+      "rotation": 22.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            -2.05,
+            0.75,
+            2.5105259382520737e-16
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.65,
+        0.94,
+        1.0,
+        0.9
+      ],
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:ice_crystal"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ice_spire_5",
+      "renderer": "mesh",
+      "material": "frost_crystal",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.39,
+      "height": 2.3,
+      "start_speed": 0.0,
+      "rotation": 22.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            -1.7677669529663693,
+            0.75,
+            -1.7677669529663687
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.65,
+        0.94,
+        1.0,
+        0.9
+      ],
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:ice_crystal"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ice_spire_6",
+      "renderer": "mesh",
+      "material": "frost_crystal",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 0.95,
+      "height": 1.65,
+      "start_speed": 0.0,
+      "rotation": 22.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            -3.7657889073781105e-16,
+            0.75,
+            -2.05
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.65,
+        0.94,
+        1.0,
+        0.9
+      ],
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:ice_crystal"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ice_spire_7",
+      "renderer": "mesh",
+      "material": "frost_crystal",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.17,
+      "height": 2.3,
+      "start_speed": 0.0,
+      "rotation": -22.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            1.7677669529663684,
+            0.75,
+            -1.7677669529663693
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.65,
+        0.94,
+        1.0,
+        0.9
+      ],
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:ice_crystal"
+          }
+        ]
+      }
+    },
+    {
+      "name": "center_crystal",
+      "renderer": "mesh",
+      "material": "frost_crystal",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 1.65,
+      "height": 2.8,
+      "start_speed": 0.0,
+      "rotation": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            0.0,
+            1.55,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.75,
+        0.97,
+        1.0,
+        0.94
+      ],
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:ice_crystal"
+          }
+        ]
+      }
+    },
+    {
+      "name": "frost_ground_seal",
+      "renderer": "mesh",
+      "material": "frost_mandala",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 6.4,
+      "height": 6.4,
+      "start_speed": 0.0,
+      "rotation": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            0.0,
+            0.06,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        0.45,
+        0.9,
+        1.0,
+        0.94
+      ],
+      "mesh": {
+        "entries": [
+          {
+            "asset": "lumenfx_showcase:horizontal_quad"
+          }
+        ]
+      }
+    },
+    {
+      "name": "snow_sparks",
+      "renderer": "sprite",
+      "material": "snowflake",
+      "local_space": false,
+      "duration": 10.0,
+      "loop": true,
+      "max_particles": 220,
+      "rate": 65.0,
+      "lifetime": {
+        "min": 1.6,
+        "max": 2.8
+      },
+      "width": {
+        "min": 0.16,
+        "max": 0.34
+      },
+      "height": {
+        "min": 0.16,
+        "max": 0.34
+      },
+      "velocity_min": [
+        -1.0,
+        0.5,
+        -1.0
+      ],
+      "velocity_max": [
+        1.0,
+        1.8,
+        1.0
+      ],
+      "shape": {
+        "type": "cylinder",
+        "size": [
+          3.2,
+          1.2,
+          3.2
+        ],
+        "unity": {
+          "position": [
+            0.0,
+            0.9,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "noise": {
+        "strength": [
+          1.2,
+          0.4,
+          1.2
+        ],
+        "frequency": 1.6
+      },
+      "color": {
+        "stops": [
+          {
+            "time": 0.0,
+            "color": [
+              0.78,
+              0.97,
+              1.0,
+              0.0
+            ]
+          },
+          {
+            "time": 0.25,
+            "color": [
+              0.78,
+              0.97,
+              1.0,
+              0.92
+            ]
+          },
+          {
+            "time": 1.0,
+            "color": [
+              0.68,
+              0.92,
+              1.0,
+              0.0
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

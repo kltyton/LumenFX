@@ -1,0 +1,282 @@
+{
+  "format_version": 1,
+  "materials": {
+    "star_spark": {
+      "fragment_shader": "lumenfx:core/effect",
+      "textures": {
+        "Sampler0": "lumenfx_showcase:textures/vfx/sparkle_star.png"
+      },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.18,
+      "bloom_intensity": 0.42
+    },
+    "cloud_glow": {
+      "fragment_shader": "lumenfx:core/effect",
+      "textures": {
+        "Sampler0": "lumenfx_showcase:textures/vfx/soft_glow.png"
+      },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.12,
+      "bloom_intensity": 0.35
+    }
+  },
+  "lights": [
+    {
+      "position": [
+        0.0,
+        1.0,
+        0.8
+      ],
+      "color": [
+        1.0,
+        0.84,
+        0.35
+      ],
+      "radius": 8.0,
+      "intensity": 0.48,
+      "type": "point"
+    }
+  ],
+  "emitters": [
+    {
+      "name": "source_cloud",
+      "renderer": "sprite",
+      "material": "cloud_glow",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [
+        {
+          "time": 0.0,
+          "min": 1,
+          "max": 1,
+          "cycles": 1
+        }
+      ],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 2.6,
+      "height": 2.0,
+      "start_speed": 0.0,
+      "rotation": 0.0,
+      "shape": {
+        "type": "point",
+        "unity": {
+          "position": [
+            0.0,
+            5.2,
+            -0.3
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": [
+        1.0,
+        0.98,
+        0.9,
+        0.42
+      ]
+    },
+    {
+      "name": "cloud_stars",
+      "renderer": "sprite",
+      "material": "star_spark",
+      "local_space": false,
+      "duration": 10.0,
+      "loop": true,
+      "max_particles": 180,
+      "rate": 75.0,
+      "lifetime": {
+        "min": 0.85,
+        "max": 1.4
+      },
+      "width": {
+        "min": 0.28,
+        "max": 0.48
+      },
+      "height": {
+        "min": 0.28,
+        "max": 0.48
+      },
+      "start_speed": {
+        "min": 0.35,
+        "max": 1.1
+      },
+      "start_direction": [
+        0,
+        -1,
+        0
+      ],
+      "shape": {
+        "type": "box",
+        "size": [
+          1.9,
+          1.1,
+          1.6
+        ],
+        "unity": {
+          "position": [
+            0.0,
+            5.2,
+            -0.3
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "color": {
+        "stops": [
+          {
+            "time": 0.0,
+            "color": [
+              1.0,
+              0.98,
+              0.92,
+              0.0
+            ]
+          },
+          {
+            "time": 0.2,
+            "color": [
+              1.0,
+              0.98,
+              0.92,
+              0.85
+            ]
+          },
+          {
+            "time": 1.0,
+            "color": [
+              1.0,
+              0.94,
+              0.72,
+              0.0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "colliding_sparks",
+      "renderer": "sprite",
+      "material": "star_spark",
+      "local_space": false,
+      "duration": 10.0,
+      "loop": true,
+      "max_particles": 850,
+      "rate": 155.0,
+      "lifetime": {
+        "min": 3.0,
+        "max": 4.4
+      },
+      "width": {
+        "min": 0.3,
+        "max": 0.5
+      },
+      "height": {
+        "min": 0.3,
+        "max": 0.5
+      },
+      "velocity_min": [
+        -3.2,
+        -1.5,
+        -2.0
+      ],
+      "velocity_max": [
+        3.2,
+        0.8,
+        3.6
+      ],
+      "acceleration": [
+        0.0,
+        -7.8,
+        0.0
+      ],
+      "shape": {
+        "type": "box",
+        "size": [
+          2.2,
+          0.8,
+          1.5
+        ],
+        "unity": {
+          "position": [
+            0.0,
+            5.0,
+            -0.3
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "collision": {
+        "enabled": true,
+        "bounce": 0.44,
+        "dampen": 0.28,
+        "lifetime_loss": 0.0
+      },
+      "color": {
+        "stops": [
+          {
+            "time": 0.0,
+            "color": [
+              1.0,
+              0.98,
+              0.85,
+              0.95
+            ]
+          },
+          {
+            "time": 0.35,
+            "color": [
+              1.0,
+              0.85,
+              0.28,
+              0.92
+            ]
+          },
+          {
+            "time": 0.8,
+            "color": [
+              1.0,
+              0.72,
+              0.12,
+              0.88
+            ]
+          },
+          {
+            "time": 1.0,
+            "color": [
+              1.0,
+              0.65,
+              0.08,
+              0.0
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

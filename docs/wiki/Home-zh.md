@@ -35,6 +35,7 @@ flowchart LR
 | 页面 | 内容概要 |
 | :--- | :--- |
 | **[[快速入门与 API\|Getting-Started-zh]]** | 玩家安装步骤、10 目标支持矩阵、Sighs Maven 依赖配置与 Java API 快速上手（`VfxEffects` / `EffectHandle`）。 |
+| **[官方示例特效资源包](https://github.com/kltyton/LumenFX/tree/main/examples/showcase-pack)** | 可直接加载的示例资源包，收录全部 10 组实机展示特效（动态光源、体积雾、程序化 GLSL 材质、方块碰撞、3D 全息网格、黑洞、丝带、等离子光束、冰霜新星与樱花圣域）。 |
 | **[[效果格式与着色器参考\|Effect-Format-Reference-zh]]** | 资源目录约定、LumenFX JSON v1 字段表、曲线与随机范围、发射形状、渲染器与自定义 GLSL 片元着色器。 |
 | **[[Niagara、Unity 与 Photon 工作流\|Niagara-and-Unity-Workflow-zh]]** | Unity UPM 编辑器插件、Unreal Engine 5 编辑器插件与 Niagara 离线编译器流程，以及 Photon `.fx` 兼容说明。 |
 | **[[GeckoLib 与 KBR 粒子关键帧\|GeckoLib-and-KBR-Keyframes-zh]]** | 在 GeckoLib 4.x / 5.x 与 KBR 的 Blockbench `particle_effects` 关键帧中触发 LumenFX 特效、3D 定位点跟随与 `LumenFxKeyframeBridge` API。 |
