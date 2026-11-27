@@ -97,7 +97,7 @@ repositories {
 
 dependencies {
     // Replace with your target artifact ID from the table above
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.1'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.2'
 }
 ```
 

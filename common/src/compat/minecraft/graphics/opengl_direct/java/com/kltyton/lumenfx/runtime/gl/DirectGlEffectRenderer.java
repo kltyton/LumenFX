@@ -32,7 +32,11 @@ import com.kltyton.lumenfx.runtime.simulation.PhotonFxRuntime;
 import com.kltyton.lumenfx.runtime.simulation.UnityEmitterRuntime;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import javax.annotation.Nullable;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -58,7 +62,7 @@ import org.lwjgl.system.MemoryUtil;
  * </ul>
  */
 public final class DirectGlEffectRenderer {
-    private static final int FLOATS_PER_VERTEX = 20; // Position, UV, color, particle/custom data, next subimage
+    private static final int FLOATS_PER_VERTEX = 22; // Position(3), UV0(2), color(4), particle(4), custom(4), nextSubImage(3), UV1(2)
     private static final int MAX_BATCH_VERTICES = 65536;
     private static final int NANITE_AUTO_INDEX_THRESHOLD = 1536; // 512 triangles
 
@@ -120,6 +124,8 @@ public final class DirectGlEffectRenderer {
             GL20C.glVertexAttribPointer(4, 4, GL11C.GL_FLOAT, false, stride, 13L * Float.BYTES);
             GL20C.glEnableVertexAttribArray(5);
             GL20C.glVertexAttribPointer(5, 3, GL11C.GL_FLOAT, false, stride, 17L * Float.BYTES);
+            GL20C.glEnableVertexAttribArray(6);
+            GL20C.glVertexAttribPointer(6, 2, GL11C.GL_FLOAT, false, stride, 20L * Float.BYTES);
             GL30C.glBindVertexArray(0);
         }
     }
@@ -243,7 +249,7 @@ public final class DirectGlEffectRenderer {
             EffectHandle.Snapshot snap = inst.handle().snapshot();
             for (UnityEmitterRuntime u : inst.unityEmitters()) {
                 if (u.spec.material().hdr() != hdrPass) continue;
-                renderUnityEmitter(u, camX, camY, camZ, partialTick, bridge);
+                renderUnityEmitter(u, hdrPass, camX, camY, camZ, partialTick, bridge);
             }
             NiagaraSystemRuntime niagara = inst.niagaraRuntime();
             if (niagara != null) {
@@ -304,18 +310,18 @@ public final class DirectGlEffectRenderer {
         }
     }
 
-    private void renderUnityEmitter(UnityEmitterRuntime u, double camX, double camY, double camZ,
+    private void renderUnityEmitter(UnityEmitterRuntime u, boolean hdrPass, double camX, double camY, double camZ,
                                     float pt, @Nullable McResourceBridge bridge) {
         if (u.particles.isEmpty()) return;
         MaterialModel mat = u.spec.material();
-        applyMaterialState(mat);
-        int tex = textures.resolve(mat.primaryTexture(), bridge);
+        applyMaterialState(mat, hdrPass);
+        int tex = resolvePrimaryTexture(mat, bridge);
         GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
         GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, tex);
 
         if (u.spec.renderer() == UnityEmitterModel.RendererKind.MESH
                 && u.spec.meshEntry() != null && u.spec.meshEntry().mesh() != null) {
-            renderMeshParticles(u.particles, u.spec.meshEntry().mesh(), mat, tex, camX, camY, camZ, pt);
+            renderMeshParticles(u.particles, u.spec.meshEntry().mesh(), mat, tex, camX, camY, camZ, pt, null, 1.0f, bridge);
             return;
         }
 
@@ -325,10 +331,12 @@ public final class DirectGlEffectRenderer {
         vertexBuf.clear();
         int verts = 0;
         if (ribbon) {
-            verts = appendRibbonChain(u.particles, camX, camY, camZ, pt, verts);
+            verts = appendRibbonStrips(u.particles, u.spec.ribbonConfig(), false, camX, camY, camZ, pt, verts);
         } else {
+            int atlasRows = u.spec.atlasRows();
+            int atlasCols = u.spec.atlasColumns();
             for (ParticleInstance p : u.particles) {
-                verts = appendBillboard(p, stretched, mat, camX, camY, camZ, pt, verts);
+                verts = appendBillboard(p, stretched, mat, atlasRows, atlasCols, camX, camY, camZ, pt, verts);
                 if (u.spec.trail().enabled() && p.trailCount >= 2) {
                     verts = appendParticleTrail(p, camX, camY, camZ, verts);
                 }
@@ -341,18 +349,36 @@ public final class DirectGlEffectRenderer {
                                Matrix4f projection, Matrix4f modelView,
                                double camX, double camY, double camZ, float pt,
                                @Nullable McResourceBridge bridge) {
-        for (NiagaraSystemRuntime.EmitterState e : niagara.emitters()) {
+        List<NiagaraSystemRuntime.EmitterState> emitters = niagara.emitters();
+        if (emitters.size() > 1) {
+            boolean needsSort = false;
+            int prevOrder = emitters.get(0).spec.sortOrder();
+            for (int i = 1; i < emitters.size(); i++) {
+                int order = emitters.get(i).spec.sortOrder();
+                if (order < prevOrder) {
+                    needsSort = true;
+                    break;
+                }
+                prevOrder = order;
+            }
+            if (needsSort) {
+                List<NiagaraSystemRuntime.EmitterState> sorted = new ArrayList<>(emitters);
+                sorted.sort(Comparator.comparingInt(e -> e.spec.sortOrder()));
+                emitters = sorted;
+            }
+        }
+        for (NiagaraSystemRuntime.EmitterState e : emitters) {
             MaterialModel mat = e.material;
             if (mat.hdr() != hdrPass) continue;
 
             // Zero-readback GPU SSBO direct rendering (no 2,048 cap!)
-            if (e.spec.isGpu() && !e.isCacheActiveLastTick()) {
+            if (e.spec.isGpu() && !e.isCacheActiveLastTick() && !mat.hasCustomShader()) {
                 DirectGlNiagaraDirectRenderer.GpuDrawDescriptor desc = niagaraGpuRunner.directDrawDescriptor(e);
                 if (desc != null) {
                     RendererKind rk = e.primaryRenderer.kind();
                     if (rk == RendererKind.SPRITE || rk == RendererKind.RIBBON || rk == RendererKind.MESH) {
-                        applyMaterialState(mat);
-                        int tex = textures.resolve(mat.primaryTexture(), bridge);
+                        applyMaterialState(mat, hdrPass);
+                        int tex = resolvePrimaryTexture(mat, bridge);
                         if (niagaraDirectRenderer.drawDirect(desc, viewProj, camRight, camUp, camForward,
                                 camX, camY, camZ, tex, activeSceneDepthTex, activeNear, activeFar,
                                 activeVpWidth, activeVpHeight, meshes,
@@ -409,22 +435,24 @@ public final class DirectGlEffectRenderer {
                 continue;
             }
 
-            applyMaterialState(mat);
-            int tex = textures.resolve(mat.primaryTexture(), bridge);
+            applyMaterialState(mat, hdrPass);
+            int tex = resolvePrimaryTexture(mat, bridge);
             GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
             GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, tex);
 
             if (rk == RendererKind.MESH && e.primaryRenderer.meshModel() != null) {
-                renderMeshParticles(list, e.primaryRenderer.meshModel(), mat, tex, camX, camY, camZ, pt);
+                renderMeshParticles(list, e.primaryRenderer.meshModel(), mat, tex, camX, camY, camZ, pt, null, 1.0f, bridge);
                 continue;
             }
             vertexBuf.clear();
             int verts = 0;
             if (rk == RendererKind.RIBBON) {
-                verts = appendRibbonChain(list, camX, camY, camZ, pt, verts);
+                verts = appendRibbonStrips(list, e.spec.ribbonConfig(), true, camX, camY, camZ, pt, verts);
             } else {
+                int subRows = e.spec.subImageRows();
+                int subCols = e.spec.subImageCols();
                 for (ParticleInstance p : list) {
-                    verts = appendBillboard(p, false, mat, camX, camY, camZ, pt, verts);
+                    verts = appendBillboard(p, false, mat, subRows, subCols, camX, camY, camZ, pt, verts);
                 }
             }
             flushParticles(verts, mat, bridge);
@@ -439,8 +467,8 @@ public final class DirectGlEffectRenderer {
             MaterialModel mat = spec.material();
             if (mat.hdr() != hdrPass) continue;
 
-            applyMaterialState(mat);
-            int tex = textures.resolve(mat.primaryTexture(), bridge);
+            applyMaterialState(mat, hdrPass);
+            int tex = resolvePrimaryTexture(mat, bridge);
             GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
             GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, tex);
 
@@ -451,7 +479,8 @@ public final class DirectGlEffectRenderer {
                 var basis = new Matrix4f().rotation(new org.joml.Quaternionf(pose.x(), pose.y(), pose.z(), pose.w()))
                         .scale(pose.scaleX() / unit, pose.scaleY() / unit, pose.scaleZ() / unit)
                         .mul(obj.localToEffectMatrix).setTranslation(0f, 0f, 0f);
-                renderMeshParticles(obj.particles, spec.authoredModel(), mat, tex, camX, camY, camZ, pt, basis);
+                float shade = (spec.extras() == null || spec.extras().shade()) ? 1.0f : 0.0f;
+                renderMeshParticles(obj.particles, spec.authoredModel(), mat, tex, camX, camY, camZ, pt, basis, shade, bridge);
                 continue;
             }
             vertexBuf.clear();
@@ -465,23 +494,96 @@ public final class DirectGlEffectRenderer {
                 }
             } else {
                 for (ParticleInstance p : obj.particles) {
-                    verts = appendBillboard(p, stretched, mat, camX, camY, camZ, pt, verts);
+                    verts = appendBillboard(p, stretched, mat, 1, 1, camX, camY, camZ, pt, verts);
                 }
             }
             flushParticles(verts, mat, bridge);
         }
     }
 
-    private void renderMeshParticles(List<ParticleInstance> particles, StaticMeshModel mesh, MaterialModel mat,
-                                     int tex, double camX, double camY, double camZ, float pt) {
-        renderMeshParticles(particles, mesh, mat, tex, camX, camY, camZ, pt, null);
+    private int resolvePrimaryTexture(MaterialModel mat, @Nullable McResourceBridge bridge) {
+        if ((mat.customGlslFragment() == null || mat.customGlslFragment().isBlank())
+                && "lumenfx:core/color".equals(mat.fragmentShader())) {
+            return textures.whiteTexture();
+        }
+        return textures.resolve(mat.primaryTexture(), bridge);
     }
 
     private void renderMeshParticles(List<ParticleInstance> particles, StaticMeshModel mesh, MaterialModel mat,
                                      int tex, double camX, double camY, double camZ, float pt,
-                                     @Nullable Matrix4f basis) {
+                                     @Nullable Matrix4f basis, float shade, @Nullable McResourceBridge bridge) {
         GpuMesh gpu = meshes.resolve(mesh);
         if (gpu.vao() == 0 || gpu.indexCount() <= 0) return;
+
+        CompiledMaterial custom = mat.hasCustomShader() ? customMaterials.resolveForMesh(mat, bridge) : null;
+        if (custom != null) {
+            float hdr = mat.hdr() ? Math.max(1.5f, mat.emissiveScale()) : 1.0f;
+            float softFade = (activeSceneDepthTex != 0 && mat.softParticles()) ? mat.softFadeDistance() : 0f;
+            if (activeSceneDepthTex != 0) {
+                GL13C.glActiveTexture(GL13C.GL_TEXTURE1);
+                GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, activeSceneDepthTex);
+            }
+            if (activeSceneColorTex != 0) {
+                GL13C.glActiveTexture(GL13C.GL_TEXTURE2);
+                GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, activeSceneColorTex);
+            }
+            String tex1Id = mat.secondaryTexture();
+            if (tex1Id != null) {
+                GL13C.glActiveTexture(GL13C.GL_TEXTURE3);
+                GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, textures.resolve(tex1Id, bridge));
+            }
+            GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
+            GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, tex);
+            GL20C.glUseProgram(custom.program());
+            if (custom.modelLoc() >= 0 && custom.viewProjLoc() >= 0) {
+                matBuf.clear();
+                viewProj.get(matBuf);
+                GL20C.glUniformMatrix4fv(custom.viewProjLoc(), false, matBuf);
+            }
+            if (custom.timeLoc() >= 0) GL20C.glUniform1f(custom.timeLoc(), frameTimeSeconds);
+            if (custom.hdrLoc() >= 0) GL20C.glUniform1f(custom.hdrLoc(), hdr);
+            if (custom.softFadeLoc() >= 0) GL20C.glUniform1f(custom.softFadeLoc(), softFade);
+            if (custom.nearFarLoc() >= 0) GL20C.glUniform2f(custom.nearFarLoc(), activeNear, activeFar);
+            if (custom.invViewportLoc() >= 0) GL20C.glUniform2f(custom.invViewportLoc(), 1f / activeVpWidth, 1f / activeVpHeight);
+            if (custom.paramsLoc() >= 0) {
+                float[] p = mat.parameters();
+                GL20C.glUniform4f(custom.paramsLoc(), p[0], p[1], p[2], p[3]);
+            }
+            if (custom.tex0Loc() >= 0) GL20C.glUniform1i(custom.tex0Loc(), 0);
+            if (custom.sceneDepthLoc() >= 0) GL20C.glUniform1i(custom.sceneDepthLoc(), 1);
+            if (custom.sceneColorLoc() >= 0) GL20C.glUniform1i(custom.sceneColorLoc(), 2);
+            if (custom.tex1Loc() >= 0) GL20C.glUniform1i(custom.tex1Loc(), 3);
+            bindAuthoredMaterial(custom, mat, bridge);
+
+            GL30C.glBindVertexArray(gpu.vao());
+            GL15C.glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, gpu.ebo());
+            Matrix4f mvp = custom.modelLoc() < 0 ? new Matrix4f() : null;
+            for (ParticleInstance p : particles) {
+                float x = (float) (p.lerpX(pt) - camX);
+                float y = (float) (p.lerpY(pt) - camY);
+                float z = (float) (p.lerpZ(pt) - camZ);
+                float sx = Math.max(0.01f, p.width) * gpu.unitScale();
+                float sy = Math.max(0.01f, p.height) * gpu.unitScale();
+                meshParticleTransform(x, y, z, p.rotationDeg, sx, sy, basis);
+                if (custom.modelLoc() >= 0) {
+                    matBuf.clear();
+                    modelMat.get(matBuf);
+                    GL20C.glUniformMatrix4fv(custom.modelLoc(), false, matBuf);
+                } else if (custom.viewProjLoc() >= 0) {
+                    mvp.set(viewProj).mul(modelMat);
+                    matBuf.clear();
+                    mvp.get(matBuf);
+                    GL20C.glUniformMatrix4fv(custom.viewProjLoc(), false, matBuf);
+                }
+                if (custom.tintLoc() >= 0) {
+                    GL20C.glUniform4f(custom.tintLoc(), p.r, p.g, p.b, p.a);
+                }
+                GL11C.glDrawElements(GL11C.GL_TRIANGLES, gpu.indexCount(), GL11C.GL_UNSIGNED_INT, 0L);
+            }
+            GL30C.glBindVertexArray(0);
+            return;
+        }
+
         boolean useNanite = mat.nanite() || mesh.indexCount() >= NANITE_AUTO_INDEX_THRESHOLD;
         if (useNanite) {
             for (ParticleInstance p : particles) {
@@ -504,6 +606,7 @@ public final class DirectGlEffectRenderer {
         GL20C.glUniformMatrix4fv(shaders.meshViewProjLoc, false, matBuf);
         GL20C.glUniform1i(shaders.meshTexLoc, 0);
         GL20C.glUniform1f(shaders.meshHdrLoc, mat.hdr() ? Math.max(1.5f, mat.emissiveScale()) : 1.0f);
+        GL20C.glUniform1f(shaders.meshShadeLoc, shade);
         GL30C.glBindVertexArray(gpu.vao());
         GL15C.glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, gpu.ebo());
 
@@ -538,13 +641,14 @@ public final class DirectGlEffectRenderer {
     }
 
     private int appendBillboard(ParticleInstance p, boolean stretched, MaterialModel mat,
+                                int emitterRows, int emitterCols,
                                 double camX, double camY, double camZ, float pt, int verts) {
         if (verts + 6 > MAX_BATCH_VERTICES) return verts;
         float cx = (float) (p.lerpX(pt) - camX);
         float cy = (float) (p.lerpY(pt) - camY);
         float cz = (float) (p.lerpZ(pt) - camZ);
-        float hw = Math.max(0.005f, p.width * 0.5f);
-        float hh = Math.max(0.005f, p.height * 0.5f);
+        float hw = Math.max(0.001f, p.width * 0.5f);
+        float hh = Math.max(0.001f, p.height * 0.5f);
 
         float rx, ry, rz, ux, uy, uz;
         if (stretched) {
@@ -579,11 +683,13 @@ public final class DirectGlEffectRenderer {
 
         float u0 = 0f, v0 = 0f, u1 = 1f, v1 = 1f;
         float nextU = 0f, nextV = 0f, subImageLerp = 0f;
-        int rows = mat.subUvRows();
-        int cols = mat.subUvCols();
+        int rows = (emitterRows > 1 || emitterCols > 1) ? Math.max(1, emitterRows) : mat.subUvRows();
+        int cols = (emitterRows > 1 || emitterCols > 1) ? Math.max(1, emitterCols) : mat.subUvCols();
         if (rows > 1 || cols > 1) {
             int total = rows * cols;
-            float frameProgress = Math.min(total - 1, Math.max(0f, p.normalizedAge() * total));
+            float frameProgress = p.hasSubImageIndex
+                    ? Math.min(total - 1, Math.max(0f, p.subImageIndex))
+                    : Math.min(total - 1, Math.max(0f, p.normalizedAge() * total));
             int frame = (int) frameProgress;
             int nextFrame = Math.min(total - 1, frame + 1);
             int col = frame % cols;
@@ -606,24 +712,150 @@ public final class DirectGlEffectRenderer {
         return verts + 6;
     }
 
-    private int appendRibbonChain(List<ParticleInstance> list, double camX, double camY, double camZ,
-                                  float pt, int verts) {
-        if (list.size() < 2) {
-            if (list.size() == 1) return appendBillboard(list.get(0), false, MaterialModel.defaultMaterial("ribbon"), camX, camY, camZ, pt, verts);
-            return verts;
+    private int appendRibbonStrips(List<ParticleInstance> list, UnityEmitterModel.RibbonConfigSpec ribbonCfg,
+                                   boolean sortByLinkOrder, double camX, double camY, double camZ,
+                                   float pt, int verts) {
+        if (list.size() < 2) return verts;
+        UnityEmitterModel.RibbonConfigSpec cfg = ribbonCfg != null ? ribbonCfg : UnityEmitterModel.RibbonConfigSpec.DEFAULT;
+        boolean hasMultiId = false;
+        long firstId = 0L;
+        if (list.get(0).hasRibbonId) {
+            firstId = list.get(0).ribbonId;
+            for (int i = 1; i < list.size(); i++) {
+                if (list.get(i).hasRibbonId && list.get(i).ribbonId != firstId) {
+                    hasMultiId = true;
+                    break;
+                }
+            }
         }
-        int n = list.size();
-        for (int i = 0; i < n - 1 && verts + 6 <= MAX_BATCH_VERTICES; i++) {
-            ParticleInstance a = list.get(i);
-            ParticleInstance b = list.get(i + 1);
-            float ax = (float) (a.lerpX(pt) - camX), ay = (float) (a.lerpY(pt) - camY), az = (float) (a.lerpZ(pt) - camZ);
-            float bx = (float) (b.lerpX(pt) - camX), by = (float) (b.lerpY(pt) - camY), bz = (float) (b.lerpZ(pt) - camZ);
-            verts = appendSegmentQuad(ax, ay, az, bx, by, bz,
-                    Math.max(0.02f, a.width * 0.5f), Math.max(0.02f, b.width * 0.5f),
-                    (float) i / (n - 1), (float) (i + 1) / (n - 1),
-                    a.r, a.g, a.b, a.a, b.r, b.g, b.b, b.a, a, b, verts);
+        if (!hasMultiId) {
+            List<ParticleInstance> ordered = sortByLinkOrder ? sortRibbonStrip(list) : list;
+            return appendSingleRibbonStrip(ordered, cfg, camX, camY, camZ, pt, verts);
+        }
+        Map<Long, List<ParticleInstance>> groups = new LinkedHashMap<>();
+        for (ParticleInstance p : list) {
+            long key = p.hasRibbonId ? p.ribbonId : firstId;
+            groups.computeIfAbsent(key, k -> new ArrayList<>()).add(p);
+        }
+        for (List<ParticleInstance> strip : groups.values()) {
+            if (strip.size() < 2) continue;
+            if (sortByLinkOrder) {
+                strip.sort(Comparator.comparingDouble(p -> p.ribbonLinkOrder));
+            }
+            verts = appendSingleRibbonStrip(strip, cfg, camX, camY, camZ, pt, verts);
+            if (verts + 6 > MAX_BATCH_VERTICES) break;
         }
         return verts;
+    }
+
+    private static List<ParticleInstance> sortRibbonStrip(List<ParticleInstance> list) {
+        int n = list.size();
+        boolean sorted = true;
+        for (int i = 1; i < n; i++) {
+            if (list.get(i).ribbonLinkOrder < list.get(i - 1).ribbonLinkOrder) {
+                sorted = false;
+                break;
+            }
+        }
+        if (sorted) return list;
+        List<ParticleInstance> copy = new ArrayList<>(list);
+        copy.sort(Comparator.comparingDouble(p -> p.ribbonLinkOrder));
+        return copy;
+    }
+
+    private int appendSingleRibbonStrip(List<ParticleInstance> strip, UnityEmitterModel.RibbonConfigSpec cfg,
+                                        double camX, double camY, double camZ, float pt, int verts) {
+        int n = strip.size();
+        if (n < 2) return verts;
+        float[] px = new float[n];
+        float[] py = new float[n];
+        float[] pz = new float[n];
+        float[] cumDist = new float[n];
+        for (int i = 0; i < n; i++) {
+            ParticleInstance p = strip.get(i);
+            px[i] = (float) (p.lerpX(pt) - camX);
+            py[i] = (float) (p.lerpY(pt) - camY);
+            pz[i] = (float) (p.lerpZ(pt) - camZ);
+            if (i > 0) {
+                float dx = px[i] - px[i - 1];
+                float dy = py[i] - py[i - 1];
+                float dz = pz[i] - pz[i - 1];
+                cumDist[i] = cumDist[i - 1] + (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+            }
+        }
+        float totalLen = Math.max(1e-5f, cumDist[n - 1]);
+        float[] sideX = new float[n];
+        float[] sideY = new float[n];
+        float[] sideZ = new float[n];
+        for (int i = 0; i < n; i++) {
+            int i0 = Math.max(0, i - 1);
+            int i1 = Math.min(n - 1, i + 1);
+            float dx = px[i1] - px[i0];
+            float dy = py[i1] - py[i0];
+            float dz = pz[i1] - pz[i0];
+            // side = camForward x tangent -> CCW front-facing towards camera
+            float sx = camForward.y * dz - camForward.z * dy;
+            float sy = camForward.z * dx - camForward.x * dz;
+            float sz = camForward.x * dy - camForward.y * dx;
+            float sl = (float) Math.sqrt(sx * sx + sy * sy + sz * sz);
+            if (sl < 1e-5f) {
+                if (i > 0) {
+                    sx = sideX[i - 1]; sy = sideY[i - 1]; sz = sideZ[i - 1];
+                } else {
+                    sx = camRight.x; sy = camRight.y; sz = camRight.z;
+                }
+            } else {
+                sx /= sl; sy /= sl; sz /= sl;
+            }
+            sideX[i] = sx; sideY[i] = sy; sideZ[i] = sz;
+        }
+
+        UnityEmitterModel.RibbonUvSpec uv0 = cfg.uv0();
+        UnityEmitterModel.RibbonUvSpec uv1 = cfg.uv1();
+        float v0Lo = uv0.offsetV();
+        float v0Hi = uv0.scaleV() + uv0.offsetV();
+        float v1Lo = uv1.offsetV();
+        float v1Hi = uv1.scaleV() + uv1.offsetV();
+
+        for (int i = 0; i < n - 1 && verts + 6 <= MAX_BATCH_VERTICES; i++) {
+            ParticleInstance a = strip.get(i);
+            ParticleInstance b = strip.get(i + 1);
+            float wa = Math.max(0.001f, a.width * 0.5f);
+            float wb = Math.max(0.001f, b.width * 0.5f);
+            float u0a = computeRibbonU(uv0, i, n, cumDist[i], totalLen, a);
+            float u0b = computeRibbonU(uv0, i + 1, n, cumDist[i + 1], totalLen, b);
+            float u1a = computeRibbonU(uv1, i, n, cumDist[i], totalLen, a);
+            float u1b = computeRibbonU(uv1, i + 1, n, cumDist[i + 1], totalLen, b);
+
+            float sax = sideX[i] * wa, say = sideY[i] * wa, saz = sideZ[i] * wa;
+            float sbx = sideX[i + 1] * wb, sby = sideY[i + 1] * wb, sbz = sideZ[i + 1] * wb;
+
+            putVert(px[i] - sax, py[i] - say, pz[i] - saz, u0a, v0Lo, a.r, a.g, a.b, a.a, a, 0f, 0f, 0f, u1a, v1Lo);
+            putVert(px[i] + sax, py[i] + say, pz[i] + saz, u0a, v0Hi, a.r, a.g, a.b, a.a, a, 0f, 0f, 0f, u1a, v1Hi);
+            putVert(px[i + 1] + sbx, py[i + 1] + sby, pz[i + 1] + sbz, u0b, v0Hi, b.r, b.g, b.b, b.a, b, 0f, 0f, 0f, u1b, v1Hi);
+            putVert(px[i] - sax, py[i] - say, pz[i] - saz, u0a, v0Lo, a.r, a.g, a.b, a.a, a, 0f, 0f, 0f, u1a, v1Lo);
+            putVert(px[i + 1] + sbx, py[i + 1] + sby, pz[i + 1] + sbz, u0b, v0Hi, b.r, b.g, b.b, b.a, b, 0f, 0f, 0f, u1b, v1Hi);
+            putVert(px[i + 1] - sbx, py[i + 1] - sby, pz[i + 1] - sbz, u0b, v0Lo, b.r, b.g, b.b, b.a, b, 0f, 0f, 0f, u1b, v1Lo);
+            verts += 6;
+        }
+        return verts;
+    }
+
+    private static float computeRibbonU(UnityEmitterModel.RibbonUvSpec uv, int index, int count,
+                                        float cumDist, float totalLen, ParticleInstance p) {
+        String dist = uv.distribution().toLowerCase(Locale.ROOT);
+        float tileLen = Math.max(1e-4f, uv.tileLength());
+        float raw;
+        if (dist.equals("uniform") || dist.equals("index")) {
+            raw = (float) index / (count - 1);
+        } else if (dist.equals("distance_from_start")) {
+            raw = (p.ribbonUvDistance != 0f ? p.ribbonUvDistance : cumDist) / tileLen;
+        } else if (dist.equals("distance") || dist.contains("tile")) {
+            raw = cumDist / tileLen;
+        } else {
+            raw = cumDist / totalLen;
+        }
+        return raw * uv.scaleU() + uv.offsetU();
     }
 
     private int appendParticleTrail(ParticleInstance p, double camX, double camY, double camZ, int verts) {
@@ -634,8 +866,8 @@ public final class DirectGlEffectRenderer {
             float bx = (float) (p.trailX[i + 1] - camX), by = (float) (p.trailY[i + 1] - camY), bz = (float) (p.trailZ[i + 1] - camZ);
             float t0 = (float) i / (n - 1);
             float t1 = (float) (i + 1) / (n - 1);
-            float w0 = Math.max(0.01f, p.width * 0.35f * (1f - t0 * 0.85f));
-            float w1 = Math.max(0.01f, p.width * 0.35f * (1f - t1 * 0.85f));
+            float w0 = Math.max(0.005f, p.width * 0.35f * (1f - t0 * 0.85f));
+            float w1 = Math.max(0.005f, p.width * 0.35f * (1f - t1 * 0.85f));
             verts = appendSegmentQuad(ax, ay, az, bx, by, bz, w0, w1, t0, t1,
                     p.r, p.g, p.b, p.a * (1f - t0 * 0.7f), p.r, p.g, p.b, p.a * (1f - t1 * 0.7f), p, p, verts);
         }
@@ -648,9 +880,10 @@ public final class DirectGlEffectRenderer {
                                   float r1, float g1, float b1, float a1,
                                   ParticleInstance start, ParticleInstance end, int verts) {
         float dx = bx - ax, dy = by - ay, dz = bz - az;
-        float sx = dy * camForward.z - dz * camForward.y;
-        float sy = dz * camForward.x - dx * camForward.z;
-        float sz = dx * camForward.y - dy * camForward.x;
+        // side = camForward x dir -> CCW front-facing towards camera
+        float sx = camForward.y * dz - camForward.z * dy;
+        float sy = camForward.z * dx - camForward.x * dz;
+        float sz = camForward.x * dy - camForward.y * dx;
         float sl = (float) Math.sqrt(sx * sx + sy * sy + sz * sz);
         if (sl < 1e-4f) { sx = camRight.x; sy = camRight.y; sz = camRight.z; }
         else { sx /= sl; sy /= sl; sz /= sl; }
@@ -666,16 +899,23 @@ public final class DirectGlEffectRenderer {
 
     private void putVert(float x, float y, float z, float u, float v, float r, float g, float b, float a,
                          ParticleInstance particle) {
-        putVert(x, y, z, u, v, r, g, b, a, particle, 0f, 0f, 0f);
+        putVert(x, y, z, u, v, r, g, b, a, particle, 0f, 0f, 0f, u, v);
     }
 
     private void putVert(float x, float y, float z, float u, float v, float r, float g, float b, float a,
                          ParticleInstance particle, float nextU, float nextV, float subImageLerp) {
+        putVert(x, y, z, u, v, r, g, b, a, particle, nextU, nextV, subImageLerp, u, v);
+    }
+
+    private void putVert(float x, float y, float z, float u, float v, float r, float g, float b, float a,
+                         ParticleInstance particle, float nextU, float nextV, float subImageLerp,
+                         float u1, float v1) {
         vertexBuf.put(x).put(y).put(z).put(u).put(v).put(r).put(g).put(b).put(a)
                 .put(particle.normalizedAge()).put(particle.curveRandom).put(particle.lifetime)
                 .put(frameTimeSeconds - particle.age)
                 .put(particle.customX).put(particle.customY).put(particle.customZ).put(particle.customW)
-                .put(nextU).put(nextV).put(subImageLerp);
+                .put(nextU).put(nextV).put(subImageLerp)
+                .put(u1).put(v1);
     }
 
     private void flushParticles(int verts, MaterialModel mat, @Nullable McResourceBridge bridge) {
@@ -764,7 +1004,7 @@ public final class DirectGlEffectRenderer {
         GL30C.glBindBufferBase(GL31C.GL_UNIFORM_BUFFER, 0, effectFrameUbo);
     }
 
-    private static void applyMaterialState(MaterialModel mat) {
+    private static void applyMaterialState(MaterialModel mat, boolean hdrPass) {
         if (mat.depthTest()) GL11C.glEnable(GL11C.GL_DEPTH_TEST); else GL11C.glDisable(GL11C.GL_DEPTH_TEST);
         GL11C.glDepthMask(mat.depthWrite());
         if (mat.cull()) GL11C.glEnable(GL11C.GL_CULL_FACE); else GL11C.glDisable(GL11C.GL_CULL_FACE);
@@ -782,7 +1022,15 @@ public final class DirectGlEffectRenderer {
         };
         GL20C.glBlendEquationSeparate(eq, GL14C.GL_FUNC_ADD);
         switch (mode) {
-            case ADDITIVE, SUBTRACT, REVERSE_SUBTRACT ->
+            case ADDITIVE -> {
+                if (hdrPass) {
+                    // Leave offscreen HDR FBO alpha untouched so additive bloom adds cleanly over bright skies.
+                    GL14C.glBlendFuncSeparate(GL11C.GL_SRC_ALPHA, GL11C.GL_ONE, GL11C.GL_ZERO, GL11C.GL_ONE);
+                } else {
+                    GL14C.glBlendFuncSeparate(GL11C.GL_SRC_ALPHA, GL11C.GL_ONE, GL11C.GL_ONE, GL11C.GL_ONE);
+                }
+            }
+            case SUBTRACT, REVERSE_SUBTRACT ->
                     GL14C.glBlendFuncSeparate(GL11C.GL_SRC_ALPHA, GL11C.GL_ONE, GL11C.GL_ONE, GL11C.GL_ONE);
             case PREMULTIPLIED ->
                     GL14C.glBlendFuncSeparate(GL11C.GL_ONE, GL11C.GL_ONE_MINUS_SRC_ALPHA, GL11C.GL_ONE, GL11C.GL_ONE_MINUS_SRC_ALPHA);

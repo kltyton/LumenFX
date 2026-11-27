@@ -79,7 +79,30 @@ public final class NiagaraSystemModel {
                               @Nullable GpuProgramSpec gpuProgram,
                               @Nullable String simCacheId,
                               float explicitSpawnRate,
-                              float defaultLifetime, MaterialDataCurves materialData) {
+                              float defaultLifetime, MaterialDataCurves materialData,
+                              UnityEmitterModel.RibbonConfigSpec ribbonConfig,
+                              int sortOrder, boolean scaleSizeWithOwner,
+                              int subImageCols, int subImageRows) {
+        public EmitterSpec(String name, String sourceName, SimTarget simTarget,
+                           boolean localSpace, int randomSeed, boolean deterministic,
+                           int declaredMaxParticles,
+                           int floatComponents, int intComponents, int halfComponents,
+                           List<AttributeSpec> attributes,
+                           List<RendererSpec> renderers,
+                           List<String> spawnInfoVariables,
+                           @Nullable DirectVectorProgram spawnProgram,
+                           @Nullable DirectVectorProgram updateProgram,
+                           @Nullable GpuProgramSpec gpuProgram,
+                           @Nullable String simCacheId,
+                           float explicitSpawnRate,
+                           float defaultLifetime, MaterialDataCurves materialData) {
+            this(name, sourceName, simTarget, localSpace, randomSeed, deterministic,
+                    declaredMaxParticles, floatComponents, intComponents, halfComponents,
+                    attributes, renderers, spawnInfoVariables, spawnProgram, updateProgram, gpuProgram,
+                    simCacheId, explicitSpawnRate, defaultLifetime, materialData,
+                    UnityEmitterModel.RibbonConfigSpec.DEFAULT, 0, false, 1, 1);
+        }
+
         public boolean isGpu() { return simTarget == SimTarget.GPU && gpuProgram != null; }
         public boolean hasCpuVm() { return simTarget == SimTarget.CPU && spawnProgram != null && updateProgram != null; }
     }
@@ -320,10 +343,30 @@ public final class NiagaraSystemModel {
         float explicitSpawnRate = em.has("spawn_rate") && em.get("spawn_rate").isJsonPrimitive()
                 ? (float) readDouble(em, "spawn_rate", 0.0) : 0.0f;
         float lifetime = (float) readDouble(em, "lifetime", 1.5);
+        UnityEmitterModel.RibbonConfigSpec ribbonCfg = top != null ? top.ribbonConfig() : UnityEmitterModel.RibbonConfigSpec.DEFAULT;
+        int sortOrder = top != null ? top.sortOrder() : readInt(em, "sort_order", 0);
+        boolean scaleSizeWithOwner = top != null && top.scaleSizeWithOwner();
+        int subCols = top != null ? top.atlasColumns() : 1;
+        int subRows = top != null ? top.atlasRows() : 1;
+        if (em.has("renderers") && em.get("renderers").isJsonArray()) {
+            for (JsonElement rEl : em.getAsJsonArray("renderers")) {
+                if (!rEl.isJsonObject()) continue;
+                JsonObject rObj = rEl.getAsJsonObject();
+                if (rObj.has("sub_image_size") && rObj.get("sub_image_size").isJsonArray()) {
+                    JsonArray sz = rObj.getAsJsonArray("sub_image_size");
+                    if (sz.size() >= 2) {
+                        subCols = Math.max(1, (int) Math.round(sz.get(0).getAsDouble()));
+                        subRows = Math.max(1, (int) Math.round(sz.get(1).getAsDouble()));
+                    }
+                }
+                break;
+            }
+        }
         return new EmitterSpec(name, sourceName, target, localSpace, randomSeed, deterministic,
                 declaredMax, Math.max(1, floatComps), Math.max(1, intComps), Math.max(0, halfComps),
                 attributes, renderers, spawnInfoVars, spawnProg, updateProg, gpuSpec, simCacheId,
-                explicitSpawnRate, lifetime, top != null ? top.materialData() : MaterialDataCurves.EMPTY);
+                explicitSpawnRate, lifetime, top != null ? top.materialData() : MaterialDataCurves.EMPTY,
+                ribbonCfg, sortOrder, scaleSizeWithOwner, subCols, subRows);
     }
 
     private static RendererSpec parseRenderer(JsonObject r, String defaultEmitter,

@@ -46,6 +46,10 @@ final class PhotonPipelineReleases {
         }
     }
 
+    static void onResourceReload() {
+        // 26.2 device pipeline caches are cleared by Minecraft's shader manager on reload.
+    }
+
     private static <Key, Module> ArrayList<Module> takeUnused(Map<Key, Module> shaders, Set<RenderPipeline> remaining,
                                                              RenderPipeline retired, BiPredicate<Key, RenderPipeline> uses) {
         var modules = new ArrayList<Module>();

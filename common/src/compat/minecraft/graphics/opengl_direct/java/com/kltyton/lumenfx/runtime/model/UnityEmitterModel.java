@@ -56,6 +56,15 @@ public final class UnityEmitterModel {
                                  boolean inheritSize, boolean inheritRotation, boolean inheritLifetime,
                                  double emitProbability) { }
 
+    public record RibbonUvSpec(String distribution, float tileLength,
+                               float scaleU, float scaleV, float offsetU, float offsetV) {
+        public static final RibbonUvSpec DEFAULT = new RibbonUvSpec("length", 1.0f, 1.0f, 1.0f, 0.0f, 0.0f);
+    }
+
+    public record RibbonConfigSpec(RibbonUvSpec uv0, RibbonUvSpec uv1) {
+        public static final RibbonConfigSpec DEFAULT = new RibbonConfigSpec(RibbonUvSpec.DEFAULT, RibbonUvSpec.DEFAULT);
+    }
+
     private final String name;
     private final RendererKind renderer;
     private final String materialName;
@@ -104,6 +113,9 @@ public final class UnityEmitterModel {
     private final CollisionSpec collision;
     private final List<SubEmitterSpec> subEmitters;
     private final MaterialDataCurves materialData;
+    private final RibbonConfigSpec ribbonConfig;
+    private final int sortOrder;
+    private final boolean scaleSizeWithOwner;
 
     public UnityEmitterModel(
             String name, RendererKind renderer, String materialName, MaterialModel material,
@@ -119,6 +131,30 @@ public final class UnityEmitterModel {
             double simulationSpeed, double maximumParticleDeltaTime,
             boolean stretchedBillboard, float velocityStretchScale,
             TrailSpec trail, CollisionSpec collision, List<SubEmitterSpec> subEmitters, MaterialDataCurves materialData) {
+        this(name, renderer, materialName, material, integrator, localSpace, delay, duration, loop,
+                maxParticles, rate, rateOverDistance, distanceSpacing, bursts, lifetime, width, height,
+                rotation, angularVelocity, startSpeed, startDirection, startColor, velocityMin, velocityMax, acceleration,
+                drag, velocityOverLife, forceOverLife, sizeOverLife, colorOverLife, shape,
+                noiseStrength, noiseFrequency, atlasColumns, atlasRows, atlasFrame, meshEntry, tint, prewarm, randomSeed,
+                simulationSpeed, maximumParticleDeltaTime, stretchedBillboard, velocityStretchScale,
+                trail, collision, subEmitters, materialData, RibbonConfigSpec.DEFAULT, 0, true);
+    }
+
+    public UnityEmitterModel(
+            String name, RendererKind renderer, String materialName, MaterialModel material,
+            IntegratorKind integrator, boolean localSpace, double delay, double duration, boolean loop,
+            int maxParticles, ScalarCurve rate, @Nullable ScalarCurve rateOverDistance, double distanceSpacing,
+            List<BurstSpec> bursts, ScalarCurve lifetime, ScalarCurve width, ScalarCurve height,
+            ScalarCurve rotation, ScalarCurve angularVelocity, ScalarCurve startSpeed, double[] startDirection,
+            ColorCurve startColor, double[] velocityMin, double[] velocityMax, double[] acceleration,
+            ScalarCurve drag, ScalarCurve[] velocityOverLife, ScalarCurve[] forceOverLife,
+            ScalarCurve sizeOverLife, ColorCurve colorOverLife, ShapeSpec shape,
+            double[] noiseStrength, double noiseFrequency, int atlasColumns, int atlasRows, ScalarCurve atlasFrame,
+            @Nullable MeshEntrySpec meshEntry, float[] tint, boolean prewarm, @Nullable Long randomSeed,
+            double simulationSpeed, double maximumParticleDeltaTime,
+            boolean stretchedBillboard, float velocityStretchScale,
+            TrailSpec trail, CollisionSpec collision, List<SubEmitterSpec> subEmitters, MaterialDataCurves materialData,
+            RibbonConfigSpec ribbonConfig, int sortOrder, boolean scaleSizeWithOwner) {
         this.name = name;
         this.renderer = renderer;
         this.materialName = materialName;
@@ -167,10 +203,16 @@ public final class UnityEmitterModel {
         this.collision = collision;
         this.subEmitters = List.copyOf(subEmitters);
         this.materialData = materialData;
+        this.ribbonConfig = ribbonConfig != null ? ribbonConfig : RibbonConfigSpec.DEFAULT;
+        this.sortOrder = sortOrder;
+        this.scaleSizeWithOwner = scaleSizeWithOwner;
     }
 
     public String name() { return name; }
     public MaterialDataCurves materialData() { return materialData; }
+    public RibbonConfigSpec ribbonConfig() { return ribbonConfig; }
+    public int sortOrder() { return sortOrder; }
+    public boolean scaleSizeWithOwner() { return scaleSizeWithOwner; }
     public RendererKind renderer() { return renderer; }
     public String materialName() { return materialName; }
     public MaterialModel material() { return material; }
@@ -317,7 +359,7 @@ public final class UnityEmitterModel {
         ScalarCurve[] velOverLife = readCurveVec3(value.get("velocity_over_life"));
         ScalarCurve[] forceOverLife = readCurveVec3(value.get("force_over_life"));
         ScalarCurve sizeOverLife = ScalarCurve.fromJson(value.get("size_over_life"), 1f);
-        ColorCurve colorOverLife = ColorCurve.fromJson(value.get("color"));
+        ColorCurve colorOverLife = ColorCurve.fromJson(firstOf(value, "color_over_life", "color"));
 
         ShapeSpec shape = parseShape(optionalObj(value, "shape"));
 
@@ -351,6 +393,9 @@ public final class UnityEmitterModel {
         TrailSpec trail = parseTrail(ur != null ? optionalObj(ur, "particle_trail") : null);
         CollisionSpec collision = parseCollision(value, ur);
         List<SubEmitterSpec> subEmitters = parseSubEmitters(ur != null ? optionalArr(ur, "sub_emitters") : null);
+        RibbonConfigSpec ribbonConfig = parseRibbonConfig(optionalObj(value, "ribbon"));
+        int sortOrder = readInt(value, "sort_order", 0);
+        boolean scaleSizeWithOwner = readBool(value, "scale_size_with_owner", true);
 
         return new UnityEmitterModel(
                 name, renderer, materialName, material, integrator, localSpace, delay, duration, loop,
@@ -360,7 +405,26 @@ public final class UnityEmitterModel {
                 sizeOverLife, colorOverLife, shape, noiseStrength, noiseFrequency,
                 atlasCols, atlasRows, atlasFrame, meshEntry, tint, prewarm, randomSeed,
                 simSpeed, maxDt, stretched, stretchScale, trail, collision, subEmitters,
-                MaterialDataCurves.fromJson(value.get("custom_data")));
+                MaterialDataCurves.fromJson(value.get("custom_data")),
+                ribbonConfig, sortOrder, scaleSizeWithOwner);
+    }
+
+    private static RibbonConfigSpec parseRibbonConfig(@Nullable JsonObject ribbon) {
+        if (ribbon == null) return RibbonConfigSpec.DEFAULT;
+        RibbonUvSpec uv0 = parseRibbonUv(optionalObj(ribbon, "uv0"));
+        RibbonUvSpec uv1 = parseRibbonUv(optionalObj(ribbon, "uv1"));
+        return new RibbonConfigSpec(uv0, uv1);
+    }
+
+    private static RibbonUvSpec parseRibbonUv(@Nullable JsonObject uv) {
+        if (uv == null) return RibbonUvSpec.DEFAULT;
+        return new RibbonUvSpec(
+                readString(uv, "distribution", "length").toLowerCase(Locale.ROOT),
+                (float) Math.max(1e-4, readDouble(uv, "tile_length", 1.0)),
+                (float) readDouble(uv, "scale_u", 1.0),
+                (float) readDouble(uv, "scale_v", 1.0),
+                (float) readDouble(uv, "offset_u", 0.0),
+                (float) readDouble(uv, "offset_v", 0.0));
     }
 
     private static RendererKind parseRendererKind(String raw) {

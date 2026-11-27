@@ -11,4 +11,8 @@ final class PhotonPipelineReleases {
     static void release(RenderPipeline pipeline) {
         RenderPearlCompat.releasePipeline(pipeline);
     }
+
+    static void onResourceReload() {
+        RenderPearlCompat.clearCustomPipelines();
+    }
 }

@@ -21,12 +21,12 @@ public final class DirectGlGroomRenderer {
     private static final int MAX_VERTICES = 65536;
 
     private static final String GROOM_VERT = """
-            #version 330 core
-            layout(location = 0) in vec3 aPos;
-            layout(location = 1) in vec3 aTangent;
-            layout(location = 2) in vec3 aColor;
-            layout(location = 3) in vec2 aUv;
-            layout(location = 4) in float aRoughness;
+            #version 150 core
+            in vec3 aPos;
+            in vec3 aTangent;
+            in vec3 aColor;
+            in vec2 aUv;
+            in float aRoughness;
             uniform mat4 uViewProj;
             out vec3 vTangent;
             out vec3 vViewPos;
@@ -44,7 +44,7 @@ public final class DirectGlGroomRenderer {
             """;
 
     private static final String GROOM_FRAG = """
-            #version 330 core
+            #version 150 core
             in vec3 vTangent;
             in vec3 vViewPos;
             in vec3 vColor;
@@ -165,12 +165,24 @@ public final class DirectGlGroomRenderer {
         if (program != 0) return;
         int vs = compile(GL20C.GL_VERTEX_SHADER, GROOM_VERT);
         int fs = compile(GL20C.GL_FRAGMENT_SHADER, GROOM_FRAG);
-        program = GL20C.glCreateProgram();
-        GL20C.glAttachShader(program, vs);
-        GL20C.glAttachShader(program, fs);
-        GL20C.glLinkProgram(program);
+        int prog = GL20C.glCreateProgram();
+        GL20C.glAttachShader(prog, vs);
+        GL20C.glAttachShader(prog, fs);
+        GL20C.glBindAttribLocation(prog, 0, "aPos");
+        GL20C.glBindAttribLocation(prog, 1, "aTangent");
+        GL20C.glBindAttribLocation(prog, 2, "aColor");
+        GL20C.glBindAttribLocation(prog, 3, "aUv");
+        GL20C.glBindAttribLocation(prog, 4, "aRoughness");
+        GL30C.glBindFragDataLocation(prog, 0, "fragColor");
+        GL20C.glLinkProgram(prog);
         GL20C.glDeleteShader(vs);
         GL20C.glDeleteShader(fs);
+        if (GL20C.glGetProgrami(prog, GL20C.GL_LINK_STATUS) == 0) {
+            String log = GL20C.glGetProgramInfoLog(prog, 4096);
+            GL20C.glDeleteProgram(prog);
+            throw new IllegalStateException("Failed to link LumenFX Groom shader: " + log);
+        }
+        program = prog;
 
         vao = GL30C.glGenVertexArrays();
         vbo = GL15C.glGenBuffers();
@@ -196,6 +208,11 @@ public final class DirectGlGroomRenderer {
         int s = GL20C.glCreateShader(type);
         GL20C.glShaderSource(s, src);
         GL20C.glCompileShader(s);
+        if (GL20C.glGetShaderi(s, GL20C.GL_COMPILE_STATUS) == 0) {
+            String log = GL20C.glGetShaderInfoLog(s, 4096);
+            GL20C.glDeleteShader(s);
+            throw new IllegalStateException("Failed to compile LumenFX Groom shader: " + log);
+        }
         return s;
     }
 

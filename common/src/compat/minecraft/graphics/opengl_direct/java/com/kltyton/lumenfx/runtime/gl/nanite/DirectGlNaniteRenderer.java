@@ -23,11 +23,11 @@ import org.lwjgl.system.MemoryUtil;
  */
 public final class DirectGlNaniteRenderer {
     private static final String NANITE_VERT = """
-            #version 330 core
-            layout(location = 0) in vec3 aPos;
-            layout(location = 1) in vec3 aNormal;
-            layout(location = 2) in vec2 aUv;
-            layout(location = 3) in vec4 aColor;
+            #version 150 core
+            in vec3 aPos;
+            in vec3 aNormal;
+            in vec2 aUv;
+            in vec4 aColor;
             uniform mat4 uViewProj;
             uniform mat4 uModel;
             out vec3 vNormal;
@@ -45,7 +45,7 @@ public final class DirectGlNaniteRenderer {
             """;
 
     private static final String NANITE_FRAG = """
-            #version 330 core
+            #version 150 core
             in vec3 vNormal;
             in vec3 vViewPos;
             in vec2 vUv;
@@ -117,18 +117,34 @@ public final class DirectGlNaniteRenderer {
         if (program != 0) return;
         int vs = compile(GL20C.GL_VERTEX_SHADER, NANITE_VERT);
         int fs = compile(GL20C.GL_FRAGMENT_SHADER, NANITE_FRAG);
-        program = GL20C.glCreateProgram();
-        GL20C.glAttachShader(program, vs);
-        GL20C.glAttachShader(program, fs);
-        GL20C.glLinkProgram(program);
+        int prog = GL20C.glCreateProgram();
+        GL20C.glAttachShader(prog, vs);
+        GL20C.glAttachShader(prog, fs);
+        GL20C.glBindAttribLocation(prog, 0, "aPos");
+        GL20C.glBindAttribLocation(prog, 1, "aNormal");
+        GL20C.glBindAttribLocation(prog, 2, "aUv");
+        GL20C.glBindAttribLocation(prog, 3, "aColor");
+        GL30C.glBindFragDataLocation(prog, 0, "fragColor");
+        GL20C.glLinkProgram(prog);
         GL20C.glDeleteShader(vs);
         GL20C.glDeleteShader(fs);
+        if (GL20C.glGetProgrami(prog, GL20C.GL_LINK_STATUS) == 0) {
+            String log = GL20C.glGetProgramInfoLog(prog, 4096);
+            GL20C.glDeleteProgram(prog);
+            throw new IllegalStateException("Failed to link LumenFX Nanite shader: " + log);
+        }
+        program = prog;
     }
 
     private static int compile(int type, String src) {
         int s = GL20C.glCreateShader(type);
         GL20C.glShaderSource(s, src);
         GL20C.glCompileShader(s);
+        if (GL20C.glGetShaderi(s, GL20C.GL_COMPILE_STATUS) == 0) {
+            String log = GL20C.glGetShaderInfoLog(s, 4096);
+            GL20C.glDeleteShader(s);
+            throw new IllegalStateException("Failed to compile LumenFX Nanite shader: " + log);
+        }
         return s;
     }
 

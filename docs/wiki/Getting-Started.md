@@ -21,16 +21,16 @@ All official artifacts are published to **Sighs Maven** (`https://maven.sighs.cc
 
 | Minecraft | Loader | Artifact ID | Version | Java | Backend |
 | :---: | :---: | :--- | :---: | :---: | :--- |
-| **26.3** | NeoForge | `lumenfx-neoforge-26.3` | `0.3.1` | Java 25 | Dynamic Vulkan-first / OpenGL |
-| **26.3** | Fabric | `lumenfx-fabric-26.3` | `0.3.1` | Java 25 | Dynamic Vulkan-first / OpenGL |
-| **26.2** | NeoForge | `lumenfx-neoforge-26.2` | `0.3.1` | Java 25 | Dynamic Vulkan-first / OpenGL |
-| **26.2** | Fabric | `lumenfx-fabric-26.2` | `0.3.1` | Java 25 | Dynamic Vulkan-first / OpenGL |
-| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | `0.3.1` | Java 25 | Native OpenGL (Full Parity) |
-| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | `0.3.1` | Java 25 | Native OpenGL (Full Parity) |
-| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | `0.3.1` | Java 21 | Native OpenGL (Full Parity) |
-| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | `0.3.1` | Java 21 | Native OpenGL (Full Parity) |
-| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | `0.3.1` | Java 17 | Native OpenGL (Full Parity) |
-| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | `0.3.1` | Java 17 | Native OpenGL (Full Parity) |
+| **26.3** | NeoForge | `lumenfx-neoforge-26.3` | `0.3.2` | Java 25 | Dynamic Vulkan-first / OpenGL |
+| **26.3** | Fabric | `lumenfx-fabric-26.3` | `0.3.2` | Java 25 | Dynamic Vulkan-first / OpenGL |
+| **26.2** | NeoForge | `lumenfx-neoforge-26.2` | `0.3.2` | Java 25 | Dynamic Vulkan-first / OpenGL |
+| **26.2** | Fabric | `lumenfx-fabric-26.2` | `0.3.2` | Java 25 | Dynamic Vulkan-first / OpenGL |
+| **26.1.2** | NeoForge | `lumenfx-neoforge-26.1.2` | `0.3.2` | Java 25 | Native OpenGL (Full Parity) |
+| **26.1.2** | Fabric | `lumenfx-fabric-26.1.2` | `0.3.2` | Java 25 | Native OpenGL (Full Parity) |
+| **1.21.1** | NeoForge | `lumenfx-neoforge-1.21.1` | `0.3.2` | Java 21 | Native OpenGL (Full Parity) |
+| **1.21.1** | Fabric | `lumenfx-fabric-1.21.1` | `0.3.2` | Java 21 | Native OpenGL (Full Parity) |
+| **1.20.1** | Forge | `lumenfx-forge-1.20.1` | `0.3.2` | Java 17 | Native OpenGL (Full Parity) |
+| **1.20.1** | Fabric | `lumenfx-fabric-1.20.1` | `0.3.2` | Java 17 | Native OpenGL (Full Parity) |
 
 ---
 
@@ -47,9 +47,9 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.1'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.2'
     // Optional: bundle inside your mod using jarJar
-    // jarJar('com.kltyton.lumenfx:lumenfx-neoforge-26.3:[0.3.1,)')
+    // jarJar('com.kltyton.lumenfx:lumenfx-neoforge-26.3:[0.3.2,)')
 }
 ```
 
@@ -64,7 +64,7 @@ repositories {
 }
 
 dependencies {
-    modImplementation 'com.kltyton.lumenfx:lumenfx-fabric-26.3:0.3.1'
+    modImplementation 'com.kltyton.lumenfx:lumenfx-fabric-26.3:0.3.2'
 }
 ```
 

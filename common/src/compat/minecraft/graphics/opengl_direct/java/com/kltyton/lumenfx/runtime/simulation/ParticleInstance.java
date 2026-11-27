@@ -19,6 +19,22 @@ public final class ParticleInstance {
     public float r, g, b, a;
     public float curveRandom;
     public float customX, customY, customZ, customW;
+    public float ribbonLinkOrder;
+    public long ribbonId;
+    public boolean hasRibbonId;
+    public float ribbonUvDistance;
+    public float subImageIndex;
+    public boolean hasSubImageIndex;
+
+    public void resetDynamicAttributes() {
+        curveRandom = customX = customY = customZ = customW = 0f;
+        ribbonLinkOrder = 0f;
+        ribbonId = 0L;
+        hasRibbonId = false;
+        ribbonUvDistance = 0f;
+        subImageIndex = 0f;
+        hasSubImageIndex = false;
+    }
 
     void setMaterialData(MaterialDataCurves curves) {
         float age = normalizedAge();

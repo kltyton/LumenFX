@@ -45,6 +45,17 @@ public final class PhotonFxModel {
 
     public record SubEmitterSpec(String trigger, String targetName, int spawnCount, float probability) { }
 
+    public record FunctionSpecs(PhotonNumberFunction emissionRatePerSecond,
+                                PhotonNumberFunction startLifetimeSeconds,
+                                PhotonNumberFunction startSpeed,
+                                PhotonNumberFunction startSize,
+                                PhotonNumberFunction startRotationDeg,
+                                PhotonNumberFunction gravityModifier,
+                                PhotonNumberFunction drag,
+                                @Nullable PhotonNumberFunction sizeOverLifetime,
+                                @Nullable PhotonNumberFunction rotationOverLifetime,
+                                @Nullable PhotonNumberFunction noiseStrength) { }
+
     public record PhysicsExtras(int maxParticles,
                                 List<BurstSpec> bursts,
                                 ShapeSpec shape,
@@ -69,13 +80,78 @@ public final class PhotonFxModel {
                                 float trailEndWidthFactor,
                                 boolean hdr,
                                 boolean softParticles,
-                                float softFadeDistance) {
+                                float softFadeDistance,
+                                boolean shade,
+                                @Nullable FunctionSpecs functions) {
+        public PhysicsExtras(int maxParticles,
+                             List<BurstSpec> bursts,
+                             ShapeSpec shape,
+                             float gravityModifier,
+                             float drag,
+                             float noiseStrength,
+                             float noiseFrequency,
+                             float[] velocityOverLife,
+                             float[] forceOverLife,
+                             float sizeStartMult,
+                             float sizeEndMult,
+                             float startRotationDeg,
+                             float rotationSpeedDeg,
+                             float endR, float endG, float endB, float endA,
+                             boolean hasEndColor,
+                             CollisionSpec collision,
+                             List<ForceFieldSpec> forceFields,
+                             List<SubEmitterSpec> subEmitters,
+                             float beamLength,
+                             int beamSegments,
+                             float beamNoise,
+                             float trailEndWidthFactor,
+                             boolean hdr,
+                             boolean softParticles,
+                             float softFadeDistance,
+                             boolean shade) {
+            this(maxParticles, bursts, shape, gravityModifier, drag, noiseStrength, noiseFrequency,
+                    velocityOverLife, forceOverLife, sizeStartMult, sizeEndMult, startRotationDeg, rotationSpeedDeg,
+                    endR, endG, endB, endA, hasEndColor, collision, forceFields, subEmitters,
+                    beamLength, beamSegments, beamNoise, trailEndWidthFactor, hdr, softParticles, softFadeDistance, shade, null);
+        }
+
+        public PhysicsExtras(int maxParticles,
+                             List<BurstSpec> bursts,
+                             ShapeSpec shape,
+                             float gravityModifier,
+                             float drag,
+                             float noiseStrength,
+                             float noiseFrequency,
+                             float[] velocityOverLife,
+                             float[] forceOverLife,
+                             float sizeStartMult,
+                             float sizeEndMult,
+                             float startRotationDeg,
+                             float rotationSpeedDeg,
+                             float endR, float endG, float endB, float endA,
+                             boolean hasEndColor,
+                             CollisionSpec collision,
+                             List<ForceFieldSpec> forceFields,
+                             List<SubEmitterSpec> subEmitters,
+                             float beamLength,
+                             int beamSegments,
+                             float beamNoise,
+                             float trailEndWidthFactor,
+                             boolean hdr,
+                             boolean softParticles,
+                             float softFadeDistance) {
+            this(maxParticles, bursts, shape, gravityModifier, drag, noiseStrength, noiseFrequency,
+                    velocityOverLife, forceOverLife, sizeStartMult, sizeEndMult, startRotationDeg, rotationSpeedDeg,
+                    endR, endG, endB, endA, hasEndColor, collision, forceFields, subEmitters,
+                    beamLength, beamSegments, beamNoise, trailEndWidthFactor, hdr, softParticles, softFadeDistance, true, null);
+        }
+
         public static final PhysicsExtras DEFAULT = new PhysicsExtras(
                 4096, List.of(), ShapeSpec.DEFAULT, 0f, 0f, 0f, 1.5f,
                 new float[]{0f, 0f, 0f}, new float[]{0f, 0f, 0f},
                 1f, 1f, 0f, 0f, 1f, 1f, 1f, 0f, false,
                 CollisionSpec.DISABLED, List.of(), List.of(),
-                4.0f, 12, 0.15f, 0.1f, false, false, 0.75f);
+                4.0f, 12, 0.15f, 0.1f, false, false, 0.75f, true, null);
     }
 
     public record FxObjectSpec(String name, ObjectType type, TransformSpec transform,
@@ -185,15 +261,18 @@ public final class PhotonFxModel {
         float delayTicks = Math.max(0f, readNumberOrConstant(config.get("startDelay"), readFloat(config, "delay", 0f)));
         int maxParticles = Math.max(1, Math.min(65536, readInt(config, "maxParticles", 4096)));
 
-        float emissionRate = 10f;
+        PhotonNumberFunction emissionRatePerSecFn;
+        float emissionRate;
         int burstCount = 0;
         List<BurstSpec> bursts = new ArrayList<>();
         Map<String, Object> emission = asMap(config.get("emission"));
         if (emission != null) {
             // Photon stores the nested emission setting in particles per Minecraft tick.
-            emissionRate = 20f * readNumberOrConstant(emission.get("emissionRate"), 0.5f);
+            emissionRatePerSecFn = PhotonNumberFunction.parse(emission.get("emissionRate"), 0.5f).scaled(20f);
+            emissionRate = emissionRatePerSecFn.initialValue();
             Object burstsObj = emission.get("bursts");
-            if (burstsObj instanceof List<?> bList) {
+            List<?> bList = unwrapPayloadList(burstsObj);
+            if (bList != null) {
                 for (Object bItem : bList) {
                     Map<String, Object> bMap = asMap(bItem);
                     if (bMap != null) {
@@ -210,16 +289,25 @@ public final class PhotonFxModel {
                 }
             }
         } else {
-            emissionRate = readNumberOrConstant(config.get("emissionRate"), 10f);
+            emissionRatePerSecFn = PhotonNumberFunction.parse(config.get("emissionRate"), 10f);
+            emissionRate = emissionRatePerSecFn.initialValue();
         }
 
-        float lifeTicks = Math.max(1f, readNumberOrConstant(config.get("startLifetime"), 40f));
-        float startSpeed = readNumberOrConstant(config.get("startSpeed"), 0.5f);
-        float startSize = Math.max(0.02f, readAxisOrConstant(config.get("startSize"), 0, 1.0f));
-        float startRotDeg = readAxisOrConstant(config.get("startRotation"), 2, 0f);
-        float gravityModifier = readNumberOrConstant(config.get("gravityModifier"), readFloat(config, "gravity", 0f));
-        float drag = Math.max(0f, readNumberOrConstant(config.get("drag"), 0f));
-        int argb = readInt(config, "startColor", 0xFFFFFFFF);
+        PhotonNumberFunction startLifetimeSecFn = PhotonNumberFunction.parse(config.get("startLifetime"), 40f).scaled(1f / 20f);
+        PhotonNumberFunction startSpeedFn = PhotonNumberFunction.parse(config.get("startSpeed"), 0.5f);
+        PhotonNumberFunction startSizeFn = readAxisFunction(config.get("startSize"), 0, 1.0f);
+        PhotonNumberFunction startRotDegFn = readAxisFunction(config.get("startRotation"), 2, 0f);
+        PhotonNumberFunction gravityFn = PhotonNumberFunction.parse(
+                config.containsKey("gravityModifier") ? config.get("gravityModifier") : config.get("gravity"), 0f);
+        PhotonNumberFunction dragFn = PhotonNumberFunction.parse(config.get("drag"), 0f);
+
+        float lifeTicks = Math.max(1f, startLifetimeSecFn.initialValue() * 20f);
+        float startSpeed = startSpeedFn.initialValue();
+        float startSize = Math.max(0.02f, startSizeFn.initialValue());
+        float startRotDeg = startRotDegFn.initialValue();
+        float gravityModifier = gravityFn.initialValue();
+        float drag = Math.max(0f, dragFn.initialValue());
+        int argb = readColorArgb(config.get("startColor"), 0xFFFFFFFF);
         float a = ((argb >>> 24) & 0xFF) / 255f;
         float r = ((argb >>> 16) & 0xFF) / 255f;
         float g = ((argb >>> 8) & 0xFF) / 255f;
@@ -229,9 +317,12 @@ public final class PhotonFxModel {
         ShapeSpec shape = parseShape(asMap(config.get("shape")));
         float noiseStrength = 0f;
         float noiseFrequency = 1.5f;
+        PhotonNumberFunction noiseStrengthFn = null;
         Map<String, Object> noise = asMap(config.get("noise"));
-        if (noise != null && readBool(noise, "enable", readBool(noise, "enabled", true))) {
-            noiseStrength = readNumberOrConstant(noise.get("strength"), readFloat(noise, "intensity", 0f));
+        if (readModuleEnabled(noise, true)) {
+            Object rawStrength = noise.containsKey("strength") ? noise.get("strength") : noise.get("intensity");
+            noiseStrengthFn = PhotonNumberFunction.parse(rawStrength, 0f);
+            noiseStrength = noiseStrengthFn.initialValue();
             noiseFrequency = Math.max(0.05f, readFloat(noise, "frequency", 1.5f));
         }
         float[] velOverLife = parseVec3Module(asMap(config.get("velocityOverLifetime")));
@@ -239,25 +330,42 @@ public final class PhotonFxModel {
 
         float sizeStartMult = 1f;
         float sizeEndMult = 1f;
+        PhotonNumberFunction sizeOverLifeFn = null;
         Map<String, Object> sizeMod = asMap(config.get("sizeOverLifetime"));
-        if (sizeMod != null && readBool(sizeMod, "enable", readBool(sizeMod, "enabled", true))) {
-            sizeStartMult = readNumberOrConstant(sizeMod.get("start"), 1f);
-            sizeEndMult = readNumberOrConstant(sizeMod.get("end"), readNumberOrConstant(sizeMod.get("size"), 1f));
+        if (readModuleEnabled(sizeMod, true)) {
+            if (sizeMod.containsKey("size")) {
+                sizeOverLifeFn = PhotonNumberFunction.parse(sizeMod.get("size"), 1f);
+                sizeStartMult = sizeOverLifeFn.evaluate(0f, 0.5f);
+                sizeEndMult = sizeOverLifeFn.evaluate(1f, 0.5f);
+            } else {
+                sizeStartMult = readNumberOrConstant(sizeMod.get("start"), 1f);
+                sizeEndMult = readNumberOrConstant(sizeMod.get("end"), 1f);
+            }
         }
 
         float rotSpeedDeg = 0f;
+        PhotonNumberFunction rotOverLifeFn = null;
         Map<String, Object> rotMod = asMap(config.get("rotationOverLifetime"));
-        if (rotMod != null && readBool(rotMod, "enable", readBool(rotMod, "enabled", true))) {
-            rotSpeedDeg = readNumberOrConstant(rotMod.get("angularVelocity"),
-                    readNumberOrConstant(rotMod.get("speed"), readFloat(rotMod, "roll", 0f)));
+        if (readModuleEnabled(rotMod, true)) {
+            Object rawRot = rotMod.containsKey("angularVelocity") ? rotMod.get("angularVelocity")
+                    : (rotMod.containsKey("speed") ? rotMod.get("speed") : rotMod.get("roll"));
+            rotOverLifeFn = PhotonNumberFunction.parse(rawRot, 0f);
+            rotSpeedDeg = rotOverLifeFn.initialValue();
         }
 
         float endR = r, endG = g, endB = b, endA = a;
         boolean hasEndColor = false;
         Map<String, Object> colorMod = asMap(config.get("colorOverLifetime"));
-        if (colorMod != null && readBool(colorMod, "enable", readBool(colorMod, "enabled", true))) {
+        if (readModuleEnabled(colorMod, true)) {
             if (colorMod.containsKey("endColor")) {
-                int endArgb = readInt(colorMod, "endColor", argb);
+                int endArgb = readColorArgb(colorMod.get("endColor"), argb);
+                endA = ((endArgb >>> 24) & 0xFF) / 255f;
+                endR = ((endArgb >>> 16) & 0xFF) / 255f;
+                endG = ((endArgb >>> 8) & 0xFF) / 255f;
+                endB = (endArgb & 0xFF) / 255f;
+                hasEndColor = true;
+            } else if (colorMod.containsKey("color")) {
+                int endArgb = readGradientEndArgb(colorMod.get("color"), argb);
                 endA = ((endArgb >>> 24) & 0xFF) / 255f;
                 endR = ((endArgb >>> 16) & 0xFF) / 255f;
                 endG = ((endArgb >>> 8) & 0xFF) / 255f;
@@ -266,7 +374,9 @@ public final class PhotonFxModel {
             }
         }
 
-        CollisionSpec collision = parseCollision(asMap(config.get("collision")));
+        Map<String, Object> colMap = asMap(config.get("collision"));
+        if (colMap == null) colMap = asMap(config.get("physics"));
+        CollisionSpec collision = parseCollision(colMap);
         List<ForceFieldSpec> forceFields = parseForceFields(config.get("forceFields"), config.get("forces"));
         List<SubEmitterSpec> subEmitters = parseSubEmitters(config.get("subEmitters"));
 
@@ -286,6 +396,7 @@ public final class PhotonFxModel {
         boolean hdr = readBool(config, "hdr", false) || readBool(config, "bloom", false);
         boolean softParticles = readBool(config, "softParticles", false);
         float softFadeDist = readFloat(config, "softFadeDistance", 0.75f);
+        boolean shade = true;
         String modelLocation = null;
         StaticMeshModel authoredModel = null;
 
@@ -300,6 +411,7 @@ public final class PhotonFxModel {
             if (readBool(renderer, "bloomEffect", false) || readBool(renderer, "hdr", false)) hdr = true;
             if (readBool(renderer, "softParticles", false)) softParticles = true;
             softFadeDist = readFloat(renderer, "softFadeDistance", softFadeDist);
+            shade = readBool(renderer, "shade", true);
 
             Map<String, Object> mats = asMap(renderer.get("materials"));
             if (mats != null && mats.get("payload") instanceof List<?> payload && !payload.isEmpty()) {
@@ -344,6 +456,10 @@ public final class PhotonFxModel {
             }
         }
 
+        FunctionSpecs functionSpecs = new FunctionSpecs(
+                emissionRatePerSecFn, startLifetimeSecFn, startSpeedFn, startSizeFn, startRotDegFn,
+                gravityFn, dragFn, sizeOverLifeFn, rotOverLifeFn, noiseStrengthFn);
+
         PhysicsExtras extras = new PhysicsExtras(
                 maxParticles, List.copyOf(bursts), shape, gravityModifier, drag,
                 noiseStrength, noiseFrequency, velOverLife, forceOverLife,
@@ -351,7 +467,7 @@ public final class PhotonFxModel {
                 endR, endG, endB, endA, hasEndColor, collision,
                 List.copyOf(forceFields), List.copyOf(subEmitters),
                 beamLength, beamSegments, beamNoise, trailEndWidth,
-                hdr, softParticles, softFadeDist);
+                hdr, softParticles, softFadeDist, shade, functionSpecs);
 
         return new FxObjectSpec(name, objType, transform, renderMode, localSpace,
                 durationTicks / 20f, looping, delayTicks / 20f,
@@ -375,9 +491,7 @@ public final class PhotonFxModel {
     }
 
     private static CollisionSpec parseCollision(@Nullable Map<String, Object> col) {
-        if (col == null) return CollisionSpec.DISABLED;
-        boolean enabled = readBool(col, "enable", readBool(col, "enabled", false));
-        if (!enabled) return CollisionSpec.DISABLED;
+        if (!readModuleEnabled(col, false)) return CollisionSpec.DISABLED;
         return new CollisionSpec(true,
                 Math.max(0f, readFloat(col, "bounce", 0.5f)),
                 Math.max(0f, Math.min(1f, readFloat(col, "dampen", 0.1f))),
@@ -387,7 +501,8 @@ public final class PhotonFxModel {
 
     private static List<ForceFieldSpec> parseForceFields(@Nullable Object primary, @Nullable Object fallback) {
         Object src = primary != null ? primary : fallback;
-        if (!(src instanceof List<?> list)) return List.of();
+        List<?> list = unwrapPayloadList(src);
+        if (list == null) return List.of();
         List<ForceFieldSpec> out = new ArrayList<>();
         for (Object item : list) {
             Map<String, Object> m = asMap(item);
@@ -403,7 +518,11 @@ public final class PhotonFxModel {
     }
 
     private static List<SubEmitterSpec> parseSubEmitters(@Nullable Object obj) {
-        if (!(obj instanceof List<?> list)) return List.of();
+        if (obj instanceof Map<?, ?> rawMap && !readModuleEnabled(asMap(rawMap), true)) {
+            return List.of();
+        }
+        List<?> list = unwrapPayloadList(obj);
+        if (list == null) return List.of();
         List<SubEmitterSpec> out = new ArrayList<>();
         for (Object item : list) {
             Map<String, Object> m = asMap(item);
@@ -419,13 +538,31 @@ public final class PhotonFxModel {
     }
 
     private static float[] parseVec3Module(@Nullable Map<String, Object> m) {
-        if (m == null || !readBool(m, "enable", readBool(m, "enabled", true))) return new float[]{0f, 0f, 0f};
+        if (!readModuleEnabled(m, true)) return new float[]{0f, 0f, 0f};
         if (m.containsKey("value")) return readFloatList(m.get("value"), 0f, 0f, 0f);
         return new float[]{
                 readNumberOrConstant(m.get("x"), 0f),
                 readNumberOrConstant(m.get("y"), 0f),
                 readNumberOrConstant(m.get("z"), 0f)
         };
+    }
+
+    private static boolean readModuleEnabled(@Nullable Map<String, Object> m, boolean fallback) {
+        if (m == null) return false;
+        if (m.containsKey("_enable")) return readBool(m, "_enable", fallback);
+        if (m.containsKey("enable")) return readBool(m, "enable", fallback);
+        if (m.containsKey("enabled")) return readBool(m, "enabled", fallback);
+        return fallback;
+    }
+
+    private static @Nullable List<?> unwrapPayloadList(@Nullable Object obj) {
+        if (obj instanceof List<?> list) return list;
+        Map<String, Object> m = asMap(obj);
+        if (m != null) {
+            if (m.get("payload") instanceof List<?> payload) return payload;
+            if (m.get("emitters") instanceof List<?> emitters) return emitters;
+        }
+        return null;
     }
 
     private static TransformSpec parseTransform(@Nullable Map<String, Object> t) {
@@ -445,14 +582,76 @@ public final class PhotonFxModel {
     }
 
     private static float readNumberOrConstant(@Nullable Object obj, float fallback) {
-        if (obj instanceof Number n) return n.floatValue();
+        return PhotonNumberFunction.parse(obj, fallback).initialValue();
+    }
+
+    private static PhotonNumberFunction readAxisFunction(@Nullable Object obj, int axis, float fallback) {
+        if (obj instanceof List<?> list) {
+            return axis < list.size() ? PhotonNumberFunction.parse(list.get(axis), fallback) : PhotonNumberFunction.constant(fallback);
+        }
+        return PhotonNumberFunction.parse(obj, fallback);
+    }
+
+    private static int readColorArgb(@Nullable Object obj, int fallback) {
+        if (obj instanceof Number n) return n.intValue();
         Map<String, Object> m = asMap(obj);
         if (m != null) {
-            if (m.get("number") instanceof Number n) return n.floatValue();
+            if (m.get("number") instanceof Number n) return n.intValue();
             Map<String, Object> d = asMap(m.get("data"));
-            if (d != null && d.get("number") instanceof Number n) return n.floatValue();
+            if (d != null) {
+                if (d.get("number") instanceof Number n) return n.intValue();
+                if (d.get("a") instanceof Number n) return n.intValue();
+                return readGradientStopArgb(d, false, fallback);
+            }
         }
         return fallback;
+    }
+
+    private static int readGradientEndArgb(@Nullable Object obj, int fallback) {
+        if (obj instanceof Number n) return n.intValue();
+        Map<String, Object> m = asMap(obj);
+        if (m != null) {
+            Map<String, Object> d = asMap(m.get("data"));
+            if (d != null) {
+                if (d.get("number") instanceof Number n) return n.intValue();
+                return readGradientStopArgb(d, true, fallback);
+            }
+            return readGradientStopArgb(m, true, fallback);
+        }
+        return fallback;
+    }
+
+    private static int readGradientStopArgb(Map<String, Object> data, boolean lastStop, int fallback) {
+        Map<String, Object> gc = asMap(data.get("gradientColor"));
+        if (gc == null) gc = data;
+        int rgbVal = fallback & 0x00FFFFFF;
+        boolean found = false;
+        if (gc.get("rgb") instanceof List<?> rgbList && !rgbList.isEmpty()) {
+            Object stop = rgbList.get(lastStop ? rgbList.size() - 1 : 0);
+            if (stop instanceof List<?> arr && arr.size() >= 4
+                    && arr.get(1) instanceof Number r && arr.get(2) instanceof Number g && arr.get(3) instanceof Number b) {
+                int ri = Math.max(0, Math.min(255, Math.round(r.floatValue() <= 1f ? r.floatValue() * 255f : r.floatValue())));
+                int gi = Math.max(0, Math.min(255, Math.round(g.floatValue() <= 1f ? g.floatValue() * 255f : g.floatValue())));
+                int bi = Math.max(0, Math.min(255, Math.round(b.floatValue() <= 1f ? b.floatValue() * 255f : b.floatValue())));
+                rgbVal = (ri << 16) | (gi << 8) | bi;
+                found = true;
+            } else if (stop instanceof Map<?, ?> sm) {
+                Map<String, Object> m = asMap(sm);
+                if (m != null && m.get("color") instanceof Number c) {
+                    rgbVal = c.intValue() & 0x00FFFFFF;
+                    found = true;
+                }
+            }
+        }
+        int alpha = (fallback >>> 24) & 0xFF;
+        if (gc.get("a") instanceof List<?> aList && !aList.isEmpty()) {
+            Object stop = aList.get(lastStop ? aList.size() - 1 : 0);
+            if (stop instanceof List<?> arr && arr.size() >= 2 && arr.get(1) instanceof Number a) {
+                alpha = Math.max(0, Math.min(255, Math.round(a.floatValue() <= 1f ? a.floatValue() * 255f : a.floatValue())));
+                found = true;
+            }
+        }
+        return found ? ((alpha << 24) | rgbVal) : fallback;
     }
 
     private static float readAxisOrConstant(@Nullable Object obj, int axis, float fallback) {

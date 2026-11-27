@@ -41,9 +41,31 @@ public final class DirectGlTextureCache {
             textures.put(textureId, fallback);
             return fallback;
         }
-        int id = uploadRgba(img.width(), img.height(), img.rgba());
+        int uploadWidth = img.width();
+        int uploadHeight = img.height();
+        byte[] uploadRgba = img.rgba();
+        // Minecraft animated block/item strips (e.g. 16x80 sea_lantern.png + .png.mcmeta) store frames vertically.
+        // Extract frame 0 so standalone mesh/particle draws do not squash all animation frames onto one face.
+        if (uploadHeight > uploadWidth && uploadHeight % uploadWidth == 0 && hasAnimationMcmeta(textureId, bridge)) {
+            int frameBytes = Math.multiplyExact(Math.multiplyExact(uploadWidth, uploadWidth), 4);
+            if (uploadRgba.length >= frameBytes) {
+                byte[] frame0 = new byte[frameBytes];
+                System.arraycopy(uploadRgba, 0, frame0, 0, frameBytes);
+                uploadHeight = uploadWidth;
+                uploadRgba = frame0;
+            }
+        }
+        int id = uploadRgba(uploadWidth, uploadHeight, uploadRgba);
         textures.put(textureId, id);
         return id;
+    }
+
+    private static boolean hasAnimationMcmeta(String textureId, McResourceBridge bridge) {
+        String pngId = textureId.endsWith(".png") ? textureId : (textureId + ".png");
+        byte[] mcmeta = bridge.readResource(pngId + ".mcmeta");
+        if (mcmeta == null || mcmeta.length == 0) return false;
+        String text = new String(mcmeta, java.nio.charset.StandardCharsets.UTF_8);
+        return text.contains("\"animation\"");
     }
 
     public int whiteTexture() {
@@ -79,8 +101,8 @@ public final class DirectGlTextureCache {
             GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, tex);
             GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_MIN_FILTER, GL11C.GL_LINEAR);
             GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_MAG_FILTER, GL11C.GL_LINEAR);
-            GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_WRAP_S, GL12C.GL_CLAMP_TO_EDGE);
-            GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_WRAP_T, GL12C.GL_CLAMP_TO_EDGE);
+            GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_WRAP_S, GL11C.GL_REPEAT);
+            GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_WRAP_T, GL11C.GL_REPEAT);
             GL11C.glTexImage2D(GL11C.GL_TEXTURE_2D, 0, GL11C.GL_RGBA8, width, height, 0,
                     GL11C.GL_RGBA, GL11C.GL_UNSIGNED_BYTE, buf);
         } finally {

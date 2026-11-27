@@ -5,6 +5,8 @@ import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.List;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.ARBInstancedArrays;
+import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL14C;
 import org.lwjgl.opengl.GL15C;
@@ -12,6 +14,7 @@ import org.lwjgl.opengl.GL20C;
 import org.lwjgl.opengl.GL30C;
 import org.lwjgl.opengl.GL31C;
 import org.lwjgl.opengl.GL33C;
+import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.system.MemoryUtil;
 
 /**
@@ -23,11 +26,11 @@ public final class DirectGlGaussianSplatRenderer {
     private static final int FLOATS_PER_SPLAT = 14; // pos(3), scale(3), quat(4), rgba(4)
 
     private static final String SPLAT_VERT = """
-            #version 330 core
-            layout(location = 0) in vec3 aCenter;
-            layout(location = 1) in vec3 aScale;
-            layout(location = 2) in vec4 aQuat;
-            layout(location = 3) in vec4 aColor;
+            #version 150 core
+            in vec3 aCenter;
+            in vec3 aScale;
+            in vec4 aQuat;
+            in vec4 aColor;
             uniform mat4 uView;
             uniform mat4 uProj;
             uniform vec2 uViewport;
@@ -81,7 +84,7 @@ public final class DirectGlGaussianSplatRenderer {
                 float rad1 = min(sqrt(lambda1) * 3.0, max(uViewport.x, uViewport.y) * 0.5);
                 float rad2 = min(sqrt(lambda2) * 3.0, max(uViewport.x, uViewport.y) * 0.5);
 
-                vec2 corner = CORNERS[gl_VertexID];
+                vec2 corner = CORNERS[gl_VertexID % 6];
                 vec2 pxOffset = majorDir * (corner.x * rad1) + minorDir * (corner.y * rad2);
                 vec2 ndcOffset = (pxOffset * 2.0) / max(uViewport, vec2(1.0));
                 gl_Position = vec4(ndc.xy + ndcOffset, ndc.z, 1.0);
@@ -91,7 +94,7 @@ public final class DirectGlGaussianSplatRenderer {
             """;
 
     private static final String SPLAT_FRAG = """
-            #version 330 core
+            #version 150 core
             in vec2 vConicOffset;
             in vec4 vColor;
             uniform float uHdr;
@@ -105,10 +108,15 @@ public final class DirectGlGaussianSplatRenderer {
             }
             """;
 
+    private static final int DIVISOR_NONE = 0;
+    private static final int DIVISOR_GL33 = 1;
+    private static final int DIVISOR_ARB = 2;
+
     private int program;
     private int vao;
     private int instanceVbo;
     private int capacitySplats;
+    private int divisorMode = DIVISOR_NONE;
     private FloatBuffer staging;
     private final FloatBuffer matBuf = MemoryUtil.memAllocFloat(16);
     private long[] sortPairs = new long[0];
@@ -137,13 +145,28 @@ public final class DirectGlGaussianSplatRenderer {
         }
         Arrays.sort(sortPairs, 0, n);
 
+        boolean instanced = divisorMode != DIVISOR_NONE;
         staging.clear();
         for (int i = 0; i < n; i++) {
             Splat s = splats.get((int) sortPairs[i]);
-            staging.put(ox + s.x() * scale).put(oy + s.y() * scale).put(oz + s.z() * scale);
-            staging.put(Math.max(0.005f, s.sx() * scale)).put(Math.max(0.005f, s.sy() * scale)).put(Math.max(0.005f, s.sz() * scale));
-            staging.put(s.qx()).put(s.qy()).put(s.qz()).put(s.qw());
-            staging.put(s.r() * tintR).put(s.g() * tintG).put(s.b() * tintB).put(s.opacity() * tintA);
+            float cx = ox + s.x() * scale;
+            float cy = oy + s.y() * scale;
+            float cz = oz + s.z() * scale;
+            float sx = Math.max(0.005f, s.sx() * scale);
+            float sy = Math.max(0.005f, s.sy() * scale);
+            float sz = Math.max(0.005f, s.sz() * scale);
+            float qx = s.qx(), qy = s.qy(), qz = s.qz(), qw = s.qw();
+            float r = s.r() * tintR;
+            float g = s.g() * tintG;
+            float b = s.b() * tintB;
+            float a = s.opacity() * tintA;
+            int repeats = instanced ? 1 : 6;
+            for (int k = 0; k < repeats; k++) {
+                staging.put(cx).put(cy).put(cz);
+                staging.put(sx).put(sy).put(sz);
+                staging.put(qx).put(qy).put(qz).put(qw);
+                staging.put(r).put(g).put(b).put(a);
+            }
         }
         staging.flip();
 
@@ -165,45 +188,82 @@ public final class DirectGlGaussianSplatRenderer {
         GL30C.glBindVertexArray(vao);
         GL15C.glBindBuffer(GL15C.GL_ARRAY_BUFFER, instanceVbo);
         GL15C.glBufferSubData(GL15C.GL_ARRAY_BUFFER, 0L, staging);
-        GL31C.glDrawArraysInstanced(GL11C.GL_TRIANGLES, 0, 6, n);
+        if (instanced) {
+            GL31C.glDrawArraysInstanced(GL11C.GL_TRIANGLES, 0, 6, n);
+        } else {
+            GL11C.glDrawArrays(GL11C.GL_TRIANGLES, 0, n * 6);
+        }
         GL30C.glBindVertexArray(0);
+    }
+
+    private static int detectDivisorMode() {
+        try {
+            GLCapabilities caps = GL.getCapabilities();
+            if (caps == null) return DIVISOR_NONE;
+            if (caps.OpenGL33) return DIVISOR_GL33;
+            if (caps.GL_ARB_instanced_arrays) return DIVISOR_ARB;
+            return DIVISOR_NONE;
+        } catch (RuntimeException ignored) {
+            return DIVISOR_NONE;
+        }
+    }
+
+    private void setAttribDivisor(int index, int divisor) {
+        if (divisorMode == DIVISOR_GL33) {
+            GL33C.glVertexAttribDivisor(index, divisor);
+        } else if (divisorMode == DIVISOR_ARB) {
+            ARBInstancedArrays.glVertexAttribDivisorARB(index, divisor);
+        }
     }
 
     private void ensureResources(int required) {
         if (program == 0) {
+            divisorMode = detectDivisorMode();
             int vs = compile(GL20C.GL_VERTEX_SHADER, SPLAT_VERT);
             int fs = compile(GL20C.GL_FRAGMENT_SHADER, SPLAT_FRAG);
-            program = GL20C.glCreateProgram();
-            GL20C.glAttachShader(program, vs);
-            GL20C.glAttachShader(program, fs);
-            GL20C.glLinkProgram(program);
+            int prog = GL20C.glCreateProgram();
+            GL20C.glAttachShader(prog, vs);
+            GL20C.glAttachShader(prog, fs);
+            GL20C.glBindAttribLocation(prog, 0, "aCenter");
+            GL20C.glBindAttribLocation(prog, 1, "aScale");
+            GL20C.glBindAttribLocation(prog, 2, "aQuat");
+            GL20C.glBindAttribLocation(prog, 3, "aColor");
+            GL30C.glBindFragDataLocation(prog, 0, "fragColor");
+            GL20C.glLinkProgram(prog);
             GL20C.glDeleteShader(vs);
             GL20C.glDeleteShader(fs);
+            if (GL20C.glGetProgrami(prog, GL20C.GL_LINK_STATUS) == 0) {
+                String log = GL20C.glGetProgramInfoLog(prog, 4096);
+                GL20C.glDeleteProgram(prog);
+                throw new IllegalStateException("Failed to link LumenFX Gaussian Splat shader: " + log);
+            }
+            program = prog;
         }
         if (required <= capacitySplats && vao != 0) return;
         int nextCap = Math.max(required, Math.max(256, capacitySplats * 2));
+        int vertsPerSplat = divisorMode != DIVISOR_NONE ? 1 : 6;
         if (vao == 0) vao = GL30C.glGenVertexArrays();
         if (instanceVbo == 0) instanceVbo = GL15C.glGenBuffers();
         if (staging != null) MemoryUtil.memFree(staging);
-        staging = MemoryUtil.memAllocFloat(nextCap * FLOATS_PER_SPLAT);
+        staging = MemoryUtil.memAllocFloat(nextCap * vertsPerSplat * FLOATS_PER_SPLAT);
         capacitySplats = nextCap;
 
         GL30C.glBindVertexArray(vao);
         GL15C.glBindBuffer(GL15C.GL_ARRAY_BUFFER, instanceVbo);
-        GL15C.glBufferData(GL15C.GL_ARRAY_BUFFER, (long) nextCap * FLOATS_PER_SPLAT * Float.BYTES, GL15C.GL_DYNAMIC_DRAW);
+        GL15C.glBufferData(GL15C.GL_ARRAY_BUFFER, (long) nextCap * vertsPerSplat * FLOATS_PER_SPLAT * Float.BYTES, GL15C.GL_DYNAMIC_DRAW);
         int stride = FLOATS_PER_SPLAT * Float.BYTES;
         GL20C.glEnableVertexAttribArray(0);
         GL20C.glVertexAttribPointer(0, 3, GL11C.GL_FLOAT, false, stride, 0L);
-        GL33C.glVertexAttribDivisor(0, 1);
+        setAttribDivisor(0, 1);
         GL20C.glEnableVertexAttribArray(1);
         GL20C.glVertexAttribPointer(1, 3, GL11C.GL_FLOAT, false, stride, 3L * Float.BYTES);
-        GL33C.glVertexAttribDivisor(1, 1);
+        setAttribDivisor(1, 1);
         GL20C.glEnableVertexAttribArray(2);
         GL20C.glVertexAttribPointer(2, 4, GL11C.GL_FLOAT, false, stride, 6L * Float.BYTES);
-        GL33C.glVertexAttribDivisor(2, 1);
+        setAttribDivisor(2, 1);
         GL20C.glEnableVertexAttribArray(3);
         GL20C.glVertexAttribPointer(3, 4, GL11C.GL_FLOAT, false, stride, 10L * Float.BYTES);
-        GL33C.glVertexAttribDivisor(3, 1);
+        setAttribDivisor(3, 1);
         GL30C.glBindVertexArray(0);
     }
 
@@ -211,6 +271,11 @@ public final class DirectGlGaussianSplatRenderer {
         int s = GL20C.glCreateShader(type);
         GL20C.glShaderSource(s, src);
         GL20C.glCompileShader(s);
+        if (GL20C.glGetShaderi(s, GL20C.GL_COMPILE_STATUS) == 0) {
+            String log = GL20C.glGetShaderInfoLog(s, 4096);
+            GL20C.glDeleteShader(s);
+            throw new IllegalStateException("Failed to compile LumenFX Gaussian Splat shader: " + log);
+        }
         return s;
     }
 

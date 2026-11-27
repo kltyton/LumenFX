@@ -7,13 +7,18 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.lwjgl.opengl.ARBBlendFuncExtended;
+import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL20C;
+import org.lwjgl.opengl.GL30C;
 import org.lwjgl.opengl.GL31C;
+import org.lwjgl.opengl.GL33C;
+import org.lwjgl.opengl.GLCapabilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Compiles and caches custom GLSL 330 Core material shaders for {@link MaterialModel} definitions
+ * Compiles and caches custom GLSL 150/330 Core material shaders for {@link MaterialModel} definitions
  * on non-26.2 OpenGL targets, exposing soft-particle depth fade, scene color refraction, multi-sampler
  * slots, RVT bindings, and time/parameter uniforms.
  */
@@ -27,10 +32,10 @@ public final class DirectGlCustomMaterialCompiler {
     private static final Logger LOGGER = LoggerFactory.getLogger(DirectGlCustomMaterialCompiler.class);
 
     private static final String DEFAULT_PARTICLE_VERT = """
-            #version 330 core
-            layout(location = 0) in vec3 aPos;
-            layout(location = 1) in vec2 aUv;
-            layout(location = 2) in vec4 aColor;
+            #version 150 core
+            in vec3 aPos;
+            in vec2 aUv;
+            in vec4 aColor;
             uniform mat4 uViewProj;
             uniform float uTime;
             uniform vec4 uParams;
@@ -47,15 +52,16 @@ public final class DirectGlCustomMaterialCompiler {
             out vec4 effectParticle;
             out vec4 effectCustom;
             out vec3 effectPosition;
-            layout(location = 3) in vec4 aParticle;
-            layout(location = 4) in vec4 aCustom;
-            layout(location = 5) in vec3 aNextSubImage;
+            in vec4 aParticle;
+            in vec4 aCustom;
+            in vec3 aNextSubImage;
+            in vec2 aUv1;
             void main() {
                 vUv = aUv;
                 vColor = aColor;
                 vWorldPos = aPos;
                 effectUV = aUv;
-                effectUV1 = aUv;
+                effectUV1 = aUv1;
                 effectNextUV = aUv + aNextSubImage.xy;
                 effectUnflippedUV = aUv;
                 effectNextUnflippedUV = effectNextUV;
@@ -69,7 +75,7 @@ public final class DirectGlCustomMaterialCompiler {
             """;
 
     private static final String FRAG_PREAMBLE = """
-            #version 330 core
+            #version 150 core
             in vec2 vUv;
             in vec4 vColor;
             in vec3 vWorldPos;
@@ -98,50 +104,189 @@ public final class DirectGlCustomMaterialCompiler {
             }
             """;
 
+    private static final String DEFAULT_MESH_VERT = """
+            #version 150 core
+            in vec3 aPos;
+            in vec3 aNormal;
+            in vec2 aUv;
+            in vec4 aColor;
+            uniform mat4 uViewProj;
+            uniform mat4 uModel;
+            uniform vec4 uTint;
+            uniform float uTime;
+            uniform vec4 uParams;
+            out vec2 vUv;
+            out vec4 vColor;
+            out vec3 vWorldPos;
+            out vec2 effectUV;
+            out vec2 effectUV1;
+            out vec2 effectNextUV;
+            out vec2 effectUnflippedUV;
+            out vec2 effectNextUnflippedUV;
+            out float effectSubImageLerp;
+            out vec4 effectColor;
+            out vec4 effectParticle;
+            out vec4 effectCustom;
+            out vec3 effectPosition;
+            void main() {
+                vec4 world = uModel * vec4(aPos, 1.0);
+                vUv = aUv;
+                vColor = aColor * uTint;
+                vWorldPos = world.xyz;
+                effectUV = aUv;
+                effectUV1 = aUv;
+                effectNextUV = aUv;
+                effectUnflippedUV = aUv;
+                effectNextUnflippedUV = aUv;
+                effectSubImageLerp = 0.0;
+                effectColor = vColor;
+                effectPosition = world.xyz;
+                effectParticle = vec4(0.0);
+                effectCustom = vec4(0.0);
+                gl_Position = uViewProj * world;
+            }
+            """;
+
+    private static final String DEFAULT_COLOR_FRAG = """
+            #version 150 core
+            in vec4 vColor;
+            uniform sampler2D uSceneDepth;
+            uniform float uHdr;
+            uniform float uSoftFade;
+            uniform vec2 uNearFar;
+            uniform vec2 uInvViewport;
+            out vec4 fragColor;
+            float lfx_linear_depth(float d) {
+                float z = d * 2.0 - 1.0;
+                return (2.0 * uNearFar.x * uNearFar.y) / max(uNearFar.y + uNearFar.x - z * (uNearFar.y - uNearFar.x), 0.0001);
+            }
+            void main() {
+                vec4 outCol = vColor;
+                if (uSoftFade > 0.0001) {
+                    float sceneZ = lfx_linear_depth(texture(uSceneDepth, gl_FragCoord.xy * uInvViewport).r);
+                    float fragZ = lfx_linear_depth(gl_FragCoord.z);
+                    outCol.a *= clamp((sceneZ - fragZ) / uSoftFade, 0.0, 1.0);
+                }
+                outCol.rgb *= uHdr;
+                if (outCol.a <= 0.002) discard;
+                fragColor = outCol;
+            }
+            """;
+
+    private static final String DEFAULT_PARTICLE_FRAG = """
+            #version 150 core
+            in vec2 vUv;
+            in vec4 vColor;
+            uniform sampler2D uTex;
+            uniform sampler2D uSceneDepth;
+            uniform float uHdr;
+            uniform float uSoftFade;
+            uniform vec2 uNearFar;
+            uniform vec2 uInvViewport;
+            out vec4 fragColor;
+            float lfx_linear_depth(float d) {
+                float z = d * 2.0 - 1.0;
+                return (2.0 * uNearFar.x * uNearFar.y) / max(uNearFar.y + uNearFar.x - z * (uNearFar.y - uNearFar.x), 0.0001);
+            }
+            void main() {
+                vec4 sampled = texture(uTex, vUv);
+                vec4 outCol = sampled * vColor;
+                if (uSoftFade > 0.0001) {
+                    float sceneZ = lfx_linear_depth(texture(uSceneDepth, gl_FragCoord.xy * uInvViewport).r);
+                    float fragZ = lfx_linear_depth(gl_FragCoord.z);
+                    outCol.a *= clamp((sceneZ - fragZ) / uSoftFade, 0.0, 1.0);
+                }
+                outCol.rgb *= uHdr;
+                if (outCol.a <= 0.002) discard;
+                fragColor = outCol;
+            }
+            """;
+
     private final Map<String, CompiledMaterial> cache = new HashMap<>();
 
     public @Nullable CompiledMaterial resolve(MaterialModel material, @Nullable McResourceBridge bridge) {
+        return resolve(material, bridge, false);
+    }
+
+    public @Nullable CompiledMaterial resolveForMesh(MaterialModel material, @Nullable McResourceBridge bridge) {
+        return resolve(material, bridge, true);
+    }
+
+    private @Nullable CompiledMaterial resolve(MaterialModel material, @Nullable McResourceBridge bridge,
+                                               boolean meshStage) {
         String customSource = material.customGlslFragment();
         String shaderId = material.fragmentShader();
-        if ((customSource == null || customSource.isBlank()) && isBuiltinShaderId(shaderId)) {
+        boolean hasCustomFrag = (customSource != null && !customSource.isBlank()) || !isBuiltinShaderId(shaderId);
+        boolean hasInlineVert = material.customGlslVertex() != null && !material.customGlslVertex().isBlank();
+        boolean hasResourceVert = material.vertexMaterial() != null && !material.vertexMaterial().isBlank();
+        boolean hasCustomVert = hasInlineVert || hasResourceVert;
+        if (!hasCustomFrag && !hasCustomVert) {
             return null;
         }
-        String cacheKey = (customSource != null && !customSource.isBlank())
-                ? "inline:" + customSource
-                : "res:" + shaderId;
-        cacheKey += "\n" + material.vertexMaterial() + "\n" + material.customGlslVertex() + "\n" + material.textures().keySet();
+        String cacheKey = (meshStage ? "mesh\0" : "particle\0")
+                + (shaderId == null ? "" : shaderId) + "\0"
+                + (customSource == null ? "" : customSource) + "\0"
+                + (material.vertexMaterial() == null ? "" : material.vertexMaterial()) + "\0"
+                + (material.customGlslVertex() == null ? "" : material.customGlslVertex()) + "\0"
+                + material.textures().keySet();
         CompiledMaterial existing = cache.get(cacheKey);
         if (existing != null) return existing.program() != 0 ? existing : null;
 
-        String fragBody = customSource;
-        if ((fragBody == null || fragBody.isBlank()) && bridge != null && shaderId != null) {
-            fragBody = loadShaderResource(shaderId, ".fsh", bridge);
-        }
-        if (fragBody == null || fragBody.isBlank()) {
-            LOGGER.error("Missing OpenGL fragment shader {} for material {}", shaderId, material.name());
-            cache.put(cacheKey, empty());
-            return null;
-        }
-        String vertSrc = DEFAULT_PARTICLE_VERT;
-        String vertexSourceId = null;
-        if (material.customGlslVertex() != null && !material.customGlslVertex().isBlank()) {
-            vertSrc = material.customGlslVertex();
-        } else if (material.vertexMaterial() != null && !material.vertexMaterial().isBlank() && bridge != null) {
-            String loadedVert = loadShaderResource(material.vertexMaterial(), ".vsh", bridge);
-            if (loadedVert != null && loadedVert.contains("void main")) {
-                vertSrc = loadedVert;
-                vertexSourceId = shaderResourceId(material.vertexMaterial(), ".vsh");
+        String fragBody = null;
+        if (hasCustomFrag) {
+            fragBody = customSource;
+            if ((fragBody == null || fragBody.isBlank()) && bridge != null && shaderId != null) {
+                fragBody = loadShaderResource(shaderId, ".fsh", bridge);
+            }
+            if (fragBody == null || fragBody.isBlank()) {
+                LOGGER.error("Missing OpenGL fragment shader {} for material {}", shaderId, material.name());
+                cache.put(cacheKey, empty());
+                return null;
             }
         }
         CompiledMaterial compiled;
         try {
-            String fullFrag = wrapFragmentSource(fragBody);
-            if (bridge != null) {
-                String fragmentSourceId = shaderId == null ? null : shaderResourceId(shaderId, ".fsh");
-                fullFrag = DirectGlShaderImports.expand(fullFrag, fragmentSourceId, bridge);
-                vertSrc = DirectGlShaderImports.expand(vertSrc, vertexSourceId, bridge);
+            String fullFrag;
+            if (hasCustomFrag) {
+                String expandedFrag = fragBody;
+                if (bridge != null) {
+                    String fragmentSourceId = shaderId == null ? null : shaderResourceId(shaderId, ".fsh");
+                    expandedFrag = DirectGlShaderImports.expand(expandedFrag, fragmentSourceId, bridge);
+                }
+                fullFrag = wrapFragmentSource(expandedFrag);
+            } else {
+                fullFrag = "lumenfx:core/color".equals(shaderId) ? DEFAULT_COLOR_FRAG : DEFAULT_PARTICLE_FRAG;
             }
-            compiled = compileMaterial(vertSrc, fullFrag, material, shaderId);
+
+            String vertSrc = meshStage ? DEFAULT_MESH_VERT : DEFAULT_PARTICLE_VERT;
+            if (hasInlineVert) {
+                String vertexSourceId = hasResourceVert ? shaderResourceId(material.vertexMaterial(), ".vsh") : null;
+                vertSrc = bridge != null
+                        ? DirectGlShaderImports.expand(material.customGlslVertex(), vertexSourceId, bridge)
+                        : material.customGlslVertex();
+            } else if (hasResourceVert) {
+                String loadedVert = bridge != null ? loadShaderResource(material.vertexMaterial(), ".vsh", bridge) : null;
+                if (loadedVert == null) {
+                    if (!hasCustomFrag) {
+                        LOGGER.error("Missing OpenGL vertex shader {} for material {}",
+                                material.vertexMaterial(), material.name());
+                        cache.put(cacheKey, empty());
+                        return null;
+                    }
+                } else {
+                    String vertexSourceId = shaderResourceId(material.vertexMaterial(), ".vsh");
+                    String expandedVert = DirectGlShaderImports.expand(loadedVert, vertexSourceId, bridge);
+                    if (DirectGlGlslPreprocessor.hasMainFunction(expandedVert)) {
+                        vertSrc = expandedVert;
+                    } else if (!hasCustomFrag) {
+                        LOGGER.error("OpenGL vertex shader {} lacks main() for material {}",
+                                material.vertexMaterial(), material.name());
+                        cache.put(cacheKey, empty());
+                        return null;
+                    }
+                }
+            }
+            compiled = compileMaterial(vertSrc, fullFrag, material, shaderId, meshStage);
         } catch (IllegalArgumentException failure) {
             LOGGER.error("Could not prepare OpenGL material {} ({})", material.name(), shaderId, failure);
             compiled = empty();
@@ -150,16 +295,65 @@ public final class DirectGlCustomMaterialCompiler {
         return compiled.program() != 0 ? compiled : null;
     }
 
-    /** Builds a valid GLSL 330 Core fragment source from either a full shader or a custom snippet. */
+    /** Builds a valid GLSL 150 Core fragment source from either a full shader (including leading comments) or a snippet. */
     public static String wrapFragmentSource(String source) {
-        String trimmed = source.trim();
-        if (trimmed.startsWith("#version")) {
-            return trimmed;
+        String cleaned = DirectGlGlslPreprocessor.stripLeadingBom(source);
+        if (DirectGlGlslPreprocessor.hasLeadingVersionDirective(cleaned)) {
+            return cleaned;
         }
-        if (trimmed.contains("void main(")) {
-            return FRAG_PREAMBLE + "\n" + trimmed;
+        DirectGlGlslPreprocessor.LeadingExtensions leading = DirectGlGlslPreprocessor.extractLeadingExtensions(cleaned);
+        String body = leading.remainingSource();
+        int firstNewline = FRAG_PREAMBLE.indexOf('\n');
+        int startLineArg = DirectGlGlslPreprocessor.tryQueryLiveGlsl150LineOffsetsByOne() ? 0 : 1;
+        StringBuilder out = new StringBuilder(FRAG_PREAMBLE.length() + leading.extensionBlock().length()
+                + body.length() + 48);
+        out.append(FRAG_PREAMBLE, 0, firstNewline + 1);
+        out.append(leading.extensionBlock());
+        out.append(FRAG_PREAMBLE, firstNewline + 1, FRAG_PREAMBLE.length());
+        if (DirectGlGlslPreprocessor.hasMainFunction(cleaned)) {
+            out.append("#line ").append(startLineArg).append(" 0\n").append(body);
+            if (!body.endsWith("\n")) {
+                out.append('\n');
+            }
+        } else {
+            out.append("void main() {\n#line ").append(startLineArg).append(" 0\n").append(body);
+            if (!body.endsWith("\n")) {
+                out.append('\n');
+            }
+            out.append("}\n");
         }
-        return FRAG_PREAMBLE + "\nvoid main() {\n" + trimmed + "\n}\n";
+        return out.toString();
+    }
+
+    /**
+     * Adapts GLSL 330 Core shaders using {@code layout(location = N)} down to strict GLSL 150 Core
+     * for OpenGL 3.2 Core contexts, collecting explicit attribute and fragment-output bindings.
+     */
+    public static String downgradeGlsl330To150(String source, boolean vertexStage,
+                                              Map<String, Integer> attribBindings,
+                                              Map<String, Integer> fragBindings) {
+        return DirectGlGlslPreprocessor.downgradeGlsl330To150(source, vertexStage, attribBindings, fragBindings);
+    }
+
+    /**
+     * Adapts GLSL 330 Core shaders using {@code layout(location = N[, index = I])} down to strict
+     * GLSL 150 Core, also collecting explicit dual-source fragment-output {@code index} bindings.
+     */
+    public static String downgradeGlsl330To150(String source, boolean vertexStage,
+                                              Map<String, Integer> attribBindings,
+                                              Map<String, Integer> fragBindings,
+                                              Map<String, Integer> fragIndexBindings) {
+        return DirectGlGlslPreprocessor.downgradeGlsl330To150(
+                source, vertexStage, attribBindings, fragBindings, fragIndexBindings);
+    }
+
+    private static boolean isStrictGl32Context() {
+        try {
+            GLCapabilities caps = GL.getCapabilities();
+            return caps != null && !caps.OpenGL33;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     private static boolean isBuiltinShaderId(@Nullable String id) {
@@ -182,10 +376,37 @@ public final class DirectGlCustomMaterialCompiler {
         return ns + ":" + resPath;
     }
 
-    private static CompiledMaterial compileMaterial(String vertSrc, String fragSrc, MaterialModel material, String shaderId) {
-        int vs = compileShader(GL20C.GL_VERTEX_SHADER, vertSrc, shaderId);
+    private static CompiledMaterial compileMaterial(String vertSrc, String fragSrc, MaterialModel material,
+                                                    String shaderId, boolean meshStage) {
+        Map<String, Integer> attribBindings = new LinkedHashMap<>();
+        if (meshStage) {
+            attribBindings.put("aPos", 0);
+            attribBindings.put("aNormal", 1);
+            attribBindings.put("aUv", 2);
+            attribBindings.put("aColor", 3);
+        } else {
+            attribBindings.put("aPos", 0);
+            attribBindings.put("aUv", 1);
+            attribBindings.put("aColor", 2);
+            attribBindings.put("aParticle", 3);
+            attribBindings.put("aCustom", 4);
+            attribBindings.put("aNextSubImage", 5);
+            attribBindings.put("aUv1", 6);
+        }
+        Map<String, Integer> fragBindings = new LinkedHashMap<>();
+        fragBindings.put("fragColor", 0);
+        Map<String, Integer> fragIndexBindings = new LinkedHashMap<>();
+
+        String effectiveVert = vertSrc;
+        String effectiveFrag = fragSrc;
+        if (isStrictGl32Context()) {
+            effectiveVert = downgradeGlsl330To150(effectiveVert, true, attribBindings, fragBindings, fragIndexBindings);
+            effectiveFrag = downgradeGlsl330To150(effectiveFrag, false, attribBindings, fragBindings, fragIndexBindings);
+        }
+
+        int vs = compileShader(GL20C.GL_VERTEX_SHADER, effectiveVert, shaderId);
         if (vs == 0) return empty();
-        int fs = compileShader(GL20C.GL_FRAGMENT_SHADER, fragSrc, shaderId);
+        int fs = compileShader(GL20C.GL_FRAGMENT_SHADER, effectiveFrag, shaderId);
         if (fs == 0) {
             GL20C.glDeleteShader(vs);
             return empty();
@@ -193,6 +414,17 @@ public final class DirectGlCustomMaterialCompiler {
         int prog = GL20C.glCreateProgram();
         GL20C.glAttachShader(prog, vs);
         GL20C.glAttachShader(prog, fs);
+        for (Map.Entry<String, Integer> e : attribBindings.entrySet()) {
+            GL20C.glBindAttribLocation(prog, e.getValue(), e.getKey());
+        }
+        for (Map.Entry<String, Integer> e : fragBindings.entrySet()) {
+            Integer index = fragIndexBindings.get(e.getKey());
+            if (index != null && index > 0) {
+                bindFragDataLocationIndexed(prog, e.getValue(), index, e.getKey(), shaderId);
+            } else {
+                GL30C.glBindFragDataLocation(prog, e.getValue(), e.getKey());
+            }
+        }
         GL20C.glLinkProgram(prog);
         GL20C.glDeleteShader(vs);
         GL20C.glDeleteShader(fs);
@@ -223,6 +455,20 @@ public final class DirectGlCustomMaterialCompiler {
                 GL20C.glGetUniformLocation(prog, "uSceneColor"),
                 GL31C.glGetUniformBlockIndex(prog, "EffectFrame"), Map.copyOf(samplers)
         );
+    }
+
+    private static void bindFragDataLocationIndexed(int program, int colorNumber, int index,
+                                                    String name, @Nullable String shaderId) {
+        GLCapabilities caps = GL.getCapabilities();
+        if (caps != null && caps.OpenGL33) {
+            GL33C.glBindFragDataLocationIndexed(program, colorNumber, index, name);
+        } else if (caps != null && caps.GL_ARB_blend_func_extended) {
+            ARBBlendFuncExtended.glBindFragDataLocationIndexed(program, colorNumber, index, name);
+        } else {
+            LOGGER.warn("OpenGL context lacks GL_ARB_blend_func_extended for fragment output {} index={} in {}",
+                    name, index, shaderId);
+            GL30C.glBindFragDataLocation(program, colorNumber, name);
+        }
     }
 
     private static int compileShader(int type, String src, String shaderId) {

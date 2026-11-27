@@ -110,7 +110,7 @@ public final class ColorCurve {
         if (element == null || element.isJsonNull()) return white();
         if (element.isJsonArray()) {
             JsonArray arr = element.getAsJsonArray();
-            if (arr.size() > 0 && arr.get(0).isJsonObject()) {
+            if (arr.size() > 0 && (arr.get(0).isJsonObject() || arr.get(0).isJsonArray())) {
                 return fromStops(arr, false);
             }
             float[] c = readRgbaArray(arr);
@@ -182,6 +182,19 @@ public final class ColorCurve {
         List<ColorKey> ck = new ArrayList<>();
         List<AlphaKey> ak = new ArrayList<>();
         for (JsonElement e : stops) {
+            if (e.isJsonArray()) {
+                JsonArray arr = e.getAsJsonArray();
+                if (arr.size() >= 4) {
+                    float t = arr.get(0).getAsFloat();
+                    float r = arr.get(1).getAsFloat();
+                    float g = arr.get(2).getAsFloat();
+                    float b = arr.get(3).getAsFloat();
+                    float a = arr.size() >= 5 ? arr.get(4).getAsFloat() : 1f;
+                    ck.add(new ColorKey(t, r, g, b));
+                    ak.add(new AlphaKey(t, a));
+                }
+                continue;
+            }
             if (!e.isJsonObject()) continue;
             JsonObject k = e.getAsJsonObject();
             float t = k.has("time") ? k.get("time").getAsFloat() : 0f;

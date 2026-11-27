@@ -40,11 +40,8 @@ public final class DirectGlComputeKernel implements AutoCloseable {
     public static boolean isSupported() {
         try {
             GLCapabilities caps = GL.getCapabilities();
-            if (caps == null) return false;
-            boolean spirv = caps.OpenGL46 || caps.GL_ARB_gl_spirv;
-            boolean compute = caps.OpenGL43 || caps.GL_ARB_compute_shader;
-            boolean ssbo = caps.OpenGL43 || caps.GL_ARB_shader_storage_buffer_object;
-            return spirv && compute && ssbo;
+            if (caps == null || !caps.OpenGL43) return false;
+            return caps.OpenGL46 || caps.GL_ARB_gl_spirv;
         } catch (RuntimeException ignored) {
             return false;
         }

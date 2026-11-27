@@ -35,6 +35,8 @@ import org.lwjgl.opengl.GL31C;
 import org.lwjgl.opengl.GL43C;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.system.MemoryUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Executes baked Niagara GPU SPIR-V compute programs directly on OpenGL 4.6 / {@code GL_ARB_gl_spirv},
@@ -50,6 +52,7 @@ import org.lwjgl.system.MemoryUtil;
  * </ul>
  */
 public final class DirectGlNiagaraGpuRunner {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DirectGlNiagaraGpuRunner.class);
     public static final int THREADGROUP_ALIGNMENT = 64;
     private static final int PERSISTENT_ID_CHUNK = 1024;
     private static final int READBACK_PARTICLE_CAP = 2048;
@@ -117,10 +120,10 @@ public final class DirectGlNiagaraGpuRunner {
         try {
             GLCapabilities caps = GL.getCapabilities();
             if (caps == null) return;
-            long maxSsbo = caps.OpenGL43 || caps.GL_ARB_shader_storage_buffer_object
+            long maxSsbo = caps.OpenGL43
                     ? Integer.toUnsignedLong(GL11C.glGetInteger(GL43C.GL_MAX_SHADER_STORAGE_BLOCK_SIZE))
                     : 0L;
-            long maxTexel = caps.OpenGL31 || caps.GL_ARB_texture_buffer_object
+            long maxTexel = caps.OpenGL31
                     ? Integer.toUnsignedLong(GL11C.glGetInteger(GL31C.GL_MAX_TEXTURE_BUFFER_SIZE))
                     : 0L;
             if (maxSsbo > 0L) cachedMaxStorageBufferBytes = maxSsbo;
@@ -500,6 +503,7 @@ public final class DirectGlNiagaraGpuRunner {
 
                 RendererKind rk = state.primaryRenderer.kind();
                 boolean canDirectDraw = DirectGlNiagaraDirectRenderer.isGl43Supported()
+                        && !state.material.hasCustomShader()
                         && (rk == RendererKind.SPRITE || rk == RendererKind.RIBBON || rk == RendererKind.MESH);
                 if (!canDirectDraw && bufs.currentCount > 0 && bufs.floatComponents > 0) {
                     readbackParticles(state, writeFloat, bufs.stride, bufs.floatComponents, bufs.currentCount, tick);
@@ -507,7 +511,8 @@ public final class DirectGlNiagaraGpuRunner {
                     state.gpuReadbackParticles = List.of();
                 }
             }
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException error) {
+            LOGGER.warn("Disabling OpenGL Niagara GPU runner for emitter {} after dispatch failure", state.spec.name(), error);
             bufs.failed = true;
         }
     }
@@ -784,6 +789,8 @@ public final class DirectGlNiagaraGpuRunner {
         float[] ca = colComp >= 0 && colComp + 3 < floatComps ? readComponentSlice(floatSsbo, (long) (colComp + 3) * stride, count) : null;
         float[] sw = widthComp >= 0 ? readComponentSlice(floatSsbo, (long) widthComp * stride, count)
                 : (sizeComp >= 0 ? readComponentSlice(floatSsbo, (long) sizeComp * stride, count) : null);
+        float[] sh = (widthComp < 0 && sizeComp >= 0 && sizeComp + 1 < floatComps)
+                ? readComponentSlice(floatSsbo, (long) (sizeComp + 1) * stride, count) : null;
         float[] ages = ageComp >= 0 ? readComponentSlice(floatSsbo, (long) ageComp * stride, count) : null;
         float[] lifes = lifeComp >= 0 ? readComponentSlice(floatSsbo, (long) lifeComp * stride, count) : null;
 
@@ -795,15 +802,18 @@ public final class DirectGlNiagaraGpuRunner {
             p.x = p.prevX = state.spec.localSpace() ? tick.origin().x + ux * 0.01 : ux * 0.01;
             p.y = p.prevY = state.spec.localSpace() ? tick.origin().y + uz * 0.01 : uz * 0.01;
             p.z = p.prevZ = state.spec.localSpace() ? tick.origin().z + uy * 0.01 : uy * 0.01;
-            float sz = (sw != null && Float.isFinite(sw[i]) && sw[i] > 0f) ? (sw[i] > 4f ? sw[i] * 0.01f : sw[i]) : 0.25f;
-            p.width = p.startWidth = Math.max(0.05f, Math.min(4.0f, sz));
-            p.height = p.startHeight = p.width;
+            float defSz = widthComp >= 0 ? 0.01f : 0.50f;
+            float szX = (sw != null && Float.isFinite(sw[i]) && sw[i] > 0f) ? sw[i] * 0.01f : defSz;
+            float szY = (sh != null && Float.isFinite(sh[i]) && sh[i] > 0f) ? sh[i] * 0.01f : szX;
+            p.width = p.startWidth = Math.max(0.002f, Math.min(16.0f, szX));
+            p.height = p.startHeight = Math.max(0.002f, Math.min(16.0f, szY));
             p.r = cr != null && Float.isFinite(cr[i]) ? clamp01(cr[i]) : 1f;
             p.g = cg != null && Float.isFinite(cg[i]) ? clamp01(cg[i]) : 1f;
             p.b = cb != null && Float.isFinite(cb[i]) ? clamp01(cb[i]) : 1f;
             p.a = ca != null && Float.isFinite(ca[i]) ? clamp01(ca[i]) : 1f;
             p.age = ages != null && Float.isFinite(ages[i]) ? ages[i] : 0f;
             p.lifetime = lifes != null && Float.isFinite(lifes[i]) && lifes[i] > 0f ? lifes[i] : 1f;
+            p.ribbonLinkOrder = p.normalizedAge();
             out.add(p);
         }
         state.gpuReadbackParticles = out;

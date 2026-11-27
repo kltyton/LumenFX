@@ -118,6 +118,8 @@ public final class MaterialModel {
 
     public boolean hasCustomShader() {
         if (customGlslFragment != null && !customGlslFragment.isBlank()) return true;
+        if (customGlslVertex != null && !customGlslVertex.isBlank()) return true;
+        if (vertexMaterial != null && !vertexMaterial.isBlank()) return true;
         return fragmentShader != null && !fragmentShader.isBlank()
                 && !fragmentShader.equals("lumenfx:core/color")
                 && !fragmentShader.equals("lumenfx:core/effect");

@@ -1,14 +1,15 @@
 package com.kltyton.lumenfx.runtime.gl;
 
 import org.lwjgl.opengl.GL20C;
+import org.lwjgl.opengl.GL30C;
 
-/** Compiles and owns the GLSL 330 Core graphics programs for soft particles/ribbons and 3D static meshes. */
+/** Compiles and owns the GLSL 150 Core (OpenGL 3.2+) graphics programs for soft particles/ribbons and 3D static meshes. */
 public final class DirectGlShaderProgram {
     private static final String PARTICLE_VERT = """
-            #version 330 core
-            layout(location = 0) in vec3 aPos;
-            layout(location = 1) in vec2 aUv;
-            layout(location = 2) in vec4 aColor;
+            #version 150 core
+            in vec3 aPos;
+            in vec2 aUv;
+            in vec4 aColor;
             uniform mat4 uViewProj;
             out vec2 vUv;
             out vec4 vColor;
@@ -20,7 +21,7 @@ public final class DirectGlShaderProgram {
             """;
 
     private static final String PARTICLE_FRAG = """
-            #version 330 core
+            #version 150 core
             in vec2 vUv;
             in vec4 vColor;
             uniform sampler2D uTex;
@@ -49,11 +50,11 @@ public final class DirectGlShaderProgram {
             """;
 
     private static final String MESH_VERT = """
-            #version 330 core
-            layout(location = 0) in vec3 aPos;
-            layout(location = 1) in vec3 aNormal;
-            layout(location = 2) in vec2 aUv;
-            layout(location = 3) in vec4 aColor;
+            #version 150 core
+            in vec3 aPos;
+            in vec3 aNormal;
+            in vec2 aUv;
+            in vec4 aColor;
             uniform mat4 uViewProj;
             uniform mat4 uModel;
             out vec3 vNormal;
@@ -68,18 +69,19 @@ public final class DirectGlShaderProgram {
             """;
 
     private static final String MESH_FRAG = """
-            #version 330 core
+            #version 150 core
             in vec3 vNormal;
             in vec2 vUv;
             in vec4 vColor;
             uniform sampler2D uTex;
             uniform vec4 uTint;
             uniform float uHdr;
+            uniform float uShade;
             out vec4 fragColor;
             void main() {
                 vec3 n = length(vNormal) > 0.0001 ? normalize(vNormal) : vec3(0.0, 1.0, 0.0);
                 float ndl = max(dot(n, normalize(vec3(0.35, 0.85, 0.40))), 0.0);
-                float shade = 0.55 + 0.45 * ndl;
+                float shade = mix(1.0, 0.72 + 0.28 * ndl, clamp(uShade, 0.0, 1.0));
                 vec4 sampled = texture(uTex, vUv);
                 vec4 outCol = sampled * vColor * uTint;
                 outCol.rgb *= shade * uHdr;
@@ -103,10 +105,11 @@ public final class DirectGlShaderProgram {
     public int meshTexLoc;
     public int meshTintLoc;
     public int meshHdrLoc;
+    public int meshShadeLoc;
 
     public void ensureCompiled() {
         if (particleProgram != 0 && meshProgram != 0) return;
-        particleProgram = link(PARTICLE_VERT, PARTICLE_FRAG);
+        particleProgram = link(PARTICLE_VERT, PARTICLE_FRAG, "aPos", "aUv", "aColor");
         particleViewProjLoc = GL20C.glGetUniformLocation(particleProgram, "uViewProj");
         particleTexLoc = GL20C.glGetUniformLocation(particleProgram, "uTex");
         particleSceneDepthLoc = GL20C.glGetUniformLocation(particleProgram, "uSceneDepth");
@@ -115,20 +118,25 @@ public final class DirectGlShaderProgram {
         particleNearFarLoc = GL20C.glGetUniformLocation(particleProgram, "uNearFar");
         particleInvViewportLoc = GL20C.glGetUniformLocation(particleProgram, "uInvViewport");
 
-        meshProgram = link(MESH_VERT, MESH_FRAG);
+        meshProgram = link(MESH_VERT, MESH_FRAG, "aPos", "aNormal", "aUv", "aColor");
         meshViewProjLoc = GL20C.glGetUniformLocation(meshProgram, "uViewProj");
         meshModelLoc = GL20C.glGetUniformLocation(meshProgram, "uModel");
         meshTexLoc = GL20C.glGetUniformLocation(meshProgram, "uTex");
         meshTintLoc = GL20C.glGetUniformLocation(meshProgram, "uTint");
         meshHdrLoc = GL20C.glGetUniformLocation(meshProgram, "uHdr");
+        meshShadeLoc = GL20C.glGetUniformLocation(meshProgram, "uShade");
     }
 
-    private static int link(String vertSrc, String fragSrc) {
+    private static int link(String vertSrc, String fragSrc, String... attribNames) {
         int vs = compile(GL20C.GL_VERTEX_SHADER, vertSrc);
         int fs = compile(GL20C.GL_FRAGMENT_SHADER, fragSrc);
         int prog = GL20C.glCreateProgram();
         GL20C.glAttachShader(prog, vs);
         GL20C.glAttachShader(prog, fs);
+        for (int i = 0; i < attribNames.length; i++) {
+            if (attribNames[i] != null) GL20C.glBindAttribLocation(prog, i, attribNames[i]);
+        }
+        GL30C.glBindFragDataLocation(prog, 0, "fragColor");
         GL20C.glLinkProgram(prog);
         GL20C.glDeleteShader(vs);
         GL20C.glDeleteShader(fs);

@@ -618,9 +618,10 @@ public final class PhotonPipelines {
         for (var pipeline : INSTANCED_CUSTOM_VARIANTS.values()) forget(pipeline);
         CUSTOM_SHADER_VARIANTS.clear();
         INSTANCED_CUSTOM_VARIANTS.clear();
-        // sources may have changed; the device drops its compiled programs itself
+        // sources may have changed; release custom compiled pipelines on 26.3 RenderPearl as well
         REVERSED_WINDING.clear();
         PhotonShaderSources.clear();
+        PhotonPipelineReleases.onResourceReload();
     }
 
     private static void forget(RenderPipeline pipeline) {

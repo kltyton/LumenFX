@@ -10,6 +10,7 @@ import com.kltyton.lumenfx.runtime.bridge.McResourceBridge;
 import com.kltyton.lumenfx.runtime.concurrent.DirectFrameExecutor;
 import com.kltyton.lumenfx.runtime.gl.DirectGlNiagaraGpuRunner;
 import com.kltyton.lumenfx.runtime.gl.material.DirectGlCustomMaterialCompiler;
+import com.kltyton.lumenfx.runtime.gl.material.DirectGlShaderImports;
 import com.kltyton.lumenfx.runtime.gl.rvt.DirectGlRuntimeVirtualTexture;
 import com.kltyton.lumenfx.runtime.model.BlendMode;
 import com.kltyton.lumenfx.runtime.model.EffectModel;
@@ -780,11 +781,583 @@ final class DirectOpenGlRuntimeTest {
         assertTrue(inst.tick(0.05f, 1, null));
         assertEquals(10, inst.niagaraRuntime().emitters().get(0).particleCount());
 
-        // Custom GLSL fragment wrapper produces valid #version 330 core program
+        // Custom GLSL fragment wrapper produces valid #version 150 core program (strict OpenGL 3.2+)
         String wrapped = DirectGlCustomMaterialCompiler.wrapFragmentSource(mat.customGlslFragment());
-        assertTrue(wrapped.startsWith("#version 330 core"));
+        assertTrue(wrapped.startsWith("#version 150 core"));
         assertTrue(wrapped.contains("void main()"));
         assertTrue(wrapped.contains("lfx_soft_particle_alpha"));
+
+        // External #version 330 core shader adapts cleanly down to #version 150 core with explicit bindings,
+        // including multiple same-line declarations, leading comments/BOM, qualifiers, arrays, and UBO preservation
+        Map<String, Integer> extraAttribs = new LinkedHashMap<>();
+        Map<String, Integer> extraFrags = new LinkedHashMap<>();
+        String adaptedVert = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                """
+                \uFEFF// SPDX-License-Identifier: MIT
+                /* #version 330 core inside comment; layout(location = 9) in vec4 dead; */
+                #version 330 core
+                layout(location = 0) in vec3 aPos; layout(location = 6) in vec2 aUv1;
+                layout(
+                    location = 3
+                ) flat in highp int aFlag;
+                layout(std140) uniform EffectFrame { mat4 uViewProj; };
+                void main() { gl_Position = uViewProj * vec4(aPos, 1.0); }
+                """,
+                true, extraAttribs, extraFrags);
+        assertTrue(adaptedVert.contains("#version 150 core"));
+        assertTrue(adaptedVert.contains("/* #version 330 core inside comment; layout(location = 9) in vec4 dead; */"));
+        String adaptedVertCode = adaptedVert.substring(adaptedVert.indexOf("#version 150 core"));
+        assertFalse(adaptedVertCode.contains("layout(location"));
+        assertTrue(adaptedVertCode.contains("layout(std140) uniform EffectFrame"));
+        assertTrue(adaptedVertCode.contains("flat in highp int aFlag;"));
+        assertEquals(0, extraAttribs.get("aPos"));
+        assertEquals(6, extraAttribs.get("aUv1"));
+        assertEquals(3, extraAttribs.get("aFlag"));
+        assertFalse(extraAttribs.containsKey("dead"));
+
+        String adaptedFrag = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                "// License\n#version 330 core\nlayout(location = 0) out vec4 customOut; layout(location = 1) out vec4 auxOut;\nvoid main(){customOut=vec4(1.0);auxOut=vec4(0.0);}",
+                false, extraAttribs, extraFrags);
+        assertTrue(adaptedFrag.contains("#version 150 core"));
+        assertFalse(adaptedFrag.contains("layout(location"));
+        assertEquals(0, extraFrags.get("customOut"));
+        assertEquals(1, extraFrags.get("auxOut"));
+
+        // Complete shader with leading license comments & BOM must NOT get wrapped with a duplicate #version
+        String commentedFullFrag = "\uFEFF// SPDX-License-Identifier: MIT\n/* Multi-line header */\n#version 150 core\nin vec2 uv;\nout vec4 outputColor;\nvoid main(){outputColor=vec4(uv,0,1);}\n";
+        String wrappedFull = DirectGlCustomMaterialCompiler.wrapFragmentSource(commentedFullFrag);
+        assertEquals(commentedFullFrag.substring(1), wrappedFull);
+        assertEquals(1, wrappedFull.split("#version", -1).length - 1);
+
+        // Snippet with comment containing "#version 150 core" but no real #version directive MUST still wrap cleanly
+        String commentedSnippet = "// example: #version 150 core\nvoid main () { fragColor = vColor; }";
+        String wrappedSnippet = DirectGlCustomMaterialCompiler.wrapFragmentSource(commentedSnippet);
+        assertTrue(wrappedSnippet.startsWith("#version 150 core"));
+        assertEquals(1, wrappedSnippet.split("void main", -1).length - 1);
+
+        // Conditional compilation (#if/#else/#elif/#ifdef/#undef) and macro/const-expr locations
+        Map<String, Integer> condAttribs = new LinkedHashMap<>();
+        Map<String, Integer> condFrags = new LinkedHashMap<>();
+        String condVert = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                """
+                #version 330 core
+                #define STANDARD_UV 1
+                #define BASE_SLOT 4
+                #define UV_SLOT (BASE_SLOT + 2)
+                #define DECL_LOC(n) layout(location = n)
+                #define SELF_REF SELF_REF
+                DECL_LOC(0) in vec3 aPos;
+                #if STANDARD_UV && defined(UV_SLOT)
+                layout(location = UV_SLOT) in vec2 aUv1;
+                #else
+                layout(location = 7) in vec2 aUv1;
+                #endif
+                #ifdef UNDEFINED_MACRO
+                layout(location = 9) in vec4 aUnused;
+                #elif __VERSION__ >= 330
+                const int EXTRA_SLOT = 5;
+                layout(location = EXTRA_SLOT) in vec3 aExtra;
+                #endif
+                void main() { gl_Position = vec4(aPos + aExtra, 1.0); }
+                """,
+                true, condAttribs, condFrags);
+        assertTrue(condVert.startsWith("#version 150 core"));
+        assertFalse(condVert.contains("layout("));
+        assertEquals(0, condAttribs.get("aPos"));
+        assertEquals(6, condAttribs.get("aUv1"), "Active #if branch must bind aUv1=6 and ignore inactive #else branch");
+        assertEquals(5, condAttribs.get("aExtra"), "Active #elif branch const int location must bind aExtra=5");
+        assertFalse(condAttribs.containsKey("aUnused"), "Inactive #ifdef branch must never record bindings");
+
+        String condFrag = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                """
+                #version 330 core
+                #define PRIMARY_OUTPUT 1
+                #if PRIMARY_OUTPUT
+                layout(location = 0) out vec4 outputColor;
+                #else
+                layout(location = 1) out vec4 outputColor;
+                #endif
+                void main() { outputColor = vec4(1.0); }
+                """,
+                false, condAttribs, condFrags);
+        assertTrue(condFrag.startsWith("#version 150 core"));
+        assertFalse(condFrag.contains("layout("));
+        assertEquals(0, condFrags.get("outputColor"), "Active #if branch must bind outputColor=0");
+
+        // C99/GLSL 3.30 macro expansion: callable aliases, ## token pasting, two-level XCAT,
+        // pasted function-macro names, placemarker ##, object-like ##, mutual recursion,
+        // and reversed qualifier / type-side array syntax.
+        Map<String, Integer> macroAttribs = new LinkedHashMap<>();
+        Map<String, Integer> macroFrags = new LinkedHashMap<>();
+        String macroVert = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                """
+                #version 330 core
+                #define ID(x) x
+                #define UV_BIND ID
+                #define CAT(a, b) a ## b
+                #define XCAT(a, b) CAT(a, b)
+                #define SLOT_UV 6
+                #define SLOT_NUM 3
+                #define SLOT_3 3
+                #define MAKE_SLOT SLOT_ ## UV
+                #define EMPTY()
+                #define DEFER(f) f EMPTY()
+                #define EVAL(x) x
+                #define GET_LOC(n) n
+                #define CYC_A CYC_B
+                #define CYC_B CYC_A
+                const float CYC_A = 0.5;
+                layout(location = UV_BIND(0)) in vec3 aPos;
+                layout(location = CAT(SLOT_, UV)) in vec2 aUv1;
+                layout(location = XCAT(SLOT_, SLOT_NUM)) in vec4 aColor;
+                layout(location = CAT(GET_, LOC)(4)) in vec4 aCustom;
+                layout(location = EVAL(DEFER(ID)(5))) in vec2 aNext;
+                in layout(location = CAT(, 2)) vec2 aUv0;
+                #if UV_BIND(CAT(SLOT_, UV)) == MAKE_SLOT
+                layout(location = 1) in vec2 aActive;
+                #else
+                layout(location = 9) in vec2 aActive;
+                #endif
+                void main() { gl_Position = vec4(aPos * CYC_A, 1.0); }
+                """,
+                true, macroAttribs, macroFrags);
+        assertTrue(macroVert.startsWith("#version 150 core"));
+        assertFalse(macroVert.contains("layout("));
+        assertFalse(macroVert.contains("##"));
+        assertTrue(macroVert.contains("aPos * CYC_A"), "Mutual recursion must stop at CYC_A without infinite loop");
+        assertEquals(0, macroAttribs.get("aPos"));
+        assertEquals(6, macroAttribs.get("aUv1"));
+        assertEquals(3, macroAttribs.get("aColor"));
+        assertEquals(4, macroAttribs.get("aCustom"));
+        assertEquals(5, macroAttribs.get("aNext"));
+        assertEquals(2, macroAttribs.get("aUv0"));
+        assertEquals(1, macroAttribs.get("aActive"));
+
+        String macroFrag = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                """
+                #version 330 core
+                #define CAT(a, b) a ## b
+                #define OUT_0 0
+                layout(location = CAT(OUT_, 0)) out vec4[2] fragArr;
+                void main() { fragArr[0] = vec4(1.0); fragArr[1] = vec4(0.5); }
+                """,
+                false, macroAttribs, macroFrags);
+        assertTrue(macroFrag.startsWith("#version 150 core"));
+        assertFalse(macroFrag.contains("layout("));
+        assertEquals(0, macroFrags.get("fragArr"));
+
+        // #line remapping for __LINE__ & __FILE__ (including macro-expanded #line, file preservation,
+        // leading comments before #version, inactive #line ignored, and GL_ARB_explicit_attrib_location).
+        Map<String, Integer> lineAttribs = new LinkedHashMap<>();
+        Map<String, Integer> lineFrags = new LinkedHashMap<>();
+        String lineVert = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                """
+                /* line 1
+                   line 2
+                   line 3 */
+                #version 330 core
+                #if __LINE__ == 5 && defined(GL_ARB_explicit_attrib_location)
+                layout(location = 0) in vec3 aPos;
+                #else
+                layout(location = 9) in vec3 aPos;
+                #endif
+                #if 0
+                #line 999 99
+                #endif
+                #define TARGET_LINE 100
+                #define TARGET_FILE 7
+                #line TARGET_LINE TARGET_FILE
+                #if __LINE__ == 100 && __FILE__ == 7
+                layout(location = 6) in vec2 aUv1;
+                #else
+                layout(location = 7) in vec2 aUv1;
+                #endif
+                #line 200
+                #if __LINE__ == 200 && __FILE__ == 7
+                layout(location = 2) in vec4 aColor;
+                #else
+                layout(location = 8) in vec4 aColor;
+                #endif
+                #line 4 5
+                layout(location = __LINE__) in vec4 aCustom;
+                layout(location = __FILE__) in vec2 aNext;
+                void main() { gl_Position = vec4(aPos, 1.0); }
+                """,
+                true, lineAttribs, lineFrags);
+        assertTrue(lineVert.contains("#version 150 core"));
+        assertFalse(lineVert.contains("TARGET_LINE"), "Macro-expanded #line must emit numeric literal");
+        assertTrue(lineVert.contains("#line 100 7"));
+        assertEquals(0, lineAttribs.get("aPos"));
+        assertEquals(6, lineAttribs.get("aUv1"));
+        assertEquals(2, lineAttribs.get("aColor"));
+        assertEquals(4, lineAttribs.get("aCustom"));
+        assertEquals(5, lineAttribs.get("aNext"));
+
+        // Fix7: #version with trailing multi-line block comment, inline block comments,
+        // backslash continuations preserving physical line numbers across directives/code/comments,
+        // multi-line block comments inside #define/#if, and per-token __LINE__ in multi-line macro calls.
+        Map<String, Integer> fix7Attribs = new LinkedHashMap<>();
+        Map<String, Integer> fix7Frags = new LinkedHashMap<>();
+        String verCommentVert = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                """
+                #version /* inline */ 330 /* inline */ core /* first line
+                second line */
+                #if __LINE__ == 3
+                layout(location=0) in vec3 aPos;
+                layout(location=6) in vec2 aUv1;
+                #else
+                layout(location=7) in vec2 aUv1;
+                #endif
+                out vec2 uv;
+                void main(){uv=aUv1;gl_Position=vec4(aPos,1.0);}
+                """,
+                true, fix7Attribs, fix7Frags);
+        assertTrue(verCommentVert.startsWith("#version 150 core\n"));
+        assertFalse(verCommentVert.contains("second line"), "Trailing block comment on #version must not leak");
+        assertFalse(verCommentVert.contains("*/"), "Closing comment delimiter must not leak into GLSL 150");
+        assertEquals(0, fix7Attribs.get("aPos"));
+        assertEquals(6, fix7Attribs.get("aUv1"));
+
+        Map<String, Integer> contAttribs = new LinkedHashMap<>();
+        String contVert = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                "#version 330 core\n"
+                        + "#extension GL_ARB_shading_language_420pack : require\n"
+                        + "layout(location=0) in vec3 aPos;\n"
+                        + "#line 100 7\n"
+                        + "#define SHIFT \\\n"
+                        + "1\n"
+                        + "#if __LINE__ == 102 && SHIFT == 1\n"
+                        + "layout(location=6) in vec2 aUv1;\n"
+                        + "#else\n"
+                        + "layout(location=7) in vec2 aUv1;\n"
+                        + "#endif\n"
+                        + "#line 200 7\n"
+                        + "#define BLOCK_DEF /* c1\n"
+                        + "c2 */ 5\n"
+                        + "#if __LINE__ == 202 /* c3\n"
+                        + "c4 */ && __LINE__ == 203 && BLOCK_DEF == 5\n"
+                        + "layout(location=2) in vec4 aColor;\n"
+                        + "#else\n"
+                        + "layout(location=8) in vec4 aColor;\n"
+                        + "#endif\n"
+                        + "#line 300 7\n"
+                        + "// comment \\\n"
+                        + "#error must_stay_commented\n"
+                        + "#if __LINE__ == 302\n"
+                        + "layout(location=3) in vec4 aParticle;\n"
+                        + "#else\n"
+                        + "layout(location=9) in vec4 aParticle;\n"
+                        + "#endif\n"
+                        + "#line 400 7\n"
+                        + "#define LINE_GAP(FIRST,LAST) ((LAST) - (FIRST))\n"
+                        + "#define HERE __LINE__\n"
+                        + "#define BODY_LINE(A,B) __LINE__\n"
+                        + "float marker[LINE_GAP(\n"
+                        + "    __LINE__,\n"
+                        + "    __LINE__\n"
+                        + ")];\n"
+                        + "float marker2[LINE_GAP(\n"
+                        + "    HERE,\n"
+                        + "    HERE\n"
+                        + ")];\n"
+                        + "float marker3[BODY_LINE(\n"
+                        + "    1,\n"
+                        + "    2\n"
+                        + ") == 414 ? 1 : 0];\n"
+                        + "void main(){gl_Position=vec4(aPos,1.0);}\n",
+                true, contAttribs, fix7Frags);
+        assertEquals(0, contAttribs.get("aPos"));
+        assertEquals(6, contAttribs.get("aUv1"), "Backslash continuation must preserve physical line count");
+        assertEquals(2, contAttribs.get("aColor"), "Multi-line block comment in #define and #if must preserve line count");
+        assertEquals(3, contAttribs.get("aParticle"), "Spliced // comment must swallow continued line and count 2 lines");
+        assertFalse(contVert.contains("must_stay_commented"));
+        assertTrue(contVert.contains("float marker[((405) - (404))];"), "Actual: " + contVert);
+        assertTrue(contVert.contains("float marker2[((409) - (408))];"), "Actual: " + contVert);
+        assertTrue(contVert.contains("float marker3[414 == 414 ? 1 : 0];"), "Actual: " + contVert);
+
+        // Fix8: GLSL extension predefined macros (#extension : require / : enable / : disable,
+        // pre-#extension #ifdef guards, unknown extension : enable stays undefined, API-only ext stays undefined).
+        Map<String, Integer> extAttribs = new LinkedHashMap<>();
+        Map<String, Integer> extFrags = new LinkedHashMap<>();
+        String extVert = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                """
+                #version 330 core
+                #ifdef GL_ARB_shading_language_420pack
+                #extension GL_ARB_shading_language_420pack : require
+                #endif
+                #extension GL_FAKE_NONEXISTENT_XYZ : enable
+                #extension GL_ARB_shading_language_420pack : disable
+                layout(location=0) in vec3 aPos;
+                #if defined(GL_ARB_shading_language_420pack) && (GL_ARB_shading_language_420pack == 1) && !defined(GL_FAKE_NONEXISTENT_XYZ) && !defined(GL_ARB_vertex_array_object)
+                layout(location=6) in vec2 aUv1;
+                #else
+                layout(location=7) in vec2 aUv1;
+                #endif
+                out vec2 uv;
+                void main(){uv=aUv1;gl_Position=vec4(aPos,1.0);}
+                """,
+                true, extAttribs, extFrags);
+        assertTrue(extVert.startsWith("#version 150 core\n"));
+        assertTrue(extVert.contains("#extension GL_ARB_shading_language_420pack : require"));
+        assertEquals(0, extAttribs.get("aPos"));
+        assertEquals(6, extAttribs.get("aUv1"), "GL_ARB_shading_language_420pack guard must select slot 6");
+
+        // Fix8 sweep: macro-generated main detection, inactive #if 0 main ignored, multi-name
+        // layout(location) declarations, and fragment layout(location, index) dual-source lowering.
+        String macroFragNoVer = "#define ENTRY main\nvoid ENTRY(){fragColor=vec4(0.3,0.5,0.7,1.0);}\n";
+        String wrappedMacroFrag = DirectGlCustomMaterialCompiler.wrapFragmentSource(macroFragNoVer);
+        assertTrue(wrappedMacroFrag.startsWith("#version 150 core"));
+        assertFalse(wrappedMacroFrag.contains("void main() {"), "Macro-generated main must not be wrapped in another main");
+
+        String inactiveMainSnippet = "#if 0\nvoid main(){}\n#endif\nfragColor=vec4(0.3,0.5,0.7,1.0);\n";
+        String wrappedInactiveSnippet = DirectGlCustomMaterialCompiler.wrapFragmentSource(inactiveMainSnippet);
+        assertTrue(wrappedInactiveSnippet.contains("void main() {"), "Inactive #if 0 main must still wrap snippet in main");
+
+        Map<String, Integer> multiAttribs = new LinkedHashMap<>();
+        Map<String, Integer> multiFrags = new LinkedHashMap<>();
+        Map<String, Integer> multiFragIndices = new LinkedHashMap<>();
+        String multiVert = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                """
+                #version 330 core
+                layout(location=0) in vec3 aPos;
+                layout(location=6) in vec2 aUv1, otherUV;
+                out vec2 auditUV;
+                void main(){auditUV=aUv1+otherUV;gl_Position=vec4(aPos,1.0);}
+                """,
+                true, multiAttribs, multiFrags, multiFragIndices);
+        assertFalse(multiVert.contains("layout("));
+        assertEquals(0, multiAttribs.get("aPos"));
+        assertEquals(6, multiAttribs.get("aUv1"));
+        assertEquals(6, multiAttribs.get("otherUV"), "All names in comma-separated declaration must inherit location");
+
+        String dualFrag = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                """
+                #version 330 core
+                in vec2 auditUV;
+                layout(location=0,index=0) out vec4 outputColor;
+                layout(location=0,index=1) out vec4 outputFactor;
+                void main(){
+                    outputColor=vec4(auditUV,0.25,1.0);
+                    outputFactor=vec4(1.0-auditUV,0.5,1.0);
+                }
+                """,
+                false, multiAttribs, multiFrags, multiFragIndices);
+        assertFalse(dualFrag.contains("layout("), "Both location and index must be stripped in GLSL 150: " + dualFrag);
+        assertFalse(dualFrag.contains("index="));
+        assertEquals(0, multiFrags.get("outputColor"));
+        assertEquals(0, multiFrags.get("outputFactor"));
+        assertEquals(0, multiFragIndices.get("outputColor"));
+        assertEquals(1, multiFragIndices.get("outputFactor"));
+
+        // Fix9: versionless fragment #extension hoisting before generated preamble declarations,
+        // preserving #define placement after preamble so user macros cannot collide with preamble locals.
+        String versionlessExt = """
+                #extension GL_ARB_shading_language_420pack : require
+                #define d 2.0
+                #define ENTRY main
+                void ENTRY(){fragColor=vec4(0.3,0.5,0.7,1.0);}
+                """;
+        String wrappedExt = DirectGlCustomMaterialCompiler.wrapFragmentSource(versionlessExt);
+        assertTrue(wrappedExt.startsWith("#version 150 core\n#extension GL_ARB_shading_language_420pack : require\n"),
+                "Leading #extension must appear immediately after #version before preamble declarations: " + wrappedExt);
+        assertTrue(wrappedExt.indexOf("#extension GL_ARB_shading_language_420pack : require")
+                        < wrappedExt.indexOf("in vec2 vUv;"),
+                "Extension must precede first non-preprocessor token");
+        assertTrue(wrappedExt.indexOf("float lfx_linear_depth(float d)")
+                        < wrappedExt.indexOf("#define d 2.0"),
+                "User #define must stay after preamble declarations");
+        assertFalse(wrappedExt.contains("void main() {"), "Macro-generated main must not be double-wrapped");
+        assertEquals(wrappedExt.indexOf("#extension"), wrappedExt.lastIndexOf("#extension"),
+                "Hoisted #extension must not remain duplicated after preamble");
+
+        // Fix9: inactive #if 0 #extension is not hoisted; conditional active #extension is hoisted;
+        // versionless wrappers emit #line 1 0 so user __LINE__ guards see original line numbers.
+        String condExt = """
+                #define WANT_420 1
+                #if WANT_420
+                #extension GL_ARB_shading_language_420pack : require
+                #endif
+                #if 0
+                #extension GL_AUDIT_missing : require
+                #endif
+                fragColor = vec4(0.3, 0.5, 0.7, 1.0);
+                """;
+        String wrappedCondExt = DirectGlCustomMaterialCompiler.wrapFragmentSource(condExt);
+        assertTrue(wrappedCondExt.startsWith("#version 150 core\n#extension GL_ARB_shading_language_420pack : require\n"));
+        assertFalse(wrappedCondExt.contains("GL_AUDIT_missing"), "Inactive #if 0 extension must not be hoisted");
+        assertTrue(wrappedCondExt.contains("void main() {\n#line 1 0\n"), "Versionless snippet must restore #line 1 0");
+
+        String lineGuardedEntry = "#if __LINE__ == 1\nvoid main(){fragColor=vec4(0.2,0.6,0.8,1.0);}\n#endif\n";
+        String wrappedLineEntry = DirectGlCustomMaterialCompiler.wrapFragmentSource(lineGuardedEntry);
+        assertTrue(wrappedLineEntry.contains("#line 1 0\n#if __LINE__ == 1\n"), wrappedLineEntry);
+        assertFalse(wrappedLineEntry.contains("void main() {"), "Line-1 guarded entry must not be double-wrapped");
+
+        // Fix9: enhanced layouts scalar constructor constant expression `const int SHADER_UV = int(3u * 2u);`
+        Map<String, Integer> enhAttribs = new LinkedHashMap<>();
+        Map<String, Integer> enhFrags = new LinkedHashMap<>();
+        String enhVert = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                """
+                #version 330 core
+                #extension GL_ARB_enhanced_layouts : require
+                const int SHADER_UV = int(3u * 2u);
+                layout(location=SHADER_UV) in vec2 aUv1;
+                layout(location=0) in vec3 aPos;
+                out vec2 auditUV;
+                void main(){auditUV=aUv1;gl_Position=vec4(aPos,1.0);}
+                """,
+                true, enhAttribs, enhFrags);
+        assertFalse(enhVert.contains("layout("), "Enhanced layout constructor constant must be lowered: " + enhVert);
+        assertEquals(6, enhAttribs.get("aUv1"));
+
+        // Fix9: vertex-only custom materials (inline vertex_glsl and resource vertex_material) report hasCustomShader()
+        JsonObject inlineVertJson = new JsonObject();
+        inlineVertJson.addProperty("fragment_shader", "lumenfx:core/color");
+        inlineVertJson.addProperty("vertex_glsl", "#version 330 core\nlayout(location=0) in vec3 aPos;\nvoid main(){gl_Position=vec4(aPos,1.0);}\n");
+        assertTrue(MaterialModel.fromJson("inline_v", inlineVertJson).hasCustomShader());
+
+        JsonObject resVertJson = new JsonObject();
+        resVertJson.addProperty("fragment_shader", "lumenfx:core/color");
+        resVertJson.addProperty("vertex_material", "audit:replacement");
+        assertTrue(MaterialModel.fromJson("res_v", resVertJson).hasCustomShader());
+
+        JsonObject builtinOnlyJson = new JsonObject();
+        builtinOnlyJson.addProperty("fragment_shader", "lumenfx:core/color");
+        assertFalse(MaterialModel.fromJson("builtin_only", builtinOnlyJson).hasCustomShader());
+
+        // Fix10: #moj_import version promotion re-evaluates earlier __VERSION__ conditionals,
+        // preserves comments inside #version directive, and switches #line offset to GLSL 3.30 mode.
+        Map<String, byte[]> importFiles = Map.of(
+                "audit:shaders/tone.glsl", "vec4 tone(vec2 uv){return vec4(uv,0.25,1.0);}\n".getBytes(StandardCharsets.UTF_8),
+                "audit:shaders/upgrade.glsl", "#version 330 core\nvec4 helper(vec2 uv){return vec4(uv,0.25,1.0);}\n".getBytes(StandardCharsets.UTF_8),
+                "audit:shaders/helper150.glsl", "#version 150 core\nvec4 h150(vec2 uv){return vec4(uv,0.25,1.0);}\n".getBytes(StandardCharsets.UTF_8)
+        );
+        McResourceBridge memBridge = new DirectoryResourceBridge() {
+            @Override public byte[] readResource(String id) { return importFiles.get(id); }
+        };
+        String promotedCond = DirectGlShaderImports.expand(
+                """
+                #version 150 core
+                #if __VERSION__ >= 330
+                #moj_import "tone.glsl"
+                #endif
+                #moj_import "upgrade.glsl"
+                void main(){fragColor=tone(vUv);}
+                """,
+                "audit:shaders/probe.fsh", memBridge, true);
+        assertTrue(promotedCond.startsWith("#version 330 core\n"), promotedCond);
+        assertTrue(promotedCond.contains("vec4 tone(vec2 uv)"), "Earlier __VERSION__ >= 330 import must expand after promotion: " + promotedCond);
+        assertTrue(promotedCond.contains("vec4 helper(vec2 uv)"), promotedCond);
+
+        String commentVersion = DirectGlShaderImports.expand(
+                """
+                #/* 150 */version /* format 150 */ 150 /* tail 150 */ core
+                #moj_import "upgrade.glsl"
+                void main(){fragColor=helper(vUv);}
+                """,
+                "audit:shaders/probe.fsh", memBridge, true);
+        assertTrue(commentVersion.startsWith("#/* 150 */version /* format 150 */ 330 /* tail 150 */ core\n"),
+                "Version promotion must only replace the actual version number token: " + commentVersion);
+
+        String upgradedLine = DirectGlShaderImports.expand(
+                """
+                #version 150 core
+                #line 99 7
+                #moj_import "upgrade.glsl"
+                #if __LINE__ == 100 && __FILE__ == 7
+                void main(){fragColor=helper(vUv);}
+                #endif
+                """,
+                "audit:shaders/probe.fsh", memBridge, true);
+        assertTrue(upgradedLine.startsWith("#version 330 core\n"), upgradedLine);
+        assertTrue(upgradedLine.contains("#line 1 1\n"), "Promoted 330 shader must use GLSL 3.30 #line 1 1: " + upgradedLine);
+        assertTrue(upgradedLine.contains("#line 100 7\n"), "Promoted 330 shader must restore #line 100 7 on NVIDIA: " + upgradedLine);
+        assertFalse(upgradedLine.contains("#line 0 1\n"), upgradedLine);
+
+        String pure150NvidiaLine = DirectGlShaderImports.expand(
+                """
+                #version 150 core
+                #line 99 7
+                #moj_import "helper150.glsl"
+                void main(){fragColor=h150(vUv);}
+                """,
+                "audit:shaders/probe.fsh", memBridge, true);
+        assertTrue(pure150NvidiaLine.startsWith("#version 150 core\n"), pure150NvidiaLine);
+        assertTrue(pure150NvidiaLine.contains("#line 0 1\n"), "Pure 150 on NVIDIA must use #line 0 1: " + pure150NvidiaLine);
+        assertTrue(pure150NvidiaLine.contains("#line 100 7\n"), "Pure 150 on NVIDIA after #line 99 7 (next=100, post=101) must emit #line 100 7: " + pure150NvidiaLine);
+
+        // Fix11: missing import inside a provisional <330 branch must not abort version discovery
+        // before a later #version 330 import renders that branch inactive, while still failing for
+        // any import that remains active under the converged effective version.
+        String discardedProvisionalMissing = DirectGlShaderImports.expand(
+                """
+                #version 150 core
+                #if __VERSION__ < 330
+                #moj_import "preupgrade.glsl"
+                #endif
+                #moj_import "upgrade.glsl"
+                void main(){fragColor=helper(vUv);}
+                """,
+                "audit:shaders/probe.fsh", memBridge, true);
+        assertTrue(discardedProvisionalMissing.startsWith("#version 330 core\n"), discardedProvisionalMissing);
+        assertTrue(discardedProvisionalMissing.contains("vec4 helper(vec2 uv)"), discardedProvisionalMissing);
+
+        IllegalArgumentException activeMissingEx = assertThrows(IllegalArgumentException.class, () ->
+                DirectGlShaderImports.expand(
+                        """
+                        #version 150 core
+                        #if __VERSION__ >= 330
+                        #moj_import "still_missing.glsl"
+                        #endif
+                        #moj_import "upgrade.glsl"
+                        void main(){fragColor=helper(vUv);}
+                        """,
+                        "audit:shaders/probe.fsh", memBridge, true));
+        assertTrue(activeMissingEx.getMessage().contains("audit:shaders/still_missing.glsl"), activeMissingEx.getMessage());
+
+        IllegalArgumentException unpromotedMissingEx = assertThrows(IllegalArgumentException.class, () ->
+                DirectGlShaderImports.expand(
+                        """
+                        #version 150 core
+                        #moj_import "never_exists.glsl"
+                        void main(){fragColor=vec4(1.0);}
+                        """,
+                        "audit:shaders/probe.fsh", memBridge, true));
+        assertTrue(unpromotedMissingEx.getMessage().contains("audit:shaders/never_exists.glsl"), unpromotedMissingEx.getMessage());
+
+        // Fix10: GL_ARB_enhanced_layouts float cast, named bool, integer built-in min/max/clamp,
+        // and constant vector member/subscript expressions in GL 3.2 lowering.
+        Map<String, Integer> fix10Attribs = new LinkedHashMap<>();
+        Map<String, Integer> fix10Frags = new LinkedHashMap<>();
+        String fix10ConstVert = DirectGlCustomMaterialCompiler.downgradeGlsl330To150(
+                """
+                #version 330 core
+                #extension GL_ARB_enhanced_layouts : require
+                const bool USE_EIGHT = false;
+                const float BASE_F = 6.0;
+                const ivec2 PAIR = ivec2(6, 7);
+                const int S_FLOAT = int(BASE_F);
+                const int S_BOOL = USE_EIGHT ? 8 : 2;
+                const int S_MIN = min(3, 9);
+                const int S_VEC_X = PAIR.x;
+                const int S_VEC_IDX = PAIR[1];
+                const int S_CLAMP = clamp(12, 0, 5);
+                layout(location = 0) in vec3 aPos;
+                layout(location = S_FLOAT) in vec2 aUv1;
+                layout(location = S_BOOL) in vec4 aColor;
+                layout(location = S_MIN) in vec4 aParticle;
+                layout(location = S_VEC_X) in vec2 aOther;
+                layout(location = S_VEC_IDX) in vec2 aAlt;
+                layout(location = S_CLAMP) in vec3 aNext;
+                void main(){gl_Position=vec4(aPos,1.0);}
+                """,
+                true, fix10Attribs, fix10Frags);
+        assertFalse(fix10ConstVert.contains("layout("), "Enhanced layout float/bool/builtin/vector constants must lower: " + fix10ConstVert);
+        assertEquals(6, fix10Attribs.get("aUv1"));
+        assertEquals(2, fix10Attribs.get("aColor"));
+        assertEquals(3, fix10Attribs.get("aParticle"));
+        assertEquals(6, fix10Attribs.get("aOther"));
+        assertEquals(7, fix10Attribs.get("aAlt"));
+        assertEquals(5, fix10Attribs.get("aNext"));
 
         // Nanite meshlet clustering produces bounded clusters
         StaticMeshModel cube = StaticMeshModel.unitTexturedCube("test:cube");
@@ -811,6 +1384,284 @@ final class DirectOpenGlRuntimeTest {
         assertEquals(44100, pcm.sampleRate());
         assertEquals(16, pcm.bitsPerSample());
         assertEquals(4, pcm.pcm().length);
+    }
+
+    @Test
+    void unitySpawnAppliesColorAndSizeOverLifeOnFirstTickWithoutWhiteFlash() {
+        String sprayJson = """
+                {
+                  "format_version": 1,
+                  "materials": {
+                    "mat_0": {
+                      "blend": "alpha",
+                      "depth_test": true,
+                      "depth_write": false,
+                      "cull": false
+                    }
+                  },
+                  "emitters": [
+                    {
+                      "name": "color_spray_check",
+                      "renderer": "billboard",
+                      "material": "mat_0",
+                      "duration": 2.0,
+                      "loop": true,
+                      "max_particles": 64,
+                      "rate": 40.0,
+                      "lifetime": 1.0,
+                      "width": 0.6,
+                      "height": 0.6,
+                      "color_over_life": {
+                        "keys": [ [0.0, 1.0, 0.1, 0.9, 1.0], [1.0, 0.2, 0.9, 1.0, 0.0] ]
+                      },
+                      "size_over_life": {
+                        "kind": "curve",
+                        "keys": [ [0.0, 0.5, 0.0, 0.0], [1.0, 1.5, 0.0, 0.0] ]
+                      }
+                    }
+                  ]
+                }
+                """;
+        EffectModel model = ProductionEffectParser.parse("qa_release:color_spray_unit", sprayJson, null);
+        EffectRuntimeInstance inst = new EffectRuntimeInstance(model, new EffectHandle(Vec3.ZERO), null, 42L, 1);
+        assertTrue(inst.tick(0.05f, 1, null));
+        List<ParticleInstance> particles = inst.unityEmitters().get(0).particles;
+        assertFalse(particles.isEmpty(), "Emitter must spawn particles on tick 1");
+        for (ParticleInstance p : particles) {
+            assertEquals(1.0f, p.r, 1e-4f, "Spawned particle must immediately apply colorOverLife(0) red");
+            assertEquals(0.1f, p.g, 1e-4f, "Spawned particle must never flash white on tick 1");
+            assertEquals(0.9f, p.b, 1e-4f, "Spawned particle must immediately apply colorOverLife(0) blue");
+            assertEquals(0.3f, p.width, 1e-4f, "Spawned particle must immediately apply sizeOverLife(0)");
+        }
+    }
+
+    @Test
+    void niagaraCmToBlockScaleRibbonConfigAndSortOrderParseAccurately() throws Exception {
+        String niagaraJson = """
+                {
+                  "format_version": 1,
+                  "emitters": [
+                    {
+                      "name": "ribbon_a",
+                      "renderer": "ribbon",
+                      "sort_order": 0,
+                      "scale_size_with_owner": true,
+                      "ribbon": {
+                        "uv0": { "distribution": "distance", "tile_length": 2.0, "scale_u": 1.5, "scale_v": 1.0, "offset_u": 0.25, "offset_v": 0.0 },
+                        "uv1": { "distribution": "uniform", "tile_length": 1.0, "scale_u": 1.0, "scale_v": 2.0, "offset_u": 0.0, "offset_v": 0.5 }
+                      }
+                    },
+                    {
+                      "name": "sparkle_b",
+                      "renderer": "billboard",
+                      "sort_order": 3
+                    }
+                  ],
+                  "niagara": {
+                    "emitters": [
+                      {
+                        "name": "ribbon_a",
+                        "source_name": "RibbonA",
+                        "max_particles": 64,
+                        "renderers": [ { "kind": "ribbon", "material": "mat_0" } ],
+                        "attributes": [
+                          { "name": "Position", "type": 0, "component": 0, "count": 3 },
+                          { "name": "RibbonWidth", "type": 0, "component": 3, "count": 1 },
+                          { "name": "RibbonLinkOrder", "type": 0, "component": 4, "count": 1 }
+                        ]
+                      },
+                      {
+                        "name": "sparkle_b",
+                        "source_name": "SparkleB",
+                        "max_particles": 64,
+                        "renderers": [ { "kind": "sprite", "material": "mat_0", "sub_image_size": [4, 2] } ],
+                        "attributes": [
+                          { "name": "Position", "type": 0, "component": 0, "count": 3 },
+                          { "name": "SpriteSize", "type": 0, "component": 3, "count": 2 }
+                        ]
+                      }
+                    ]
+                  }
+                }
+                """;
+        EffectModel model = ProductionEffectParser.parse("qa_release:niagara_scale_unit", niagaraJson, null);
+        assertNotNull(model.niagara());
+        NiagaraSystemModel.EmitterSpec rib = model.niagara().emitters().get(0);
+        NiagaraSystemModel.EmitterSpec spk = model.niagara().emitters().get(1);
+        assertEquals(0, rib.sortOrder());
+        assertEquals(3, spk.sortOrder());
+        assertEquals("distance", rib.ribbonConfig().uv0().distribution());
+        assertEquals(2.0f, rib.ribbonConfig().uv0().tileLength(), 1e-5f);
+        assertEquals("uniform", rib.ribbonConfig().uv1().distribution());
+        assertEquals(4, spk.subImageCols());
+        assertEquals(2, spk.subImageRows());
+
+        // Verify real aurora_trail moving sparkles stay in cm->block scale (< 1 block, never blown up 100x!)
+        Path edenResources = Path.of("G:/weituo/code/26.2/Eden Realm/src/main/resources");
+        Path auroraPath = edenResources.resolve("assets/eden_realm/lumenfx/effects/pegasus/aurora_trail.json");
+        if (Files.isRegularFile(auroraPath)) {
+            EffectModel aurora = ProductionEffectParser.parse("eden_realm:pegasus/aurora_trail",
+                    Files.readString(auroraPath, StandardCharsets.UTF_8),
+                    new DirectoryResourceBridge(edenResources));
+            assertEquals(1, aurora.niagara().emitters().get(7).sortOrder());
+            EffectHandle h = new EffectHandle(new Vec3(0, 64, 0));
+            EffectRuntimeInstance inst = new EffectRuntimeInstance(aurora, h, null, 777L, 1);
+            for (int t = 1; t <= 12; t++) {
+                h.moveTo(new Vec3(t * 0.6, 64, 0));
+                inst.tick(0.05f, 1, null);
+            }
+            for (NiagaraSystemRuntime.EmitterState es : inst.niagaraRuntime().emitters()) {
+                boolean isRibbon = es.primaryRenderer.kind() == NiagaraSystemModel.RendererKind.RIBBON;
+                boolean isFlareBurst = "minimal007".equals(es.spec.name());
+                float maxExpected = isRibbon ? 4.0f : (isFlareBurst ? 2.0f : 1.0f);
+                for (ParticleInstance p : es.renderableParticles()) {
+                    assertTrue(p.width > 0f && p.width < maxExpected && p.height > 0f && p.height < maxExpected,
+                            "Aurora emitter " + es.spec.name() + " (" + es.primaryRenderer.kind()
+                                    + ") particle size must be in blocks (< " + maxExpected + "), got " + p.width + "x" + p.height);
+                    if (isFlareBurst) {
+                        assertTrue(Math.abs(p.width - p.height) > 0.05f,
+                                "minimal007 must preserve 2D non-square SpriteSize.xy, got " + p.width + "x" + p.height);
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void photonNbtParsesCurveSpeedCompoundColorBurstsPayloadEnableFlagsAndShade() throws Exception {
+        ByteArrayOutputStream raw = new ByteArrayOutputStream();
+        try (GZIPOutputStream gz = new GZIPOutputStream(raw); DataOutputStream o = new DataOutputStream(gz)) {
+            o.writeByte(10); o.writeUTF("");
+            o.writeByte(10); o.writeUTF("fxData");
+            o.writeByte(9); o.writeUTF("fxObjects"); o.writeByte(10); o.writeInt(1);
+            o.writeByte(8); o.writeUTF("type"); o.writeUTF("particle");
+            o.writeByte(10); o.writeUTF("data");
+            o.writeByte(8); o.writeUTF("name"); o.writeUTF("rich_photon");
+            o.writeByte(10); o.writeUTF("config");
+            // startSpeed curve: min=0, max=3, y0=0.41666666 -> 1.25
+            o.writeByte(10); o.writeUTF("startSpeed");
+            o.writeByte(8); o.writeUTF("type"); o.writeUTF("curve");
+            o.writeByte(10); o.writeUTF("data");
+            o.writeByte(5); o.writeUTF("min"); o.writeFloat(0.0f);
+            o.writeByte(5); o.writeUTF("max"); o.writeFloat(3.0f);
+            o.writeByte(9); o.writeUTF("curves"); o.writeByte(9); o.writeInt(1);
+            o.writeByte(5); o.writeInt(4);
+            o.writeFloat(0.0f); o.writeFloat(0.41666666f); o.writeFloat(1.0f); o.writeFloat(0.41666666f);
+            o.writeByte(0); o.writeByte(0); // data, startSpeed
+            // startColor compound: 0xFF3399FF
+            o.writeByte(10); o.writeUTF("startColor");
+            o.writeByte(8); o.writeUTF("type"); o.writeUTF("color");
+            o.writeByte(10); o.writeUTF("data");
+            o.writeByte(3); o.writeUTF("number"); o.writeInt(0xFF3399FF);
+            o.writeByte(0); o.writeByte(0);
+            // emission.bursts.payload
+            o.writeByte(10); o.writeUTF("emission");
+            o.writeByte(10); o.writeUTF("emissionRate");
+            o.writeByte(10); o.writeUTF("data"); o.writeByte(5); o.writeUTF("number"); o.writeFloat(0.0f); o.writeByte(0);
+            o.writeByte(0);
+            o.writeByte(10); o.writeUTF("bursts");
+            o.writeByte(9); o.writeUTF("payload"); o.writeByte(10); o.writeInt(1);
+            o.writeByte(5); o.writeUTF("time"); o.writeFloat(0.0f);
+            o.writeByte(3); o.writeUTF("cycles"); o.writeInt(1);
+            o.writeByte(5); o.writeUTF("interval"); o.writeFloat(1.0f);
+            o.writeByte(5); o.writeUTF("probability"); o.writeFloat(1.0f);
+            o.writeByte(10); o.writeUTF("count");
+            o.writeByte(10); o.writeUTF("data"); o.writeByte(3); o.writeUTF("number"); o.writeInt(5); o.writeByte(0);
+            o.writeByte(0);
+            o.writeByte(0); // burst[0]
+            o.writeByte(0); // bursts
+            o.writeByte(0); // emission
+            // Disabled optional module via _enable = 0 must NOT activate
+            o.writeByte(10); o.writeUTF("noise");
+            o.writeByte(1); o.writeUTF("_enable"); o.writeByte(0);
+            o.writeByte(5); o.writeUTF("strength"); o.writeFloat(9.5f);
+            o.writeByte(0);
+            o.writeByte(10); o.writeUTF("sizeOverLifetime");
+            o.writeByte(1); o.writeUTF("_enable"); o.writeByte(0);
+            o.writeByte(5); o.writeUTF("start"); o.writeFloat(4.0f);
+            o.writeByte(5); o.writeUTF("end"); o.writeFloat(8.0f);
+            o.writeByte(0);
+            // renderer.shade = 0
+            o.writeByte(10); o.writeUTF("renderer");
+            o.writeByte(1); o.writeUTF("shade"); o.writeByte(0);
+            o.writeByte(0);
+            o.writeByte(0); o.writeByte(0); o.writeByte(0); o.writeByte(0); o.writeByte(0); // config, data, obj0, fxData, root
+        }
+        PhotonFxModel parsed = PhotonFxModel.parseNbt("test:rich_photon", raw.toByteArray(), null);
+        assertNotNull(parsed);
+        PhotonFxModel.FxObjectSpec spec = parsed.objects().get(0);
+        assertEquals(1.25f, spec.startSpeed(), 1e-3f);
+        assertEquals(0x33 / 255f, spec.r(), 1e-3f);
+        assertEquals(0x99 / 255f, spec.g(), 1e-3f);
+        assertEquals(1.0f, spec.b(), 1e-3f);
+        assertEquals(1, spec.extras().bursts().size());
+        assertEquals(5, spec.extras().bursts().get(0).count());
+        assertEquals(0f, spec.extras().noiseStrength(), 1e-5f, "Disabled _enable=0 noise module must stay inactive");
+        assertEquals(1f, spec.extras().sizeStartMult(), 1e-5f, "Disabled _enable=0 sizeOverLifetime must stay 1.0");
+        assertFalse(spec.extras().shade(), "renderer.shade=0 must be parsed as false");
+
+        // Also check real photon_authored_model.fx if present on disk
+        Path realFx = Path.of("E:/.aaabackup/智能体产物/测试文件/LumenFX/0.3.0-client/instances/fabric-26.1.2/resourcepacks/recheck/assets/qa_release/fx/photon_authored_model.fx");
+        if (Files.isRegularFile(realFx)) {
+            PhotonFxModel realModel = PhotonFxModel.parseNbt("qa_release:photon_authored_model", Files.readAllBytes(realFx), null);
+            assertNotNull(realModel);
+            PhotonFxModel.FxObjectSpec realObj = realModel.objects().get(1);
+            assertEquals(1.25f, realObj.startSpeed(), 1e-3f, "Real photon_authored_model.fx curve startSpeed must decode to 1.25");
+            assertEquals(0f, realObj.extras().noiseStrength(), 1e-5f);
+            assertTrue(realObj.extras().shade());
+        }
+    }
+
+    @Test
+    void photonStartSpeedCurveEvaluatesDynamicallyAcrossEmitterTime() throws Exception {
+        byte[] risingFx = buildCurveSpeedPhotonFx(0.95f);
+        PhotonFxModel rising = PhotonFxModel.parseNbt("test:rising_speed", risingFx, null);
+        assertNotNull(rising);
+        PhotonFxRuntime rt = new PhotonFxRuntime(rising, 847539L);
+        EffectHandle handle = new EffectHandle(Vec3.ZERO);
+        for (int tick = 1; tick <= 72; tick++) {
+            rt.tick(handle.snapshot(), 0.05f, false);
+            if (tick == 4 || tick == 40 || tick == 72) {
+                List<ParticleInstance> pool = rt.objects().get(0).particles;
+                assertEquals(tick, pool.size());
+                ParticleInstance newest = pool.get(pool.size() - 1);
+                double mag = Math.sqrt(newest.vx * newest.vx + newest.vy * newest.vy + newest.vz * newest.vz);
+                double expected = 3.0 * (0.25 + (0.95 - 0.25) * (tick / 80.0));
+                assertEquals(expected, mag, 1e-3, "Spawned speed must follow startSpeed curve at tick " + tick);
+            }
+        }
+    }
+
+    private static byte[] buildCurveSpeedPhotonFx(float y1) throws IOException {
+        ByteArrayOutputStream raw = new ByteArrayOutputStream();
+        try (GZIPOutputStream gz = new GZIPOutputStream(raw); DataOutputStream o = new DataOutputStream(gz)) {
+            o.writeByte(10); o.writeUTF("");
+            o.writeByte(10); o.writeUTF("fxData");
+            o.writeByte(9); o.writeUTF("fxObjects"); o.writeByte(10); o.writeInt(1);
+            o.writeByte(8); o.writeUTF("type"); o.writeUTF("particle");
+            o.writeByte(10); o.writeUTF("data");
+            o.writeByte(8); o.writeUTF("name"); o.writeUTF("curve_speed_emitter");
+            o.writeByte(10); o.writeUTF("config");
+            o.writeByte(5); o.writeUTF("duration"); o.writeFloat(80f);
+            o.writeByte(5); o.writeUTF("startLifetime"); o.writeFloat(80f);
+            o.writeByte(10); o.writeUTF("emission");
+            o.writeByte(5); o.writeUTF("emissionRate"); o.writeFloat(1f);
+            o.writeByte(0);
+            o.writeByte(10); o.writeUTF("startSpeed");
+            o.writeByte(8); o.writeUTF("type"); o.writeUTF("curve");
+            o.writeByte(10); o.writeUTF("data");
+            o.writeByte(5); o.writeUTF("min"); o.writeFloat(0f);
+            o.writeByte(5); o.writeUTF("max"); o.writeFloat(3f);
+            o.writeByte(5); o.writeUTF("lower"); o.writeFloat(0f);
+            o.writeByte(5); o.writeUTF("upper"); o.writeFloat(3f);
+            o.writeByte(9); o.writeUTF("curves"); o.writeByte(9); o.writeInt(1);
+            o.writeByte(5); o.writeInt(8);
+            float[] pts = {0f, 0.25f, 1f / 3f, 0.25f + (y1 - 0.25f) / 3f,
+                    2f / 3f, 0.25f + 2f * (y1 - 0.25f) / 3f, 1f, y1};
+            for (float v : pts) o.writeFloat(v);
+            for (int i = 0; i < 7; i++) o.writeByte(0);
+        }
+        return raw.toByteArray();
     }
 
     private static byte[] buildSyntheticSimCacheLfsc() throws IOException {

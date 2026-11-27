@@ -258,6 +258,7 @@ public final class PhotonFxRuntime {
 
         float dur = Math.max(0.05f, spec.durationSeconds());
         float cycleTime = spec.looping() ? (active % dur) : Math.min(active, dur);
+        float emitterT = Math.max(0f, Math.min(1f, cycleTime / dur));
         if (spec.looping() && Math.floor(active / dur) > Math.floor(Math.max(0f, prevElapsed - spec.delaySeconds()) / dur)) {
             Arrays.fill(rt.burstFiredCycles, 0);
             rt.fallbackBurstFired = false;
@@ -285,10 +286,12 @@ public final class PhotonFxRuntime {
             toSpawn += spec.burstCount();
         }
 
+        PhotonFxModel.FunctionSpecs fn = ex.functions();
+        float currentRate = fn != null ? Math.max(0f, fn.emissionRatePerSecond().evaluate(emitterT, rt.rng.fraction())) : spec.emissionRate();
         if (spec.renderMode() == RenderMode.BEAM && rt.particles.isEmpty()) {
             toSpawn = Math.max(1, toSpawn);
-        } else if (spec.emissionRate() > 0f) {
-            rt.spawnCarry += spec.emissionRate() * dt;
+        } else if (currentRate > 0f) {
+            rt.spawnCarry += currentRate * dt;
             int c = (int) Math.floor(rt.spawnCarry);
             if (c > 0) { rt.spawnCarry -= c; toSpawn += c; }
         }
@@ -296,14 +299,16 @@ public final class PhotonFxRuntime {
         int cap = Math.max(1, ex.maxParticles());
         int spawnCount = Math.min(toSpawn, Math.max(0, cap - rt.particles.size()));
         for (int s = 0; s < spawnCount; s++) {
-            spawnParticle(rt, worldOrigin.x, worldOrigin.y, worldOrigin.z, pose, snap, ex);
+            spawnParticle(rt, worldOrigin.x, worldOrigin.y, worldOrigin.z, pose, snap, ex, emitterT);
         }
     }
 
     private void spawnParticle(ObjectRuntime rt, double ox, double oy, double oz,
-                               EffectHandle.Pose pose, EffectHandle.Snapshot snap, PhysicsExtras ex) {
+                               EffectHandle.Pose pose, EffectHandle.Snapshot snap, PhysicsExtras ex, float emitterT) {
         FxObjectSpec spec = rt.spec;
+        PhotonFxModel.FunctionSpecs fn = ex.functions();
         ParticleInstance p = rt.borrow();
+        p.curveRandom = rt.rng.fraction();
         Vec3 shapeOffset = sampleShapeOffset(ex.shape(), rt.rng);
         Vec3 worldOff = transformEmitterDirection(rt, pose, shapeOffset);
         p.x = p.prevX = ox + worldOff.x;
@@ -315,18 +320,26 @@ public final class PhotonFxRuntime {
             Vec3 worldDir = transformEmitterDirection(rt, pose, dir);
             double dl = worldDir.length();
             if (dl > 1e-6) worldDir = worldDir.scale(1.0 / dl);
-            p.vx = (float) (worldDir.x * spec.startSpeed());
-            p.vy = (float) (worldDir.y * spec.startSpeed());
-            p.vz = (float) (worldDir.z * spec.startSpeed());
+            float speed = fn != null ? fn.startSpeed().evaluate(emitterT, rt.rng.fraction()) : spec.startSpeed();
+            p.vx = (float) (worldDir.x * speed);
+            p.vy = (float) (worldDir.y * speed);
+            p.vz = (float) (worldDir.z * speed);
         } else {
             p.vx = p.vy = p.vz = 0f;
         }
         p.age = 0f;
-        p.lifetime = Math.max(0.05f, spec.startLifetimeSeconds());
-        p.startWidth = p.width = spec.startSize() * Math.abs(pose.scaleX()) * ex.sizeStartMult();
-        p.startHeight = p.height = p.width;
-        p.rotationDeg = ex.startRotationDeg();
-        p.angularVelocityDeg = ex.rotationSpeedDeg();
+        float lifeSec = fn != null ? fn.startLifetimeSeconds().evaluate(emitterT, rt.rng.fraction()) : spec.startLifetimeSeconds();
+        p.lifetime = Math.max(0.05f, lifeSec);
+        float baseSize = Math.max(0.02f, fn != null ? fn.startSize().evaluate(emitterT, rt.rng.fraction()) : spec.startSize());
+        float initialSizeMult = (fn != null && fn.sizeOverLifetime() != null)
+                ? fn.sizeOverLifetime().evaluate(0f, p.curveRandom) : ex.sizeStartMult();
+        p.startWidth = baseSize * Math.abs(pose.scaleX());
+        p.width = Math.max(0.005f, p.startWidth * initialSizeMult);
+        p.startHeight = p.startWidth;
+        p.height = p.width;
+        p.rotationDeg = fn != null ? fn.startRotationDeg().evaluate(emitterT, rt.rng.fraction()) : ex.startRotationDeg();
+        p.angularVelocityDeg = (fn != null && fn.rotationOverLifetime() != null)
+                ? fn.rotationOverLifetime().evaluate(0f, p.curveRandom) : ex.rotationSpeedDeg();
         p.startR = p.r = spec.r() * snap.red();
         p.startG = p.g = spec.g() * snap.green();
         p.startB = p.b = spec.b() * snap.blue();
@@ -357,17 +370,27 @@ public final class PhotonFxRuntime {
             PhysicsExtras targetEx = target.spec.extras() != null ? target.spec.extras() : PhysicsExtras.DEFAULT;
             int room = Math.max(0, targetEx.maxParticles() - target.particles.size());
             int count = Math.min(sub.spawnCount(), room);
+            float targetDur = Math.max(0.05f, target.spec.durationSeconds());
+            float targetActive = Math.max(0f, target.elapsed - target.spec.delaySeconds());
+            float targetCycle = target.spec.looping() ? (targetActive % targetDur) : Math.min(targetActive, targetDur);
+            float targetEmitterT = Math.max(0f, Math.min(1f, targetCycle / targetDur));
             for (int c = 0; c < count; c++) {
-                spawnParticle(target, wx, wy, wz, pose, snap, targetEx);
+                spawnParticle(target, wx, wy, wz, pose, snap, targetEx, targetEmitterT);
             }
         }
     }
 
     private static void applyCurves(ParticleInstance p, PhysicsExtras ex, EffectHandle.Snapshot snap, float t, float dt) {
-        float sizeMult = ex.sizeStartMult() + (ex.sizeEndMult() - ex.sizeStartMult()) * t;
-        p.width = Math.max(0.005f, p.startWidth * (ex.sizeStartMult() > 1e-4f ? sizeMult / ex.sizeStartMult() : sizeMult));
+        PhotonFxModel.FunctionSpecs fn = ex.functions();
+        float sizeMult = (fn != null && fn.sizeOverLifetime() != null)
+                ? fn.sizeOverLifetime().evaluate(t, p.curveRandom)
+                : (ex.sizeStartMult() + (ex.sizeEndMult() - ex.sizeStartMult()) * t);
+        p.width = Math.max(0.005f, p.startWidth * sizeMult);
         p.height = p.width;
-        p.rotationDeg += p.angularVelocityDeg * dt;
+        float rotVel = (fn != null && fn.rotationOverLifetime() != null)
+                ? fn.rotationOverLifetime().evaluate(t, p.curveRandom)
+                : p.angularVelocityDeg;
+        p.rotationDeg += rotVel * dt;
         if (ex.hasEndColor()) {
             p.r = (p.startR + (ex.endR() * snap.red() - p.startR) * t);
             p.g = (p.startG + (ex.endG() * snap.green() - p.startG) * t);

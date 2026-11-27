@@ -1,5 +1,6 @@
 package com.kltyton.lumenfx.runtime.gl.hdr;
 
+import com.kltyton.lumenfx.runtime.gl.depth.DirectGlSceneDepthCapture;
 import java.nio.ByteBuffer;
 import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL12C;
@@ -20,7 +21,7 @@ public final class DirectGlHdrBloomPipeline {
     private static final int MIP_LEVELS = 5;
 
     private static final String FULLSCREEN_VERT = """
-            #version 330 core
+            #version 150 core
             out vec2 vUv;
             void main() {
                 vec2 pos = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
@@ -30,7 +31,7 @@ public final class DirectGlHdrBloomPipeline {
             """;
 
     private static final String PREFILTER_FRAG = """
-            #version 330 core
+            #version 150 core
             in vec2 vUv;
             uniform sampler2D uSource;
             uniform float uThreshold;
@@ -47,7 +48,7 @@ public final class DirectGlHdrBloomPipeline {
             """;
 
     private static final String DOWNSAMPLE_FRAG = """
-            #version 330 core
+            #version 150 core
             in vec2 vUv;
             uniform sampler2D uSource;
             uniform vec2 uTexelSize;
@@ -68,7 +69,7 @@ public final class DirectGlHdrBloomPipeline {
             """;
 
     private static final String UPSAMPLE_FRAG = """
-            #version 330 core
+            #version 150 core
             in vec2 vUv;
             uniform sampler2D uSource;
             uniform vec2 uTexelSize;
@@ -90,7 +91,7 @@ public final class DirectGlHdrBloomPipeline {
             """;
 
     private static final String COMPOSITE_FRAG = """
-            #version 330 core
+            #version 150 core
             in vec2 vUv;
             uniform sampler2D uHdrColor;
             uniform sampler2D uBloom;
@@ -111,7 +112,9 @@ public final class DirectGlHdrBloomPipeline {
                 float peak = max(combined.r, max(combined.g, combined.b));
                 if (peak <= 0.0005 && hdr.a <= 0.0005) discard;
                 vec3 mapped = acesFilm(combined);
-                fragColor = vec4(mapped, clamp(hdr.a + min(1.0, peak), 0.0, 1.0));
+                // Keep output alpha strictly to opaque/alpha-blended coverage (hdr.a) so purely additive
+                // HDR particles and outer bloom halos (hdr.a == 0) add cleanly over bright sky without darkening.
+                fragColor = vec4(mapped, clamp(hdr.a, 0.0, 1.0));
             }
             """;
 
@@ -131,6 +134,7 @@ public final class DirectGlHdrBloomPipeline {
 
     private int width;
     private int height;
+    private int depthInternalFormat;
     private boolean supported = true;
     private boolean activePass;
     private int savedTargetFbo;
@@ -149,7 +153,8 @@ public final class DirectGlHdrBloomPipeline {
      */
     public boolean beginHdrPass(int targetDrawFbo, int vpWidth, int vpHeight) {
         if (!supported || vpWidth < 16 || vpHeight < 16) return false;
-        if (!ensureResources(vpWidth, vpHeight)) {
+        int srcDepthFormat = DirectGlSceneDepthCapture.queryDepthInternalFormat(targetDrawFbo);
+        if (!ensureResources(vpWidth, vpHeight, srcDepthFormat)) {
             supported = false;
             return false;
         }
@@ -157,8 +162,10 @@ public final class DirectGlHdrBloomPipeline {
         // Copy scene depth from Minecraft's active FBO into our HDR FBO so HDR effects occlude accurately
         GL30C.glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, targetDrawFbo);
         GL30C.glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, hdrFbo);
+        while (GL11C.glGetError() != GL11C.GL_NO_ERROR) { }
         GL30C.glBlitFramebuffer(0, 0, vpWidth, vpHeight, 0, 0, vpWidth, vpHeight,
                 GL11C.GL_DEPTH_BUFFER_BIT, GL11C.GL_NEAREST);
+        while (GL11C.glGetError() != GL11C.GL_NO_ERROR) { }
 
         GL30C.glBindFramebuffer(GL30C.GL_FRAMEBUFFER, hdrFbo);
         GL11C.glViewport(0, 0, vpWidth, vpHeight);
@@ -240,7 +247,7 @@ public final class DirectGlHdrBloomPipeline {
         GL30C.glBindVertexArray(0);
     }
 
-    private boolean ensureResources(int w, int h) {
+    private boolean ensureResources(int w, int h, int targetDepthFormat) {
         if (prefilterProg == 0) {
             prefilterProg = link(FULLSCREEN_VERT, PREFILTER_FRAG);
             downsampleProg = link(FULLSCREEN_VERT, DOWNSAMPLE_FRAG);
@@ -248,21 +255,24 @@ public final class DirectGlHdrBloomPipeline {
             compositeProg = link(FULLSCREEN_VERT, COMPOSITE_FRAG);
             emptyVao = GL30C.glGenVertexArrays();
         }
-        if (w == width && h == height && hdrFbo != 0) return true;
+        if (w == width && h == height && targetDepthFormat == depthInternalFormat && hdrFbo != 0) return true;
         disposeFramebuffers();
         width = w;
         height = h;
+        depthInternalFormat = targetDepthFormat;
 
         hdrColorTex = createRgba16fTexture(w, h);
         hdrDepthRbo = GL30C.glGenRenderbuffers();
         GL30C.glBindRenderbuffer(GL30C.GL_RENDERBUFFER, hdrDepthRbo);
-        GL30C.glRenderbufferStorage(GL30C.GL_RENDERBUFFER, GL14C.GL_DEPTH_COMPONENT24, w, h);
+        GL30C.glRenderbufferStorage(GL30C.GL_RENDERBUFFER, targetDepthFormat, w, h);
 
         hdrFbo = GL30C.glGenFramebuffers();
         GL30C.glBindFramebuffer(GL30C.GL_FRAMEBUFFER, hdrFbo);
         GL30C.glFramebufferTexture2D(GL30C.GL_FRAMEBUFFER, GL30C.GL_COLOR_ATTACHMENT0,
                 GL11C.GL_TEXTURE_2D, hdrColorTex, 0);
-        GL30C.glFramebufferRenderbuffer(GL30C.GL_FRAMEBUFFER, GL30C.GL_DEPTH_ATTACHMENT,
+        int depthAttach = DirectGlSceneDepthCapture.isDepthStencilFormat(targetDepthFormat)
+                ? GL30C.GL_DEPTH_STENCIL_ATTACHMENT : GL30C.GL_DEPTH_ATTACHMENT;
+        GL30C.glFramebufferRenderbuffer(GL30C.GL_FRAMEBUFFER, depthAttach,
                 GL30C.GL_RENDERBUFFER, hdrDepthRbo);
         if (GL30C.glCheckFramebufferStatus(GL30C.GL_FRAMEBUFFER) != GL30C.GL_FRAMEBUFFER_COMPLETE) {
             disposeFramebuffers();
@@ -308,6 +318,7 @@ public final class DirectGlHdrBloomPipeline {
         int prog = GL20C.glCreateProgram();
         GL20C.glAttachShader(prog, vs);
         GL20C.glAttachShader(prog, fs);
+        GL30C.glBindFragDataLocation(prog, 0, "fragColor");
         GL20C.glLinkProgram(prog);
         GL20C.glDeleteShader(vs);
         GL20C.glDeleteShader(fs);

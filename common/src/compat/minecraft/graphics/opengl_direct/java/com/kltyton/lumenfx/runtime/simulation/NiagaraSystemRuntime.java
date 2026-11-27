@@ -182,7 +182,10 @@ public final class NiagaraSystemRuntime {
         private final @Nullable ByteBuffer updateWords;
         private final List<VariableSpec> spawnBindings;
         private final @Nullable VariableSpec executionStateBinding;
-        private final int posComp, colComp, sizeComp, widthComp, rotComp, ageComp, lifeComp, materialRandomComp;
+        private final int posComp, prevPosComp, colComp, sizeComp, sizeCount, widthComp, rotComp;
+        private final int ageComp, normalizedAgeComp, lifeComp, materialRandomComp;
+        private final int dynamicParamComp, dynamicParamCount, subImageComp;
+        private final int ribbonLinkComp, ribbonLinkType, ribbonIdComp, ribbonIdCount, ribbonUvDistComp, uniqueIdComp;
 
         private final SourceRandomStream rng;
         private final int instanceSeed;
@@ -234,13 +237,43 @@ public final class NiagaraSystemRuntime {
             this.executionStateBinding = findVar(systemVars, spec.sourceName() + ".ExecutionState");
 
             this.posComp = findAttr(spec.attributes(), 0, "Position");
+            this.prevPosComp = findAttr(spec.attributes(), 0, "Previous.Position");
             this.colComp = findAttr(spec.attributes(), 0, "Color");
-            this.sizeComp = findAttr(spec.attributes(), 0, "SpriteSize");
+            AttributeSpec sizeAttr = findAttrSpec(spec.attributes(), 0, "SpriteSize");
+            this.sizeComp = sizeAttr != null ? sizeAttr.component() : -1;
+            this.sizeCount = sizeAttr != null ? sizeAttr.count() : 0;
             this.widthComp = findAttr(spec.attributes(), 0, "RibbonWidth");
             this.rotComp = findAttr(spec.attributes(), 0, "SpriteRotation");
             this.ageComp = findAttr(spec.attributes(), 0, "Age");
+            this.normalizedAgeComp = findAttr(spec.attributes(), 0, "NormalizedAge");
             this.lifeComp = findAttr(spec.attributes(), 0, "Lifetime");
             this.materialRandomComp = findAttr(spec.attributes(), 0, "MaterialRandom");
+            AttributeSpec dynAttr = findAttrSpec(spec.attributes(), 0, "DynamicMaterialParameter");
+            this.dynamicParamComp = dynAttr != null ? dynAttr.component() : -1;
+            this.dynamicParamCount = dynAttr != null ? dynAttr.count() : 0;
+            this.subImageComp = findAttr(spec.attributes(), 0, "SubImageIndex");
+            this.uniqueIdComp = findAttr(spec.attributes(), 1, "UniqueID");
+            int linkFloat = findAttr(spec.attributes(), 0, "RibbonLinkOrder");
+            if (linkFloat >= 0) {
+                this.ribbonLinkComp = linkFloat;
+                this.ribbonLinkType = 0;
+            } else if (this.normalizedAgeComp >= 0) {
+                this.ribbonLinkComp = this.normalizedAgeComp;
+                this.ribbonLinkType = 0;
+            } else if (this.ageComp >= 0) {
+                this.ribbonLinkComp = this.ageComp;
+                this.ribbonLinkType = 0;
+            } else if (this.uniqueIdComp >= 0) {
+                this.ribbonLinkComp = this.uniqueIdComp;
+                this.ribbonLinkType = 1;
+            } else {
+                this.ribbonLinkComp = -1;
+                this.ribbonLinkType = -1;
+            }
+            AttributeSpec ribIdAttr = findAttrSpec(spec.attributes(), 1, "RibbonID");
+            this.ribbonIdComp = ribIdAttr != null ? ribIdAttr.component() : -1;
+            this.ribbonIdCount = ribIdAttr != null ? ribIdAttr.count() : 0;
+            this.ribbonUvDistComp = findAttr(spec.attributes(), 0, "RibbonUVDistance");
 
             runtimeWords.putFloat(616, 1.0f);
         }
@@ -248,7 +281,7 @@ public final class NiagaraSystemRuntime {
         ParticleInstance borrowParticle() {
             ParticleInstance p = particlePool.pollFirst();
             if (p == null) return new ParticleInstance();
-            p.curveRandom = p.customX = p.customY = p.customZ = p.customW = 0f;
+            p.resetDynamicAttributes();
             return p;
         }
 
@@ -812,7 +845,11 @@ public final class NiagaraSystemRuntime {
 
         Vec3 origin = snap.pose().position();
         boolean local = state.spec.localSpace();
+        boolean isRibbon = state.primaryRenderer.kind() == NiagaraSystemModel.RendererKind.RIBBON;
+        float ownerScaleX = state.spec.scaleSizeWithOwner() ? Math.abs(snap.pose().scaleX()) : 1.0f;
+        float ownerScaleY = state.spec.scaleSizeWithOwner() ? Math.abs(snap.pose().scaleY()) : 1.0f;
         int fCount = state.current.componentCount(0);
+        int iCount = state.current.componentCount(1);
         for (int i = 0; i < count; i++) {
             ParticleInstance p = state.borrowParticle();
             if (state.posComp >= 0 && state.posComp + 2 < fCount) {
@@ -824,9 +861,29 @@ public final class NiagaraSystemRuntime {
                 double mz = uy * 0.01;
                 if (local) {
                     Vec3 w = snap.pose().transformPosition(new Vec3(mx, my, mz));
-                    p.x = p.prevX = w.x; p.y = p.prevY = w.y; p.z = p.prevZ = w.z;
+                    p.x = w.x; p.y = w.y; p.z = w.z;
                 } else {
-                    p.x = p.prevX = mx; p.y = p.prevY = my; p.z = p.prevZ = mz;
+                    p.x = mx; p.y = my; p.z = mz;
+                }
+                if (state.prevPosComp >= 0 && state.prevPosComp + 2 < fCount) {
+                    float pux = state.current.floating(state.prevPosComp, i);
+                    float puy = state.current.floating(state.prevPosComp + 1, i);
+                    float puz = state.current.floating(state.prevPosComp + 2, i);
+                    if (Float.isFinite(pux) && Float.isFinite(puy) && Float.isFinite(puz)) {
+                        double pmx = pux * 0.01;
+                        double pmy = puz * 0.01;
+                        double pmz = puy * 0.01;
+                        if (local) {
+                            Vec3 pw = snap.pose().transformPosition(new Vec3(pmx, pmy, pmz));
+                            p.prevX = pw.x; p.prevY = pw.y; p.prevZ = pw.z;
+                        } else {
+                            p.prevX = pmx; p.prevY = pmy; p.prevZ = pmz;
+                        }
+                    } else {
+                        p.prevX = p.x; p.prevY = p.y; p.prevZ = p.z;
+                    }
+                } else {
+                    p.prevX = p.x; p.prevY = p.y; p.prevZ = p.z;
                 }
             } else {
                 p.x = p.prevX = origin.x; p.y = p.prevY = origin.y; p.z = p.prevZ = origin.z;
@@ -839,16 +896,28 @@ public final class NiagaraSystemRuntime {
             } else {
                 p.r = snap.red(); p.g = snap.green(); p.b = snap.blue(); p.a = snap.alpha();
             }
-            float w = 0.25f;
-            if (state.widthComp >= 0 && state.widthComp < fCount) {
+            // Unreal Niagara SpriteSize and RibbonWidth are always authored in centimetres (100 cm = 1 block),
+            // matching 26.2 NiagaraParticles.width()/height() defaults (50 cm sprite / 1 cm ribbon).
+            float w = isRibbon ? 0.01f : 0.50f;
+            float h = w;
+            if (isRibbon && state.widthComp >= 0 && state.widthComp < fCount) {
                 float rw = state.current.floating(state.widthComp, i);
-                if (Float.isFinite(rw) && rw > 0f) w = rw > 4f ? rw * 0.01f : rw;
+                if (Float.isFinite(rw) && rw > 0f) w = h = rw * 0.01f;
             } else if (state.sizeComp >= 0 && state.sizeComp < fCount) {
-                float sw = state.current.floating(state.sizeComp, i);
-                if (Float.isFinite(sw) && sw > 0f) w = sw > 4f ? sw * 0.01f : sw;
+                float sx = state.current.floating(state.sizeComp, i);
+                if (Float.isFinite(sx) && sx > 0f) w = sx * 0.01f;
+                if (state.sizeCount >= 2 && state.sizeComp + 1 < fCount) {
+                    float sy = state.current.floating(state.sizeComp + 1, i);
+                    h = (Float.isFinite(sy) && sy > 0f) ? sy * 0.01f : w;
+                } else {
+                    h = w;
+                }
+            } else if (state.widthComp >= 0 && state.widthComp < fCount) {
+                float rw = state.current.floating(state.widthComp, i);
+                if (Float.isFinite(rw) && rw > 0f) w = h = rw * 0.01f;
             }
-            p.width = p.startWidth = Math.max(0.03f, Math.min(8f, w));
-            p.height = p.startHeight = p.width;
+            p.width = p.startWidth = Math.max(0.002f, Math.min(32f, w * ownerScaleX));
+            p.height = p.startHeight = Math.max(0.002f, Math.min(32f, h * ownerScaleY));
             p.rotationDeg = state.rotComp >= 0 && state.rotComp < fCount
                     ? state.current.floating(state.rotComp, i) : 0f;
             p.age = state.ageComp >= 0 && state.ageComp < fCount
@@ -858,6 +927,35 @@ public final class NiagaraSystemRuntime {
             p.curveRandom = state.materialRandomComp >= 0 && state.materialRandomComp < fCount
                     ? state.current.floating(state.materialRandomComp, i) : 0f;
             p.setMaterialData(state.spec.materialData());
+            if (state.dynamicParamComp >= 0 && state.dynamicParamComp < fCount) {
+                if (state.dynamicParamCount >= 1) p.customX = state.current.floating(state.dynamicParamComp, i);
+                if (state.dynamicParamCount >= 2 && state.dynamicParamComp + 1 < fCount) p.customY = state.current.floating(state.dynamicParamComp + 1, i);
+                if (state.dynamicParamCount >= 3 && state.dynamicParamComp + 2 < fCount) p.customZ = state.current.floating(state.dynamicParamComp + 2, i);
+                if (state.dynamicParamCount >= 4 && state.dynamicParamComp + 3 < fCount) p.customW = state.current.floating(state.dynamicParamComp + 3, i);
+            }
+            if (state.subImageComp >= 0 && state.subImageComp < fCount) {
+                p.subImageIndex = state.current.floating(state.subImageComp, i);
+                p.hasSubImageIndex = true;
+            }
+            if (state.ribbonLinkComp >= 0) {
+                if (state.ribbonLinkType == 0 && state.ribbonLinkComp < fCount) {
+                    p.ribbonLinkOrder = state.current.floating(state.ribbonLinkComp, i);
+                } else if (state.ribbonLinkType == 1 && state.ribbonLinkComp < iCount) {
+                    p.ribbonLinkOrder = -state.current.integer(state.ribbonLinkComp, i);
+                }
+            } else {
+                p.ribbonLinkOrder = p.normalizedAge();
+            }
+            if (state.ribbonIdComp >= 0 && state.ribbonIdComp < iCount) {
+                long lo = Integer.toUnsignedLong(state.current.integer(state.ribbonIdComp, i));
+                long hi = (state.ribbonIdCount >= 2 && state.ribbonIdComp + 1 < iCount)
+                        ? Integer.toUnsignedLong(state.current.integer(state.ribbonIdComp + 1, i)) : 0L;
+                p.ribbonId = (hi << 32) | lo;
+                p.hasRibbonId = true;
+            }
+            if (state.ribbonUvDistComp >= 0 && state.ribbonUvDistComp < fCount) {
+                p.ribbonUvDistance = state.current.floating(state.ribbonUvDistComp, i) * 0.01f;
+            }
             state.cpuParticles.add(p);
         }
     }
@@ -923,13 +1021,18 @@ public final class NiagaraSystemRuntime {
     }
 
     private static int findAttr(List<AttributeSpec> attrs, int type, String shortName) {
+        AttributeSpec found = findAttrSpec(attrs, type, shortName);
+        return found != null ? found.component() : -1;
+    }
+
+    private static @Nullable AttributeSpec findAttrSpec(List<AttributeSpec> attrs, int type, String shortName) {
         for (AttributeSpec a : attrs) {
             if (a.type() != type) continue;
             if (a.name().equalsIgnoreCase(shortName) || a.name().equalsIgnoreCase("Particles." + shortName)) {
-                return a.component();
+                return a;
             }
         }
-        return -1;
+        return null;
     }
 
     private static float clamp01(float v) {

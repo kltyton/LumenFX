@@ -134,6 +134,10 @@ public final class UnityEmitterRuntime {
             p.g = p.startG * tmpColor[1] * tint[1] * snap.green();
             p.b = p.startB * tmpColor[2] * tint[2] * snap.blue();
             p.a = p.startA * tmpColor[3] * tint[3] * snap.alpha();
+            if (spec.atlasColumns() > 1 || spec.atlasRows() > 1) {
+                p.subImageIndex = spec.atlasFrame().evaluate(t, p.curveRandom);
+                p.hasSubImageIndex = true;
+            }
             p.setMaterialData(spec.materialData());
 
             if (bridge != null && level != null) {
@@ -274,8 +278,11 @@ public final class UnityEmitterRuntime {
         p.vz = (float) (worldDir.z * speed + randVz);
         p.age = 0f;
         p.lifetime = lifetime;
-        p.startWidth = p.width = w;
-        p.startHeight = p.height = h;
+        p.startWidth = w;
+        p.startHeight = h;
+        float initSizeMult = spec.sizeOverLife().evaluate(0f, curveRand);
+        p.width = Math.max(0.001f, w * initSizeMult);
+        p.height = Math.max(0.001f, h * initSizeMult);
         p.rotationDeg = rot;
         p.angularVelocityDeg = angVel;
         p.curveRandom = curveRand;
@@ -283,11 +290,16 @@ public final class UnityEmitterRuntime {
         p.startG = tmpColor[1];
         p.startB = tmpColor[2];
         p.startA = tmpColor[3];
+        spec.colorOverLife().evaluate(0f, curveRand, tmpColor);
         float[] tint = spec.tint();
-        p.r = p.startR * tint[0] * snap.red();
-        p.g = p.startG * tint[1] * snap.green();
-        p.b = p.startB * tint[2] * snap.blue();
-        p.a = p.startA * tint[3] * snap.alpha();
+        p.r = p.startR * tmpColor[0] * tint[0] * snap.red();
+        p.g = p.startG * tmpColor[1] * tint[1] * snap.green();
+        p.b = p.startB * tmpColor[2] * tint[2] * snap.blue();
+        p.a = p.startA * tmpColor[3] * tint[3] * snap.alpha();
+        if (spec.atlasColumns() > 1 || spec.atlasRows() > 1) {
+            p.subImageIndex = spec.atlasFrame().evaluate(0f, curveRand);
+            p.hasSubImageIndex = true;
+        }
         p.setMaterialData(spec.materialData());
         if (bridge != null && level != null) {
             p.packedLight = bridge.samplePackedLight(level, p.x, p.y, p.z);

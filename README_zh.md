@@ -97,7 +97,7 @@ repositories {
 
 dependencies {
     // 按需替换为上表中对应版本与加载器的 Artifact ID
-    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.1'
+    implementation 'com.kltyton.lumenfx:lumenfx-neoforge-26.3:0.3.2'
 }
 ```
 

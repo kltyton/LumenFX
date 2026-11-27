@@ -46,6 +46,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import org.joml.Vector4fc;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Central MC 26.3 RenderPearl compatibility helper shared by NeoForge 26.3 and Fabric 26.3.
@@ -63,6 +65,7 @@ public final class RenderPearlCompat {
         }
     }
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(RenderPearlCompat.class);
     private static final Map<RenderPipeline, CompiledRenderPipeline> CUSTOM_PIPELINES = new IdentityHashMap<>();
     private static final Map<CompiledRenderPipeline, RenderPipeline> COMPILED_TO_SOURCE =
             Collections.synchronizedMap(new WeakHashMap<>());
@@ -124,6 +127,7 @@ public final class RenderPearlCompat {
             COMPILED_TO_SOURCE.put(compiled, pipeline);
             return new CompiledResult(compiled);
         } catch (RuntimeException error) {
+            LOGGER.warn("Failed to compile RenderPearl pipeline {}", pipeline.getLocation(), error);
             return new CompiledResult(null);
         }
     }
@@ -181,6 +185,26 @@ public final class RenderPearlCompat {
                 }
             }
         }
+    }
+
+    public static void clearCustomPipelines() {
+        if (!RenderSystem.isOnRenderThread()) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null) {
+                mc.execute(RenderPearlCompat::clearCustomPipelines);
+            }
+            return;
+        }
+        if (CUSTOM_PIPELINES.isEmpty()) return;
+        for (CompiledRenderPipeline compiled : CUSTOM_PIPELINES.values()) {
+            if (compiled != null) {
+                COMPILED_TO_SOURCE.remove(compiled);
+                if (!compiled.isClosed()) {
+                    compiled.close();
+                }
+            }
+        }
+        CUSTOM_PIPELINES.clear();
     }
 
     public static RenderPass createRenderPass(CommandEncoder encoder, LumenRenderPassDescriptor descriptor) {

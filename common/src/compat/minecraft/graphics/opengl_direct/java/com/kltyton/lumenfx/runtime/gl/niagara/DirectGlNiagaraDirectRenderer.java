@@ -137,16 +137,20 @@ public final class DirectGlNiagaraDirectRenderer {
                 if (uLocalSpace != 0) worldPos += uOrigin;
                 vec3 relPos = worldPos - uCamPos;
 
-                float sz = 0.25;
+                float sx = 0.50;
+                float sy = 0.50;
                 if (uSizeComp >= 0) {
-                    float raw = fData[uSizeComp * uStride + idx];
-                    if (raw > 0.0) sz = raw > 4.0 ? raw * 0.01 : raw;
+                    float rawX = fData[uSizeComp * uStride + idx];
+                    float rawY = fData[(uSizeComp + 1) * uStride + idx];
+                    if (rawX > 0.0) sx = rawX * 0.01;
+                    sy = rawY > 0.0 ? rawY * 0.01 : sx;
                 }
-                float hw = clamp(sz * 0.5, 0.01, 16.0);
+                float hw = clamp(sx * 0.5, 0.002, 16.0);
+                float hh = clamp(sy * 0.5, 0.002, 16.0);
                 float rot = uRotComp >= 0 ? radians(fData[uRotComp * uStride + idx]) : 0.0;
                 float c = cos(rot), s = sin(rot);
                 vec3 rx = (uCamRight * c + uCamUp * s) * hw;
-                vec3 uxVec = (uCamUp * c - uCamRight * s) * hw;
+                vec3 uxVec = (uCamUp * c - uCamRight * s) * hh;
 
                 vec2 corner = CORNERS[gl_VertexID];
                 vec3 vPos = relPos + rx * corner.x + uxVec * corner.y;
@@ -200,10 +204,10 @@ public final class DirectGlNiagaraDirectRenderer {
                 );
             }
             float readHalfWidth(int i) {
-                if (uWidthComp < 0) return 0.15;
+                if (uWidthComp < 0) return 0.005;
                 float w = fData[uWidthComp * uStride + i];
-                if (w <= 0.0) return 0.15;
-                return clamp((w > 4.0 ? w * 0.01 : w) * 0.5, 0.01, 12.0);
+                if (w <= 0.0) return 0.005;
+                return clamp(w * 0.01 * 0.5, 0.002, 12.0);
             }
             void main() {
                 int a = gl_InstanceID;
@@ -276,7 +280,7 @@ public final class DirectGlNiagaraDirectRenderer {
                 float sz = 1.0;
                 if (uSizeComp >= 0) {
                     float raw = fData[uSizeComp * uStride + idx];
-                    if (raw > 0.0) sz = raw > 4.0 ? raw * 0.01 : raw;
+                    if (raw > 0.0) sz = raw * 0.01;
                 }
                 float ang = uRotComp >= 0 ? radians(fData[uRotComp * uStride + idx]) : 0.0;
                 float c = cos(ang), s = sin(ang);
@@ -361,7 +365,7 @@ public final class DirectGlNiagaraDirectRenderer {
     public static boolean isGl43Supported() {
         try {
             GLCapabilities caps = GL.getCapabilities();
-            return caps != null && (caps.OpenGL43 || (caps.GL_ARB_shader_storage_buffer_object && caps.GL_ARB_compute_shader));
+            return caps != null && caps.OpenGL43;
         } catch (RuntimeException ignored) {
             return false;
         }

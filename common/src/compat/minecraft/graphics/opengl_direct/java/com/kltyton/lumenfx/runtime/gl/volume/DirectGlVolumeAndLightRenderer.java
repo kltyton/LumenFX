@@ -27,8 +27,8 @@ public final class DirectGlVolumeAndLightRenderer {
                             boolean spot, float dirX, float dirY, float dirZ, float cosOuterCone) { }
 
     private static final String BOX_VERT = """
-            #version 330 core
-            layout(location = 0) in vec3 aPos;
+            #version 150 core
+            in vec3 aPos;
             uniform mat4 uViewProj;
             uniform mat4 uModel;
             out vec3 vLocalPos;
@@ -42,7 +42,7 @@ public final class DirectGlVolumeAndLightRenderer {
             """;
 
     private static final String VOLUME_FRAG = """
-            #version 330 core
+            #version 150 core
             in vec3 vLocalPos;
             in vec3 vWorldRel;
             uniform mat4 uInvModel;
@@ -114,7 +114,7 @@ public final class DirectGlVolumeAndLightRenderer {
             """;
 
     private static final String DECAL_FRAG = """
-            #version 330 core
+            #version 150 core
             uniform mat4 uInvModel;
             uniform mat4 uInvViewProj;
             uniform sampler2D uSceneDepth;
@@ -139,7 +139,7 @@ public final class DirectGlVolumeAndLightRenderer {
             """;
 
     private static final String LIGHT_FRAG = """
-            #version 330 core
+            #version 150 core
             uniform mat4 uInvViewProj;
             uniform sampler2D uSceneDepth;
             uniform vec2 uInvViewport;
@@ -343,9 +343,16 @@ public final class DirectGlVolumeAndLightRenderer {
         int prog = GL20C.glCreateProgram();
         GL20C.glAttachShader(prog, vs);
         GL20C.glAttachShader(prog, fs);
+        GL20C.glBindAttribLocation(prog, 0, "aPos");
+        GL30C.glBindFragDataLocation(prog, 0, "fragColor");
         GL20C.glLinkProgram(prog);
         GL20C.glDeleteShader(vs);
         GL20C.glDeleteShader(fs);
+        if (GL20C.glGetProgrami(prog, GL20C.GL_LINK_STATUS) == 0) {
+            String log = GL20C.glGetProgramInfoLog(prog, 4096);
+            GL20C.glDeleteProgram(prog);
+            throw new IllegalStateException("Failed to link LumenFX volume/decal/light shader: " + log);
+        }
         return prog;
     }
 
@@ -353,6 +360,11 @@ public final class DirectGlVolumeAndLightRenderer {
         int s = GL20C.glCreateShader(type);
         GL20C.glShaderSource(s, src);
         GL20C.glCompileShader(s);
+        if (GL20C.glGetShaderi(s, GL20C.GL_COMPILE_STATUS) == 0) {
+            String log = GL20C.glGetShaderInfoLog(s, 4096);
+            GL20C.glDeleteShader(s);
+            throw new IllegalStateException("Failed to compile LumenFX volume/decal/light shader: " + log);
+        }
         return s;
     }
 
