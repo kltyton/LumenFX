@@ -31,38 +31,38 @@ Photon-derived source files retain KilaBash's attribution and are governed by th
 
 ## Visual Showcase
 
-All 10 screenshots below were captured live in-game using LumenFX's native runtime — **no shader pack required**. Every effect shown is included in the ready-to-load [`examples/showcase-pack/`](examples/showcase-pack/README.md) resource pack.
+All 10 live animated captures below were captured live in-game using LumenFX's native runtime — **no shader pack required**. Every effect shown is included in the ready-to-load [`examples/showcase-pack/`](examples/showcase-pack/README.md) resource pack.
 
 ### Signature VFX Capabilities (Photon-Style Showcase)
 
 <table>
 <tr>
 <td width="50%">
-<img src="docs/publishing/screenshots/01_dynamic_lights.png" alt="Dynamic Lights Plaza" /><br/>
+<img src="docs/publishing/screenshots/01_dynamic_lights.gif" alt="Dynamic Lights Plaza" /><br/>
 <strong>Dynamic Point &amp; Spot Lights</strong><br/>
 Real-time colored point and spot lights that illuminate blocks, pillars, and world geometry — paired with glowing Fresnel orbs, vertical light beams, and pentagram magic seals.
 </td>
 <td width="50%">
-<img src="docs/publishing/screenshots/02_volumetric_light_shafts.png" alt="Volumetric Lights and Fog Volumes" /><br/>
+<img src="docs/publishing/screenshots/02_volumetric_light_shafts.gif" alt="Volumetric Lights and Fog Volumes" /><br/>
 <strong>Volumetric Lights &amp; Fog Volumes</strong><br/>
 3D raymarched fog volumes, warm interior point/spot lights, and depth-soft volumetric light shafts streaming through temple doorways with illuminated dust motes.
 </td>
 </tr>
 <tr>
 <td width="50%">
-<img src="docs/publishing/screenshots/03_kila_material_gallery.png" alt="Procedural VFX Materials Gallery" /><br/>
+<img src="docs/publishing/screenshots/03_kila_material_gallery.gif" alt="Procedural VFX Materials Gallery" /><br/>
 <strong>All-in-One Procedural VFX Materials (Custom GLSL)</strong><br/>
 Cel-shaded toon fireballs, crisp HDR energy rings, crackling lightning arcs, Fresnel forcefield orbs, polar astral vortices, cellular dissolve cores, organic flames, and neon ground sigils.
 </td>
 <td width="50%">
-<img src="docs/publishing/screenshots/04_particle_collision.png" alt="Real-Time Particle Collision" /><br/>
+<img src="docs/publishing/screenshots/04_particle_collision.gif" alt="Real-Time Particle Collision" /><br/>
 <strong>Real-Time Particle Collision</strong><br/>
 Gravity-driven sparkle showers colliding against real Minecraft stairs, slabs, and walls — bouncing, damping, cascading across every step, and spilling onto the terrain.
 </td>
 </tr>
 <tr>
 <td colspan="2" align="center">
-<img src="docs/publishing/screenshots/05_hologram_fox_swarm.png" width="780" alt="3D Hologram Mesh Swarm" /><br/>
+<img src="docs/publishing/screenshots/05_hologram_fox_swarm.gif" width="780" alt="3D Hologram Mesh Swarm" /><br/>
 <strong>3D Hologram Mesh Swarms</strong><br/>
 Custom 3D <code>.lfmesh</code> &amp; glTF models rendered as particle swarms with animated horizontal hologram scanlines, edge glow, and dynamic ground lighting.
 </td>
@@ -74,31 +74,31 @@ Custom 3D <code>.lfmesh</code> &amp; glTF models rendered as particle swarms wit
 <table>
 <tr>
 <td width="50%">
-<img src="docs/publishing/screenshots/06_supernova_black_hole.png" alt="Supernova Black Hole" /><br/>
+<img src="docs/publishing/screenshots/06_supernova_black_hole.gif" alt="Supernova Black Hole" /><br/>
 <strong>Black Hole &amp; Relativistic Accretion Disk</strong><br/>
 Pitch-black event horizon, blazing Einstein photon ring, tilted swirling accretion disk shader, twin relativistic polar jets, and orbiting star dust.
 </td>
 <td width="50%">
-<img src="docs/publishing/screenshots/07_arcane_prism_ribbons.png" alt="Arcane Mandala and Helical Prism Ribbons" /><br/>
+<img src="docs/publishing/screenshots/07_arcane_prism_ribbons.gif" alt="Arcane Mandala and Helical Prism Ribbons" /><br/>
 <strong>Arcane Mandala &amp; Multi-Ribbon Trails</strong><br/>
 Double-layered rotating golden-cyan arcane hexagram seals weaving intertwined tri-color helical ribbons and shimmering arcane star motes.
 </td>
 </tr>
 <tr>
 <td width="50%">
-<img src="docs/publishing/screenshots/08_orbital_plasma_beam.png" alt="Orbital Plasma Cannon Beam" /><br/>
+<img src="docs/publishing/screenshots/08_orbital_plasma_beam.gif" alt="Orbital Plasma Cannon Beam" /><br/>
 <strong>Orbital Plasma Cannon &amp; Shockwave Impact</strong><br/>
 Sky-to-ground HDR plasma pillar, rising violet charge rings, expanding shockwave rings, deferred ground scorch decal, volumetric mist, and bouncing sparks.
 </td>
 <td width="50%">
-<img src="docs/publishing/screenshots/09_frost_nova_shatter.png" alt="Crystalline 3D Frost Nova" /><br/>
+<img src="docs/publishing/screenshots/09_frost_nova_shatter.gif" alt="Crystalline 3D Frost Nova" /><br/>
 <strong>Crystalline 3D Frost Nova</strong><br/>
 Erupting faceted 3D hexagonal ice crystal spires with translucent glacial Fresnel shading, snowflake mandala ground seal, cryogenic fog, and snowflakes.
 </td>
 </tr>
 <tr>
 <td colspan="2" align="center">
-<img src="docs/publishing/screenshots/10_celestial_sakura_sanctuary.png" width="780" alt="Celestial Sakura and Firefly Sanctuary" /><br/>
+<img src="docs/publishing/screenshots/10_celestial_sakura_sanctuary.gif" width="780" alt="Celestial Sakura and Firefly Sanctuary" /><br/>
 <strong>Celestial Sakura &amp; Golden Firefly Sanctuary</strong><br/>
 Noise-driven drifting cherry blossom petals, HDR glowing golden fireflies, multi-color localized dynamic lighting, and ethereal moonlit mist.
 </td>

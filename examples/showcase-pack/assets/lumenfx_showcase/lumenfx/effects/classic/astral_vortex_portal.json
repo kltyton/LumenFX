@@ -1,0 +1,75 @@
+{
+  "format_version": 1,
+  "materials": {
+    "vortex_swirl": {
+      "fragment_shader": "lumenfx_showcase:vfx/kila_astral_swirl",
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.18,
+      "bloom_intensity": 0.45
+    },
+    "vortex_sparks": {
+      "fragment_shader": "lumenfx:core/effect",
+      "textures": { "Sampler0": "lumenfx_showcase:textures/vfx/sparkle_star.png" },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.2,
+      "bloom_intensity": 0.45
+    }
+  },
+  "lights": [
+    { "position": [0.0, 2.0, 0.0], "color": [0.68, 0.28, 1.0], "radius": 8.0, "intensity": 0.65, "type": "point" }
+  ],
+  "volumes": [
+    { "position": [0.0, 2.0, 0.0], "size": [3.2, 3.2, 2.4], "color": [0.62, 0.24, 0.98], "density": 0.16, "anisotropy": 0.4 }
+  ],
+  "emitters": [
+    {
+      "name": "portal_disc",
+      "renderer": "sprite",
+      "material": "vortex_swirl",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [{ "time": 0.0, "min": 1, "max": 1, "cycles": 1 }],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 3.4,
+      "height": 3.4,
+      "start_speed": 0.0,
+      "shape": { "type": "point", "unity": { "position": [0.0, 2.0, 0.0], "rotation": [0, 0, 0, 1] } },
+      "color": [0.85, 0.55, 1.0, 0.95]
+    },
+    {
+      "name": "inward_sparks",
+      "renderer": "sprite",
+      "material": "vortex_sparks",
+      "local_space": false,
+      "duration": 8.0,
+      "loop": true,
+      "max_particles": 70,
+      "rate": 24.0,
+      "lifetime": { "min": 0.9, "max": 1.6 },
+      "width": { "min": 0.12, "max": 0.24 },
+      "height": { "min": 0.12, "max": 0.24 },
+      "start_speed": { "min": 0.3, "max": 0.8 },
+      "shape": { "type": "sphere", "size": [1.8, 1.8, 0.5], "unity": { "position": [0.0, 2.0, 0.0], "rotation": [0, 0, 0, 1] } },
+      "orbital_velocity": [0.0, 0.0, 2.2],
+      "radial_velocity": -0.9,
+      "color": {
+        "stops": [
+          { "time": 0.0, "color": [0.55, 0.28, 1.0, 0.0] },
+          { "time": 0.25, "color": [0.82, 0.58, 1.0, 0.92] },
+          { "time": 1.0, "color": [0.32, 0.88, 1.0, 0.0] }
+        ]
+      }
+    }
+  ]
+}

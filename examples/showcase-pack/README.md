@@ -1,10 +1,19 @@
-# LumenFX Official Showcase Pack
+# LumenFX Official Showcase & Example Pack
 
-A ready-to-load Minecraft resource pack containing all **10 showcase VFX effects** featured in the LumenFX README and CurseForge page — including faithful recreations of the signature **Low-Drag-MC/Photon** showcase scenes plus **5 additional next-gen LumenFX effects**.
+A ready-to-load Minecraft resource pack containing **15 developer-reference VFX effects** — including **5 concise starter templates (`classic/*`)**, **5 Photon-parity showcase scenes (`photon/*`)**, and **5 next-gen multi-layer showcase effects (`bonus/*`)**.
 
-> This resource pack lives strictly in `examples/showcase-pack/` and is **never bundled** into the lightweight LumenFX runtime mod JARs.
+> **Clean Runtime Separation:** This resource pack lives strictly in `examples/showcase-pack/` and is **never included** in the core library sources (`common/`, `targets/`) or bundled into any released LumenFX `.jar` file.
 
 ## Included Effects
+
+### Starter Templates (`lumenfx_showcase:classic/*`)
+| Effect ID | Highlights |
+| :--- | :--- |
+| `lumenfx_showcase:classic/rune_ribbon_stream` | Ground rune mesh sigil + orbiting ribbon trail with color-gradient stops |
+| `lumenfx_showcase:classic/astral_vortex_portal` | Polar-swirl GLSL vortex + fog volume + inward radial-velocity sparks |
+| `lumenfx_showcase:classic/blazing_ember_fireball` | Native HDR bloom incandescent flame core + curl-noise rising embers |
+| `lumenfx_showcase:classic/emerald_plasma_comet` | Cellular dissolve GLSL core + noise-modulated emerald plasma ribbon |
+| `lumenfx_showcase:classic/luminous_physics_fountain` | Cone jet with gravity, drag, and real-time block collision bounce & damping |
 
 ### Photon-Parity Showcase (`lumenfx_showcase:photon/*`)
 | Effect ID | Highlights |
@@ -27,4 +36,5 @@ A ready-to-load Minecraft resource pack containing all **10 showcase VFX effects
 ## How to Use
 
 1. Copy or zip `examples/showcase-pack/` into your Minecraft instance's `resourcepacks/` folder and enable it in **Options -> Resource Packs**.
-2. Spawn any effect from your mod or test harness using `VfxEffects.spawn(clientLevel, Identifier.parse("lumenfx_showcase:photon/kila_material_gallery"), pos, seed)`.
+2. Spawn any effect from your mod or test harness using `VfxEffects.spawn(clientLevel, Identifier.parse("lumenfx_showcase:photon/kila_material_gallery"), pos, seed)` (or `ResourceLocation.parse(...)` on 1.20.1 / 1.21.1).
+3. See the **[LumenFX Wiki — Example Effects](https://github.com/kltyton/LumenFX/wiki/Examples)** for Java & Blockbench keyframe recipes and authoring best practices.

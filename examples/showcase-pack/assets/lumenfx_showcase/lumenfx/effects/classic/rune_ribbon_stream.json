@@ -1,0 +1,75 @@
+{
+  "format_version": 1,
+  "materials": {
+    "rune_seal": {
+      "fragment_shader": "lumenfx_showcase:vfx/pentagram_circle",
+      "textures": { "Sampler0": "lumenfx_showcase:textures/vfx/pentagram_circle.png" },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.15,
+      "bloom_intensity": 0.42
+    },
+    "ribbon_trail": {
+      "fragment_shader": "lumenfx:core/effect",
+      "textures": { "Sampler0": "lumenfx_showcase:textures/vfx/soft_glow.png" },
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "hdr": true,
+      "emissive_scale": 1.2,
+      "bloom_intensity": 0.48
+    }
+  },
+  "lights": [
+    { "position": [0.0, 1.0, 0.0], "color": [0.28, 0.86, 1.0], "radius": 6.5, "intensity": 0.55, "type": "point" }
+  ],
+  "emitters": [
+    {
+      "name": "ground_rune",
+      "renderer": "mesh",
+      "material": "rune_seal",
+      "local_space": true,
+      "duration": 20.0,
+      "loop": true,
+      "max_particles": 1,
+      "bursts": [{ "time": 0.0, "min": 1, "max": 1, "cycles": 1 }],
+      "rate": 0.0,
+      "lifetime": 20.0,
+      "width": 3.2,
+      "height": 3.2,
+      "start_speed": 0.0,
+      "shape": { "type": "point", "unity": { "position": [0.0, 0.06, 0.0], "rotation": [0, 0, 0, 1] } },
+      "mesh": { "entries": [{ "asset": "lumenfx_showcase:horizontal_quad" }] },
+      "color": [0.32, 0.88, 1.0, 0.95]
+    },
+    {
+      "name": "orbit_ribbon",
+      "renderer": "ribbon",
+      "material": "ribbon_trail",
+      "local_space": false,
+      "duration": 8.0,
+      "loop": true,
+      "max_particles": 90,
+      "rate": 24.0,
+      "lifetime": 1.6,
+      "width": 0.24,
+      "height": 0.24,
+      "start_speed": 1.4,
+      "start_direction": [0, 1, 0],
+      "shape": { "type": "circle", "radius": 1.35, "unity": { "position": [0.0, 0.25, 0.0], "rotation": [0, 0, 0, 1] } },
+      "orbital_velocity": [0.0, 2.6, 0.0],
+      "color": {
+        "stops": [
+          { "time": 0.0, "color": [0.22, 0.92, 1.0, 0.0] },
+          { "time": 0.25, "color": [0.38, 0.86, 1.0, 0.92] },
+          { "time": 0.75, "color": [0.72, 0.42, 1.0, 0.85] },
+          { "time": 1.0, "color": [0.65, 0.28, 1.0, 0.0] }
+        ]
+      }
+    }
+  ]
+}

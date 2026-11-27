@@ -20,52 +20,52 @@
 ### 💡 动态点光源与聚光灯（Dynamic Lights）
 实时彩色点光源与聚光灯照亮方块、石柱与神殿建筑立面，结合青色菲涅尔能量球、金色垂直光柱与紫色五芒星法阵。
 
-![动态点光源与聚光灯](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/01_dynamic_lights.png)
+![动态点光源与聚光灯](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/01_dynamic_lights.gif)
 
 ### 🌫️ 体积光与体积雾（Volumetric Lights & Fog Volumes）
 3D 光线步进体积雾与深度软边缘丁达尔光束穿过神殿门洞洒向广场，伴随浮动的受光尘埃微粒。
 
-![体积光与体积雾](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/02_volumetric_light_shafts.png)
+![体积光与体积雾](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/02_volumetric_light_shafts.gif)
 
 ### 🎨 全能程序化 VFX 材质（自定义 GLSL 着色器矩阵）
 支持自定义 GLSL 片元着色器，呈现三渲二卡通火焰、锐利白光能量环、分支电弧闪电、青色菲涅尔护盾、星界漩涡、蜂窝溶解紫核、扰动火焰与发光五芒星法阵。
 
-![全能程序化 VFX 材质](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/03_kila_material_gallery.png)
+![全能程序化 VFX 材质](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/03_kila_material_gallery.gif)
 
 ### 💥 实时粒子世界碰撞（Particle Collision）
 金色星光粒子在重力下倾泻，与真实 Minecraft 楼梯、台阶与石墙碰撞弹跳、逐级滑落并散落在草地上。
 
-![实时粒子世界碰撞](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/04_particle_collision.png)
+![实时粒子世界碰撞](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/04_particle_collision.gif)
 
 ### 🦊 3D 全息网格粒子群（3D Mesh / glTF Swarms）
 自定义 3D `.lfmesh` 与 glTF 模型作为粒子群组渲染，叠加动态水平全息扫描线、边缘高光与青色地面照明。
 
-![3D 全息网格粒子群](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/05_hologram_fox_swarm.png)
+![3D 全息网格粒子群](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/05_hologram_fox_swarm.gif)
 
 ### 🕳️ 引力黑洞与相对论吸积盘
 深邃事件视界黑核、耀眼爱因斯坦光子环、倾斜旋转吸积盘着色器、双极相对论喷流与环绕星尘。
 
-![引力黑洞与相对论吸积盘](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/06_supernova_black_hole.png)
+![引力黑洞与相对论吸积盘](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/06_supernova_black_hole.gif)
 
 ### 🔮 奥术六芒法阵与三色螺旋丝带拖尾
 双层旋转金青奥术法阵，交织释放青、品红、金三色螺旋丝带（Ribbon）流光与星芒微粒。
 
-![奥术六芒法阵与三色螺旋丝带拖尾](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/07_arcane_prism_ribbons.png)
+![奥术六芒法阵与三色螺旋丝带拖尾](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/07_arcane_prism_ribbons.gif)
 
 ### ⚡ 轨道等离子天基光束与冲击波
 贯通天地的 HDR 青白等离子光柱、上升紫色蓄能环、地面扩散冲击波、延迟贴花焦痕、体积雾与弹跳火星。
 
-![轨道等离子天基光束与冲击波](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/08_orbital_plasma_beam.png)
+![轨道等离子天基光束与冲击波](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/08_orbital_plasma_beam.gif)
 
 ### ❄️ 凛冬冰霜新星（3D 晶体 + 低温雾）
 破土而出的半透明多面体 3D 冰晶尖刺、发光雪花法阵、低温体积雾与飞舞冰晶雪花。
 
-![凛冬冰霜新星](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/09_frost_nova_shatter.png)
+![凛冬冰霜新星](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/09_frost_nova_shatter.gif)
 
 ### 🌸 月夜樱花与金萤圣域
 噪声风场驱动飘落的樱花花瓣、HDR 暖金萤火虫、多色柔和局部动态照明与梦幻月夜薄雾。
 
-![月夜樱花与金萤圣域](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/10_celestial_sakura_sanctuary.png)
+![月夜樱花与金萤圣域](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/10_celestial_sakura_sanctuary.gif)
 
 ---
 

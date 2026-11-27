@@ -15,57 +15,57 @@ A lightweight Photon fork bringing Unity, Unreal Niagara, dynamic lights, volume
 
 ## 🌟 Visual Showcase
 
-*All 10 screenshots below were captured live in-game using LumenFX's native renderer — **no shader mod required!** Every effect is also available in the official [`examples/showcase-pack`](https://github.com/kltyton/LumenFX/tree/main/examples/showcase-pack) resource pack.*
+*All 10 live animated captures below were captured live in-game using LumenFX's native renderer — **no shader mod required!** Every effect is also available in the official [`examples/showcase-pack`](https://github.com/kltyton/LumenFX/tree/main/examples/showcase-pack) resource pack.*
 
 ### 💡 Dynamic Point & Spot Lights
 Real-time colored point and spot lights that illuminate blocks, pillars, and world geometry — paired with glowing Fresnel orbs, vertical light beams, and pentagram magic seals.
 
-![Dynamic Point & Spot Lights](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/01_dynamic_lights.png)
+![Dynamic Point & Spot Lights](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/01_dynamic_lights.gif)
 
 ### 🌫️ Volumetric Lights & Fog Volumes
 3D raymarched fog volumes, warm interior point/spot lights, and depth-soft volumetric light shafts streaming through temple doorways with illuminated dust motes.
 
-![Volumetric Lights & Fog Volumes](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/02_volumetric_light_shafts.png)
+![Volumetric Lights & Fog Volumes](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/02_volumetric_light_shafts.gif)
 
 ### 🎨 All-in-One Procedural VFX Materials (Custom GLSL)
 Drive custom fragment shaders for cel-shaded toon fireballs, crisp HDR energy rings, crackling lightning arcs, translucent Fresnel forcefields, swirling astral vortices, cellular dissolve cores, organic flames, and glowing ground sigils.
 
-![All-in-One Procedural VFX Materials](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/03_kila_material_gallery.png)
+![All-in-One Procedural VFX Materials](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/03_kila_material_gallery.gif)
 
 ### 💥 Real-Time Particle Collision
 Gravity-driven sparkle showers colliding against real Minecraft stairs, slabs, and walls — bouncing, damping, cascading across every step, and spilling onto the grass.
 
-![Real-Time Particle Collision](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/04_particle_collision.png)
+![Real-Time Particle Collision](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/04_particle_collision.gif)
 
 ### 🦊 3D Hologram Mesh Swarms
 Render custom 3D `.lfmesh` and glTF models as particle swarms with animated horizontal hologram scanlines, edge glow, and dynamic ground lighting.
 
-![3D Hologram Mesh Swarms](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/05_hologram_fox_swarm.png)
+![3D Hologram Mesh Swarms](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/05_hologram_fox_swarm.gif)
 
 ### 🕳️ Black Hole & Relativistic Accretion Disk
 Combine opaque pitch-black event horizons, blazing Einstein photon rings, tilted swirling accretion disk shaders, relativistic polar jets, and orbiting star dust.
 
-![Black Hole & Relativistic Accretion Disk](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/06_supernova_black_hole.png)
+![Black Hole & Relativistic Accretion Disk](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/06_supernova_black_hole.gif)
 
 ### 🔮 Arcane Mandala & Multi-Ribbon Trails
 Weave smooth, multi-layered glowing ribbons, orbital curves, and double-layered rotating golden-cyan arcane hexagram seals directly in the world.
 
-![Arcane Mandala & Multi-Ribbon Trails](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/07_arcane_prism_ribbons.png)
+![Arcane Mandala & Multi-Ribbon Trails](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/07_arcane_prism_ribbons.gif)
 
 ### ⚡ Orbital Plasma Cannon & Shockwave Impact
 Sky-to-ground HDR plasma pillars with rising charge rings, expanding ground shockwave rings, deferred ground scorch decals, volumetric mist, and bouncing sparks.
 
-![Orbital Plasma Cannon & Shockwave Impact](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/08_orbital_plasma_beam.png)
+![Orbital Plasma Cannon & Shockwave Impact](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/08_orbital_plasma_beam.gif)
 
 ### ❄️ Crystalline 3D Frost Nova
 Erupting faceted 3D hexagonal ice crystal spires with translucent glacial Fresnel shading, glowing snowflake ground seals, cryogenic volumetric fog, and snowflakes.
 
-![Crystalline 3D Frost Nova](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/09_frost_nova_shatter.png)
+![Crystalline 3D Frost Nova](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/09_frost_nova_shatter.gif)
 
 ### 🌸 Celestial Sakura & Golden Firefly Sanctuary
 Noise-driven drifting cherry blossom petals, HDR glowing golden fireflies, multi-color localized dynamic lighting, and dreamy moonlit volumetric mist.
 
-![Celestial Sakura & Golden Firefly Sanctuary](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/10_celestial_sakura_sanctuary.png)
+![Celestial Sakura & Golden Firefly Sanctuary](https://raw.githubusercontent.com/kltyton/LumenFX/main/docs/publishing/screenshots/10_celestial_sakura_sanctuary.gif)
 
 ---
 

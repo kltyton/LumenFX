@@ -35,7 +35,7 @@ flowchart LR
 | Page | Topics Covered |
 | :--- | :--- |
 | **[[Getting Started\|Getting-Started]]** | Mod installation, supported 10-target matrix, Sighs Maven coordinates, and Java API quickstart (`VfxEffects` & `EffectHandle`). |
-| **[Official Showcase Pack](https://github.com/kltyton/LumenFX/tree/main/examples/showcase-pack)** | Ready-to-load resource pack containing all 10 live showcase effects (dynamic lights, volumetric fog, procedural GLSL materials, collisions, 3D hologram meshes, black hole, ribbons, plasma beam, frost nova, and sakura sanctuary). |
+| **[[Example Effects & Showcase Pack\|Examples]]** | Complete developer guide to the 15 standalone example effects (`classic/*`, `photon/*`, `bonus/*`), custom GLSL shaders, `.lfmesh` models, and Java/keyframe usage in [`examples/showcase-pack`](https://github.com/kltyton/LumenFX/tree/main/examples/showcase-pack) (never bundled into runtime JARs). |
 | **[[Effect Format Reference\|Effect-Format-Reference]]** | Resource layout, LumenFX JSON v1 schema, curves/ranges, shapes, emitters, renderers, and custom GLSL fragment shaders. |
 | **[[Niagara, Unity & Photon Workflow\|Niagara-and-Unity-Workflow]]** | Using the Unity UPM Editor Plugin, Unreal Engine 5 Editor Plugin & Niagara CLI compiler, and playing Photon `.fx` files. |
 | **[[GeckoLib & KBR Particle Keyframes\|GeckoLib-and-KBR-Keyframes]]** | Triggering LumenFX effects from Blockbench `particle_effects` keyframes on GeckoLib 4.x / 5.x & KBR with 3D locator tracking and `LumenFxKeyframeBridge`. |

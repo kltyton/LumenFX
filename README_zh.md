@@ -38,31 +38,31 @@
 <table>
 <tr>
 <td width="50%">
-<img src="docs/publishing/screenshots/01_dynamic_lights.png" alt="动态点光源与聚光灯广场" /><br/>
+<img src="docs/publishing/screenshots/01_dynamic_lights.gif" alt="动态点光源与聚光灯广场" /><br/>
 <strong>动态点光源与聚光灯（Dynamic Lights）</strong><br/>
 实时彩色点光源/聚光灯照亮方块、石柱与建筑立面，结合青色菲涅尔能量球、金色光柱核心与紫色五芒星法阵。
 </td>
 <td width="50%">
-<img src="docs/publishing/screenshots/02_volumetric_light_shafts.png" alt="体积光束与体积雾" /><br/>
+<img src="docs/publishing/screenshots/02_volumetric_light_shafts.gif" alt="体积光束与体积雾" /><br/>
 <strong>体积光与体积雾（Volumetric Lights &amp; Fog Volumes）</strong><br/>
 3D 光线步进体积雾、暖金室内光源与深度软边缘丁达尔光束穿过神殿门洞洒向广场，伴随光束尘埃粒子。
 </td>
 </tr>
 <tr>
 <td width="50%">
-<img src="docs/publishing/screenshots/03_kila_material_gallery.png" alt="全能程序化 VFX 材质陈列" /><br/>
+<img src="docs/publishing/screenshots/03_kila_material_gallery.gif" alt="全能程序化 VFX 材质陈列" /><br/>
 <strong>全能程序化 VFX 材质（Custom GLSL 着色器矩阵）</strong><br/>
 三渲二卡通火焰、锐利白光能量环、分支电弧闪电球、青色菲涅尔护盾球、极坐标星界漩涡、蜂窝溶解紫核、扰动火焰灵火与大型发光五芒星阵。
 </td>
 <td width="50%">
-<img src="docs/publishing/screenshots/04_particle_collision.png" alt="粒子实时方块碰撞" /><br/>
+<img src="docs/publishing/screenshots/04_particle_collision.gif" alt="粒子实时方块碰撞" /><br/>
 <strong>实时粒子世界碰撞（Particle Collision）</strong><br/>
 星光粒子在重力下倾泻并与真实 Minecraft 木楼梯、台阶及石墙碰撞弹跳、逐级滑落并散落在草地上。
 </td>
 </tr>
 <tr>
 <td colspan="2" align="center">
-<img src="docs/publishing/screenshots/05_hologram_fox_swarm.png" width="780" alt="3D 全息扫描线网格粒子群" /><br/>
+<img src="docs/publishing/screenshots/05_hologram_fox_swarm.gif" width="780" alt="3D 全息扫描线网格粒子群" /><br/>
 <strong>3D 全息网格粒子群（3D Mesh / glTF Swarms）</strong><br/>
 自定义 3D <code>.lfmesh</code> 与 glTF 模型作为粒子群组渲染，叠加动态水平全息扫描线、边缘高光与青色地面照明。
 </td>
@@ -74,31 +74,31 @@
 <table>
 <tr>
 <td width="50%">
-<img src="docs/publishing/screenshots/06_supernova_black_hole.png" alt="黑洞与吸积盘" /><br/>
+<img src="docs/publishing/screenshots/06_supernova_black_hole.gif" alt="黑洞与吸积盘" /><br/>
 <strong>引力黑洞与相对论吸积盘</strong><br/>
 深邃事件视界黑核、耀眼爱因斯坦光子环、倾斜旋转吸积盘着色器、双极相对论喷流与环绕星尘。
 </td>
 <td width="50%">
-<img src="docs/publishing/screenshots/07_arcane_prism_ribbons.png" alt="奥术法阵与三色螺旋丝带" /><br/>
+<img src="docs/publishing/screenshots/07_arcane_prism_ribbons.gif" alt="奥术法阵与三色螺旋丝带" /><br/>
 <strong>奥术六芒法阵与三色螺旋丝带拖尾</strong><br/>
 双层旋转金青奥术法阵，交织释放青、品红、金三色螺旋丝带（Ribbon）流光与星芒微粒。
 </td>
 </tr>
 <tr>
 <td width="50%">
-<img src="docs/publishing/screenshots/08_orbital_plasma_beam.png" alt="轨道等离子光束炮" /><br/>
+<img src="docs/publishing/screenshots/08_orbital_plasma_beam.gif" alt="轨道等离子光束炮" /><br/>
 <strong>轨道等离子天基光束与冲击波</strong><br/>
 贯通天地的 HDR 青白等离子光柱、上升紫色蓄能环、地面扩散冲击波、延迟贴花焦痕、体积雾与弹跳火星。
 </td>
 <td width="50%">
-<img src="docs/publishing/screenshots/09_frost_nova_shatter.png" alt="冰霜新星 3D 晶体" /><br/>
+<img src="docs/publishing/screenshots/09_frost_nova_shatter.gif" alt="冰霜新星 3D 晶体" /><br/>
 <strong>凛冬冰霜新星（3D 晶体 + 低温雾）</strong><br/>
 破土而出的半透明多面体 3D 冰晶尖刺、发光雪花法阵、低温体积雾与飞舞冰晶雪花。
 </td>
 </tr>
 <tr>
 <td colspan="2" align="center">
-<img src="docs/publishing/screenshots/10_celestial_sakura_sanctuary.png" width="780" alt="月夜樱花与萤火圣域" /><br/>
+<img src="docs/publishing/screenshots/10_celestial_sakura_sanctuary.gif" width="780" alt="月夜樱花与萤火圣域" /><br/>
 <strong>月夜樱花与金萤圣域</strong><br/>
 噪声风场驱动飘落的樱花花瓣、HDR 暖金萤火虫、多色柔和局部动态照明与梦幻月夜薄雾。
 </td>
@@ -210,7 +210,7 @@ LumenFX/
 
 ## 文档与离线制作工具
 
-- **[官方示例特效资源包](examples/showcase-pack/README.md)** — 包含全部 10 组实机展示特效的 JSON、自定义 GLSL 着色器、程序化贴图与 3D `.lfmesh` 模型。
+- **[官方示例特效资源包](examples/showcase-pack/README.md)** — 包含全部 15 组独立示例特效的 JSON、自定义 GLSL 着色器、程序化贴图与 3D `.lfmesh` 模型。
 - **[GitHub 中文 Wiki 完整文档](https://github.com/kltyton/LumenFX/wiki/Home-zh)**（同步存档于 [`docs/wiki/`](docs/wiki/Home-zh.md)）：
   - [快速入门与 API 指南](docs/wiki/Getting-Started-zh.md)
   - [效果 JSON 与自定义 GLSL 材质参考](docs/wiki/Effect-Format-Reference-zh.md)
