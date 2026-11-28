@@ -194,6 +194,8 @@ LumenFX/
 ├── targets/                # 10 loader/version targets (1.20.1–26.3 × Forge/NeoForge/Fabric)
 ├── examples/
 │   └── showcase-pack/      # Ready-to-load showcase resource pack (all 10 README/CurseForge effects)
+├── skills/
+│   └── lumenfx-vfx/        # AI Agent Skill (Experimental): SKILL.md, schema/GLSL refs & deterministic validator
 ├── tools/
 │   ├── unity/              # Unity UPM Editor Plugin (com.kltyton.lumenfx.exporter)
 │   ├── unreal/             # Unreal Engine 5 Editor Plugin (LumenFxExporter.uplugin) & exporters
@@ -218,6 +220,9 @@ LumenFX/
   - [GeckoLib & KBR Particle Keyframes](docs/wiki/GeckoLib-and-KBR-Keyframes.md)
   - [Graphics Backends & Compatibility](docs/wiki/Graphics-Backends-and-Compatibility.md)
   - [Fork Relationship & Licensing](docs/wiki/Fork-and-Licensing.md)
+  - [AI Agent Skill (Experimental)](docs/wiki/AI-Agent-Skill.md)
+- **AI Agent Skill (Experimental)**:
+  - [`skills/lumenfx-vfx/`](skills/lumenfx-vfx/SKILL.md) — Open-standard Agent Skill (`SKILL.md`, source-verified JSON v1 & GLSL 330 references, starter templates, and a zero-dependency Python validator `validate_lumenfx_effect.py`) for authoring, validating, and optimizing LumenFX effects with Codex, Antigravity, Claude Code, or Cursor (`npx skills add kltyton/LumenFX --skill lumenfx-vfx`).
 - **Offline Creator Plugins & Compilers** (never bundled into runtime mod JARs):
   - **[ParticleCue Studio](https://github.com/kltyton/ParticleCue-Studio)** (Blockbench Desktop Plugin) — Author, preview, and edit LumenFX JSON v1 (`sprite`/`ribbon`/`beam`/`mesh`, `.lfmesh`, custom `.fsh` shaders, curves/gradients, KilaMaterial 6-module composer, and **KilaGraph** visual GLSL node editor), Photon `.fx`, Snowstorm, KBR 3D, and Unity/Niagara overrides directly inside Blockbench with Portable ZIP & Self-Contained `.bbmodel` sharing.
   - [Unity UPM Editor Plugin](tools/unity/README.md) (`com.kltyton.lumenfx.exporter`) — Install via Unity Package Manager; includes creator presets, Minecraft 1-block grid guides, inline validation, batch export, URP Shader Graph compilation, and optional `pack.mcmeta` export.

@@ -9,6 +9,7 @@
 - [[GeckoLib & KBR Keyframes|GeckoLib-and-KBR-Keyframes]]
 - [[Graphics Backends & Compatibility|Graphics-Backends-and-Compatibility]]
 - [[Fork Lineage & Licensing|Fork-and-Licensing]]
+- [[AI Agent Skill (Experimental)|AI-Agent-Skill]]
 
 **简体中文**
 - [[首页（中文）|Home-zh]]
@@ -19,6 +20,7 @@
 - [[GeckoLib 与 KBR 粒子关键帧|GeckoLib-and-KBR-Keyframes-zh]]
 - [[图形后端与模组兼容|Graphics-Backends-and-Compatibility-zh]]
 - [[分支渊源与开源许可|Fork-and-Licensing-zh]]
+- [[AI Agent Skill（实验性功能）|AI-Agent-Skill-zh]]
 
 ---
 

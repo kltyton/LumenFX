@@ -42,3 +42,4 @@ flowchart LR
 | **[[GeckoLib & KBR Particle Keyframes\|GeckoLib-and-KBR-Keyframes]]** | Triggering LumenFX effects from Blockbench `particle_effects` keyframes on GeckoLib 4.x / 5.x & KBR with 3D locator tracking and `LumenFxKeyframeBridge`. |
 | **[[Graphics Backends & Compatibility\|Graphics-Backends-and-Compatibility]]** | Minecraft 26.2 dynamic Vulkan-first / OpenGL fallback rules, user overrides, and optional Iris / Sodium / GeckoLib / KBR / KilaGraph compatibility. |
 | **[[Fork Lineage & Licensing\|Fork-and-Licensing]]** | Relationship to upstream Photon 26.2, attribution requirements, MIT & CC BY-NC-SA 4.0 licensing breakdown. |
+| **[[AI Agent Skill (Experimental)\|AI-Agent-Skill]]** | Experimental AI Agent Skill ([`skills/lumenfx-vfx`](https://github.com/kltyton/LumenFX/tree/main/skills/lumenfx-vfx)) with strict JSON v1 / GLSL 330 references and a zero-dependency validator script for Codex, Antigravity, Claude Code, and Cursor. |

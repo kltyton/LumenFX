@@ -194,6 +194,8 @@ LumenFX/
 ├── targets/                # 10 个版本与加载器目标工程（1.20.1–26.3 × Forge/NeoForge/Fabric）
 ├── examples/
 │   └── showcase-pack/      # 官方示例特效资源包（含 README 与 CurseForge 展示的全部 10 组特效）
+├── skills/
+│   └── lumenfx-vfx/        # AI Agent Skill（实验性功能）：SKILL.md、JSON/GLSL 规范参考与确定性校验脚本
 ├── tools/
 │   ├── unity/              # Unity UPM 编辑器插件（com.kltyton.lumenfx.exporter）
 │   ├── unreal/             # Unreal Engine 5 编辑器插件（LumenFxExporter.uplugin）与导出脚本
@@ -218,6 +220,9 @@ LumenFX/
   - [GeckoLib 与 KBR 粒子关键帧集成](docs/wiki/GeckoLib-and-KBR-Keyframes-zh.md)
   - [图形后端与模组兼容说明](docs/wiki/Graphics-Backends-and-Compatibility-zh.md)
   - [Photon 分支关系与开源许可说明](docs/wiki/Fork-and-Licensing-zh.md)
+  - [AI Agent Skill（实验性功能）](docs/wiki/AI-Agent-Skill-zh.md)
+- **AI Agent Skill（实验性功能）**：
+  - [`skills/lumenfx-vfx/`](skills/lumenfx-vfx/SKILL.md) — 面向 Codex、Antigravity、Claude Code 与 Cursor 的开放规范 LumenFX 专用技能包，包含 `SKILL.md`、源码核验的 JSON v1 与跨版本 GLSL 330 参考手册、参考模板及零依赖 Python 校验脚本 `validate_lumenfx_effect.py`（支持 `npx skills add kltyton/LumenFX --skill lumenfx-vfx`）。
 - **离线编辑器插件与编译工具**（不会打包进游戏运行 JAR）：
   - **[ParticleCue Studio](https://github.com/kltyton/ParticleCue-Studio)**（Blockbench 桌面插件）— 在 Blockbench 内直接创作、实时预览与编辑 LumenFX JSON v1（`sprite`/`ribbon`/`beam`/`mesh`、`.lfmesh`、自定义 `.fsh` 着色器、曲线/渐变、KilaMaterial 六模块材质合成与 **KilaGraph** 节点着色器编辑器）、Photon `.fx`、Snowstorm、KBR 3D 及 Unity/Niagara 导出资产覆盖，支持便携 ZIP 与自包含 `.bbmodel` 分享。
   - [Unity UPM 编辑器插件](tools/unity/README.md)（`com.kltyton.lumenfx.exporter`）— 支持 Unity Package Manager 直接安装，提供预设模板、Minecraft 1 格参考网格、窗口内联校验、批量导出、URP Shader Graph 编译及可选 `pack.mcmeta` 生成。

@@ -42,3 +42,4 @@ flowchart LR
 | **[[GeckoLib 与 KBR 粒子关键帧\|GeckoLib-and-KBR-Keyframes-zh]]** | 在 GeckoLib 4.x / 5.x 与 KBR 的 Blockbench `particle_effects` 关键帧中触发 LumenFX 特效、3D 定位点跟随与 `LumenFxKeyframeBridge` API。 |
 | **[[图形后端与模组兼容\|Graphics-Backends-and-Compatibility-zh]]** | Minecraft 26.2 动态 Vulkan 优先 / OpenGL 自动回退逻辑、用户显式参数覆盖，以及 Iris / Sodium / GeckoLib / KBR / KilaGraph 可选兼容说明。 |
 | **[[分支渊源与开源许可\|Fork-and-Licensing-zh]]** | 与上游 Photon 26.2 的分支关系、核心差异对比、署名要求与 MIT / CC BY-NC-SA 4.0 许可明细。 |
+| **[[AI Agent Skill（实验性功能）\|AI-Agent-Skill-zh]]** | 面向 Codex、Antigravity、Claude Code 与 Cursor 的实验性 LumenFX 专用技能包（[`skills/lumenfx-vfx`](https://github.com/kltyton/LumenFX/tree/main/skills/lumenfx-vfx)），内置 JSON v1 / GLSL 330 规范参考与零依赖校验脚本。 |

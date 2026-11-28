@@ -1,0 +1,142 @@
+{
+  "format_version": 1,
+  "render": {
+    "hdr": true,
+    "blend_color_space": "linear"
+  },
+  "materials": {
+    "dark_backing": {
+      "fragment_shader": "lumenfx:core/color",
+      "blend": "alpha",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "parameters": [0.0, 0.0, 0.0, 0.0]
+    },
+    "incandescent_add": {
+      "fragment_shader": "lumenfx:core/color",
+      "blend": "additive",
+      "depth_test": true,
+      "depth_write": false,
+      "cull": false,
+      "parameters": [1.0, 0.0, 0.0, 0.0],
+      "render": {
+        "hdr": true
+      }
+    }
+  },
+  "emitters": [
+    {
+      "name": "L4_dark_contrast_smoke",
+      "renderer": "sprite",
+      "material": "dark_backing",
+      "local_space": false,
+      "delay": 0.0,
+      "duration": 1.1,
+      "loop": false,
+      "max_particles": 16,
+      "rate": 0.0,
+      "bursts": [
+        { "time": 0.0, "min": 12, "max": 16, "cycles": 1, "interval": 0.0, "probability": 1.0 }
+      ],
+      "lifetime": { "min": 0.65, "max": 1.05 },
+      "width": { "min": 0.65, "max": 0.9 },
+      "height": { "min": 0.65, "max": 0.9 },
+      "rotation": { "min": 0.0, "max": 6.283 },
+      "angular_velocity": { "min": -1.2, "max": 1.2 },
+      "start_speed": { "min": 0.7, "max": 1.5 },
+      "start_direction": [0.0, 1.0, 0.0],
+      "force_over_life": [0.0, 0.3, 0.0],
+      "drag": 2.4,
+      "shape": { "type": "sphere", "size": [0.28, 0.16, 0.28], "surface": false, "angle": 0.0 },
+      "size_over_life": {
+        "keys": [
+          { "time": 0.0, "value": 0.45, "interpolation": "linear" },
+          { "time": 0.2, "value": 1.0, "interpolation": "linear" },
+          { "time": 1.0, "value": 1.35, "interpolation": "linear" }
+        ]
+      },
+      "sort_order": -2,
+      "sort_mode": "distance",
+      "color": [
+        { "keys": [{ "time": 0.0, "value": 0.14 }, { "time": 1.0, "value": 0.05 }] },
+        { "keys": [{ "time": 0.0, "value": 0.05 }, { "time": 1.0, "value": 0.02 }] },
+        { "keys": [{ "time": 0.0, "value": 0.22 }, { "time": 1.0, "value": 0.10 }] },
+        { "keys": [{ "time": 0.0, "value": 0.0 }, { "time": 0.08, "value": 0.85 }, { "time": 0.75, "value": 0.45 }, { "time": 1.0, "value": 0.0 }] }
+      ]
+    },
+    {
+      "name": "L1_incandescent_core",
+      "renderer": "sprite",
+      "material": "incandescent_add",
+      "local_space": true,
+      "delay": 0.0,
+      "duration": 0.25,
+      "loop": false,
+      "max_particles": 3,
+      "rate": 0.0,
+      "bursts": [
+        { "time": 0.0, "min": 2, "max": 3, "cycles": 1, "interval": 0.0, "probability": 1.0 }
+      ],
+      "lifetime": { "min": 0.12, "max": 0.18 },
+      "width": 0.55,
+      "height": 0.55,
+      "rotation": { "min": 0.0, "max": 3.14159 },
+      "start_speed": 0.0,
+      "start_direction": [0.0, 1.0, 0.0],
+      "shape": { "type": "point" },
+      "size_over_life": {
+        "keys": [
+          { "time": 0.0, "value": 0.35, "interpolation": "linear" },
+          { "time": 0.25, "value": 1.0, "interpolation": "linear" },
+          { "time": 1.0, "value": 0.15, "interpolation": "linear" }
+        ]
+      },
+      "sort_order": 2,
+      "sort_mode": "none",
+      "color": [
+        1.0,
+        { "keys": [{ "time": 0.0, "value": 0.98 }, { "time": 1.0, "value": 0.75 }] },
+        { "keys": [{ "time": 0.0, "value": 0.92 }, { "time": 1.0, "value": 1.0 }] },
+        { "keys": [{ "time": 0.0, "value": 1.0 }, { "time": 0.5, "value": 0.85 }, { "time": 1.0, "value": 0.0 }] }
+      ]
+    },
+    {
+      "name": "L3_directional_sparks",
+      "renderer": "sprite",
+      "material": "incandescent_add",
+      "local_space": false,
+      "delay": 0.015,
+      "duration": 0.75,
+      "loop": false,
+      "max_particles": 36,
+      "rate": 0.0,
+      "bursts": [
+        { "time": 0.015, "min": 24, "max": 34, "cycles": 1, "interval": 0.0, "probability": 1.0 }
+      ],
+      "lifetime": { "min": 0.28, "max": 0.62 },
+      "width": { "min": 0.08, "max": 0.13 },
+      "height": { "min": 0.22, "max": 0.36 },
+      "start_speed": { "min": 3.6, "max": 6.4 },
+      "start_direction": [0.0, 1.0, 0.0],
+      "force_over_life": [0.0, -7.2, 0.0],
+      "drag": 2.8,
+      "shape": { "type": "sphere", "size": [0.18, 0.18, 0.18], "surface": true, "angle": 0.0 },
+      "size_over_life": {
+        "keys": [
+          { "time": 0.0, "value": 1.0, "interpolation": "linear" },
+          { "time": 0.7, "value": 0.65, "interpolation": "linear" },
+          { "time": 1.0, "value": 0.0, "interpolation": "linear" }
+        ]
+      },
+      "sort_order": 1,
+      "sort_mode": "none",
+      "color": [
+        { "keys": [{ "time": 0.0, "value": 1.0 }, { "time": 1.0, "value": 0.65 }] },
+        { "keys": [{ "time": 0.0, "value": 0.88 }, { "time": 1.0, "value": 0.30 }] },
+        { "keys": [{ "time": 0.0, "value": 0.55 }, { "time": 1.0, "value": 1.0 }] },
+        { "keys": [{ "time": 0.0, "value": 1.0 }, { "time": 0.65, "value": 0.85 }, { "time": 1.0, "value": 0.0 }] }
+      ]
+    }
+  ]
+}
