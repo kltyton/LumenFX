@@ -71,3 +71,14 @@ Unity 编辑器导出器已封装为标准 Unity Package Manager（UPM）插件�
 - 将 `.fx` 文件与对应纹理/模型放入 `assets/<namespace>/lumenfx/effects/<path>.fx`。
 - 完整支持 Photon 时间线、嵌套子效果、各类发射器、曲线与发射形状、碰撞与外力、光束（Beam）、拖尾（Trail）、3D 模型粒子、自定义着色器材质与异步预加载。
 - 在自然结束、手动 `close()`（执行 Release 阶段）、切世界与资源重载时提供完整生命周期清理。
+
+---
+
+## 4. Blockbench 可视化创作 — ParticleCue Studio
+
+如果你希望无需打开 Unity 或 Unreal Engine，直接在 Minecraft 模型与动画时间轴旁创作、预览与微调 LumenFX 特效，推荐安装 **[ParticleCue Studio](https://github.com/kltyton/ParticleCue-Studio)**（Blockbench 桌面版 `5.2.0+`）：
+
+- **LumenFX JSON v1 可视化编辑**：直接新建与实时预览 `sprite`、`ribbon`、`beam` 与 `.lfmesh` 3D 网格发射器，内置交互式 SVG 曲线与 RGBA 渐变编辑器、光源、体积雾、贴花与碰撞模块。
+- **KilaMaterial 与 KilaGraph 节点着色器**：支持六大程序化材质模块合成及 28 节点可视化 GLSL 图编辑器，实时 WebGL2 编译诊断（`GLSL OK`）并一键导出 `.fsh`。
+- **Photon `.fx` 与引擎导出资产覆盖**：支持无损 GZIP NBT 编辑 Photon `.fx`，并可对 Unity Shuriken / UE Niagara 导出资产做无损参数覆盖回写（完整保留已编译程序与 `.lfsc` / `.lfvf` 引用）。
+- **关键帧联动与便携分享**：直接在 Blockbench 粒子关键帧中实时预览 `pre_effect_script` 指令（可选联动 AnimCue Studio 与 PAL Bend Player Tools），并通过便携 ZIP（含外部 `.fsh`/贴图/`.lfmesh`）或单文件自包含 `.bbmodel` 跨机分享工程。

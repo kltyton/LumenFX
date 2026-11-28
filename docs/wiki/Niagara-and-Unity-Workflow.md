@@ -71,3 +71,14 @@ Because LumenFX is a fork of **Photon 26.2**, existing Photon `.fx` effects can 
 - Place `.fx` files under `assets/<namespace>/lumenfx/effects/<path>.fx` (alongside their referenced textures/meshes).
 - Supports Photon timelines, nested sub-effects, emitters, curves, emission shapes, collision & external forces, beams, trails, 3D model particles, custom shader materials, and asynchronous preloading.
 - Clean lifecycle handling on natural completion, manual `close()` (running Release phases), level changes, and resource reloads.
+
+---
+
+## 4. Blockbench Authoring — ParticleCue Studio
+
+For creators who want to author, tweak, or preview LumenFX assets directly alongside Minecraft models and animations without opening Unity or Unreal Engine, install **[ParticleCue Studio](https://github.com/kltyton/ParticleCue-Studio)** (Blockbench Desktop `5.2.0+`):
+
+- **Direct LumenFX JSON v1 Authoring**: Build and preview `sprite`, `ribbon`, `beam`, and `.lfmesh` `mesh` emitters with interactive SVG Curve & RGBA Gradient editors, dynamic lights, volumes, decals, and collision.
+- **KilaMaterial & KilaGraph GLSL**: Compose procedural 6-module materials or wire custom GLSL shaders visually with live WebGL2 compilation diagnostics (`GLSL OK`) and native `.fsh` export.
+- **Photon `.fx` & Engine Overrides**: Edit Photon `.fx` (lossless GZIP NBT) and apply non-destructive overrides to exported Unity Shuriken / UE Niagara assets while preserving compiled programs and `.lfsc` / `.lfvf` references.
+- **Animation Keyframe & Portable Sharing**: Preview `pre_effect_script` directives right on Blockbench keyframes (with optional AnimCue Studio & PAL Bend Player Tools integration) and share projects via Portable ZIP (carrying `.fsh`/textures/`.lfmesh`) or Self-Contained `.bbmodel`.

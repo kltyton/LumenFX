@@ -16,8 +16,9 @@
 flowchart LR
     UE[Unreal Engine Niagara] --> C[Offline Niagara Compiler]
     U[Unity ParticleSystem] --> E[Unity Editor Exporter]
+    BB[Blockbench + ParticleCue Studio] --> R[Effect JSON / GLSL / Textures / LFSC]
     P[Photon .fx Assets] --> L[Client Resource Reload]
-    C --> R[Effect JSON / GLSL / Textures / LFSC]
+    C --> R
     E --> R
     R --> L
     L --> S[WorldEffectPlayback & Bounded Worker Pool]
@@ -37,7 +38,7 @@ flowchart LR
 | **[[Getting Started\|Getting-Started]]** | Mod installation, supported 10-target matrix, Sighs Maven coordinates, and Java API quickstart (`VfxEffects` & `EffectHandle`). |
 | **[[Example Effects & Showcase Pack\|Examples]]** | Complete developer guide to the 15 standalone example effects (`classic/*`, `photon/*`, `bonus/*`), custom GLSL shaders, `.lfmesh` models, and Java/keyframe usage in [`examples/showcase-pack`](https://github.com/kltyton/LumenFX/tree/main/examples/showcase-pack) (never bundled into runtime JARs). |
 | **[[Effect Format Reference\|Effect-Format-Reference]]** | Resource layout, LumenFX JSON v1 schema, curves/ranges, shapes, emitters, renderers, and custom GLSL fragment shaders. |
-| **[[Niagara, Unity & Photon Workflow\|Niagara-and-Unity-Workflow]]** | Using the Unity UPM Editor Plugin, Unreal Engine 5 Editor Plugin & Niagara CLI compiler, and playing Photon `.fx` files. |
+| **[[Niagara, Unity & Photon Workflow\|Niagara-and-Unity-Workflow]]** | Using the Unity UPM Editor Plugin, Unreal Engine 5 Editor Plugin & Niagara CLI compiler, playing Photon `.fx` files, and authoring LumenFX JSON / `.fsh` shaders in Blockbench with **[ParticleCue Studio](https://github.com/kltyton/ParticleCue-Studio)**. |
 | **[[GeckoLib & KBR Particle Keyframes\|GeckoLib-and-KBR-Keyframes]]** | Triggering LumenFX effects from Blockbench `particle_effects` keyframes on GeckoLib 4.x / 5.x & KBR with 3D locator tracking and `LumenFxKeyframeBridge`. |
 | **[[Graphics Backends & Compatibility\|Graphics-Backends-and-Compatibility]]** | Minecraft 26.2 dynamic Vulkan-first / OpenGL fallback rules, user overrides, and optional Iris / Sodium / GeckoLib / KBR / KilaGraph compatibility. |
 | **[[Fork Lineage & Licensing\|Fork-and-Licensing]]** | Relationship to upstream Photon 26.2, attribution requirements, MIT & CC BY-NC-SA 4.0 licensing breakdown. |

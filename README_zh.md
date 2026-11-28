@@ -219,6 +219,7 @@ LumenFX/
   - [图形后端与模组兼容说明](docs/wiki/Graphics-Backends-and-Compatibility-zh.md)
   - [Photon 分支关系与开源许可说明](docs/wiki/Fork-and-Licensing-zh.md)
 - **离线编辑器插件与编译工具**（不会打包进游戏运行 JAR）：
+  - **[ParticleCue Studio](https://github.com/kltyton/ParticleCue-Studio)**（Blockbench 桌面插件）— 在 Blockbench 内直接创作、实时预览与编辑 LumenFX JSON v1（`sprite`/`ribbon`/`beam`/`mesh`、`.lfmesh`、自定义 `.fsh` 着色器、曲线/渐变、KilaMaterial 六模块材质合成与 **KilaGraph** 节点着色器编辑器）、Photon `.fx`、Snowstorm、KBR 3D 及 Unity/Niagara 导出资产覆盖，支持便携 ZIP 与自包含 `.bbmodel` 分享。
   - [Unity UPM 编辑器插件](tools/unity/README.md)（`com.kltyton.lumenfx.exporter`）— 支持 Unity Package Manager 直接安装，提供预设模板、Minecraft 1 格参考网格、窗口内联校验、批量导出、URP Shader Graph 编译及可选 `pack.mcmeta` 生成。
   - [Unreal Engine 5 编辑器插件](tools/unreal/LumenFxExporter/README_zh.md)（`LumenFxExporter.uplugin`）— 内容浏览器右键 `UNiagaraSystem` 直接导出，内置项目设置、导出前校验与异步编译进度面板。
   - [Unreal Engine Niagara 离线转换器](tools/compiler/README.md) — 离线编译 Niagara CPU VectorVM、GPU 计算着色器、材质图、向量场与 SimCache。
